@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@media print {
+
+  /* Oculta todo */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Línea de corte */
+  .cut-line {
+    position: relative;
+    top: -5px;
+    /* 🔥 sube la línea */
+    border-top: 2px dashed #000;
+  }
+
+  /* Evita cortes feos */
+  table {
+    page-break-inside: avoid;
+  }
+
+  /* Ocultar botones */
+  .no-print {
+    display: none !important;
+  }
+
+  /* 🔥 Sugerencia vertical */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+}
