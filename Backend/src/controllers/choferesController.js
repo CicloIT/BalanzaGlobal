@@ -1,15 +1,17 @@
 import pool from '../config/database.js';
+import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError } from '../utils/scope.js';
 
 export const getChoferes = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', userForRead(req), 1);
     const result = await pool.query(`
-      SELECT id, codigo, apellido_nombre, tipo_documento, nro_documento, cuit, nacionalidad, activo, created_at
+      SELECT id, codigo, apellido_nombre, tipo_documento, nro_documento, cuit, nacionalidad, activo, created_at,
+             localidad_id, (SELECT nombre FROM localidad l WHERE l.id = chofer.localidad_id) AS localidad_nombre
       FROM chofer
       WHERE activo = true
-        AND ($1::int IS NULL OR localidad_id = $1)
+        AND ${scope.sql}
       ORDER BY apellido_nombre ASC
-    `, [localidadId]);
+    `, [...scope.params]);
     res.json({ success: true, data: result.rows, count: result.rows.length });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -18,10 +20,10 @@ export const getChoferes = async (req, res) => {
 
 export const getChoferById = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', userForRead(req), 2);
     const result = await pool.query(
-      'SELECT * FROM chofer WHERE id = $1 AND ($2::int IS NULL OR localidad_id = $2)',
-      [req.params.id, localidadId]
+      `SELECT * FROM chofer WHERE id = $1 AND ${scope.sql}`,
+      [req.params.id, ...scope.params]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Chofer no encontrado' });
@@ -38,7 +40,7 @@ export const createChofer = async (req, res) => {
     if (!apellido_nombre) {
       return res.status(400).json({ success: false, error: 'El nombre del chofer es requerido' });
     }
-    const localidadId = req.user?.localidad_id ?? null;
+    const localidadId = await resolveLocalidadForWrite(req);
     const result = await pool.query(`
       INSERT INTO chofer (codigo, apellido_nombre, tipo_documento, nro_documento, cuit, nacionalidad, activo, localidad_id)
       VALUES ($1, $2, $3, $4, $5, $6, true, $7)
@@ -46,7 +48,7 @@ export const createChofer = async (req, res) => {
     `, [codigo || null, apellido_nombre, tipo_documento || null, nro_documento || null, cuit || null, nacionalidad || null, localidadId]);
     res.status(201).json({ success: true, message: 'Chofer creado exitosamente', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -54,7 +56,7 @@ export const updateChofer = async (req, res) => {
   try {
     const { id } = req.params;
     const { codigo, apellido_nombre, tipo_documento, nro_documento, cuit, nacionalidad, activo } = req.body;
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', req.user, 9);
     const result = await pool.query(`
       UPDATE chofer
       SET codigo = COALESCE($1, codigo),
@@ -66,9 +68,9 @@ export const updateChofer = async (req, res) => {
           activo = COALESCE($7, activo),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $8
-        AND ($9::int IS NULL OR localidad_id = $9)
+        AND ${scope.sql}
       RETURNING *
-    `, [codigo, apellido_nombre, tipo_documento, nro_documento, cuit, nacionalidad, activo, id, localidadId]);
+    `, [codigo, apellido_nombre, tipo_documento, nro_documento, cuit, nacionalidad, activo, id, ...scope.params]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Chofer no encontrado' });
     }
@@ -80,14 +82,14 @@ export const updateChofer = async (req, res) => {
 
 export const deleteChofer = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', req.user, 2);
     const result = await pool.query(`
       UPDATE chofer
       SET activo = false, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
-        AND ($2::int IS NULL OR localidad_id = $2)
+        AND ${scope.sql}
       RETURNING *
-    `, [req.params.id, localidadId]);
+    `, [req.params.id, ...scope.params]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Chofer no encontrado' });
     }

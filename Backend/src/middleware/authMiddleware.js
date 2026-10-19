@@ -9,6 +9,26 @@ import { hasPermission, hasPermissions, PERMISSIONS } from '../config/rolesConfi
 import pool from '../config/database.js';
 
 /**
+ * Carga un usuario activo por id o username, con su empresa y localidad.
+ * Usado por los middlewares HTTP y por el handshake del WebSocket.
+ */
+export const loadUser = async ({ userId, username }) => {
+  if (!userId && !username) return null;
+  const byId = !!userId;
+  if (byId && !/^\d+$/.test(String(userId))) return null;
+  const result = await pool.query(
+    `SELECT u.id, u.username, u.rol, u.localidad_id, u.empresa_id, u.activo,
+            l.nombre AS localidad_nombre, e.nombre AS empresa_nombre
+     FROM usuario u
+     LEFT JOIN localidad l ON l.id = u.localidad_id
+     LEFT JOIN empresa e ON e.id = u.empresa_id
+     WHERE ${byId ? 'u.id = $1' : 'LOWER(u.username) = LOWER($1)'} AND u.activo = true`,
+    [byId ? userId : username]
+  );
+  return result.rows[0] || null;
+};
+
+/**
  * Middleware para verificar autenticación básica
  * Extrae el usuario del header o query param (para mantener compatibilidad con el sistema actual)
  */
@@ -27,20 +47,9 @@ export const requireAuth = async (req, res, next) => {
     }
 
     // Buscar usuario en la base de datos
-    let result;
-    if (userId) {
-      result = await pool.query(
-        'SELECT id, username, rol, localidad_id, activo FROM usuario WHERE id = $1 AND activo = true',
-        [userId]
-      );
-    } else {
-      result = await pool.query(
-        'SELECT id, username, rol, localidad_id, activo FROM usuario WHERE LOWER(username) = LOWER($1) AND activo = true',
-        [username]
-      );
-    }
+    const user = await loadUser({ userId, username });
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(401).json({
         success: false,
         error: 'Usuario no encontrado o inactivo',
@@ -49,7 +58,7 @@ export const requireAuth = async (req, res, next) => {
     }
 
     // Adjuntar usuario al request
-    req.user = result.rows[0];
+    req.user = user;
     next();
   } catch (error) {
     console.error('Error en middleware de autenticación:', error);
@@ -195,22 +204,8 @@ export const optionalAuth = async (req, res, next) => {
     const username = req.headers['x-username'] || req.query.username;
 
     if (userId || username) {
-      let result;
-      if (userId) {
-        result = await pool.query(
-          'SELECT id, username, rol, localidad_id, activo FROM usuario WHERE id = $1 AND activo = true',
-          [userId]
-        );
-      } else {
-        result = await pool.query(
-          'SELECT id, username, rol, localidad_id, activo FROM usuario WHERE LOWER(username) = LOWER($1) AND activo = true',
-          [username]
-        );
-      }
-
-      if (result.rows.length > 0) {
-        req.user = result.rows[0];
-      }
+      const user = await loadUser({ userId, username });
+      if (user) req.user = user;
     }
 
     next();
@@ -246,6 +241,7 @@ export const protectResource = (resource) => {
 };
 
 export default {
+  loadUser,
   requireAuth,
   requirePermission,
   requirePermissions,

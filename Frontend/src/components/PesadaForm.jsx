@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Plus, Trash2, Scale, Info, Wifi, WifiOff, Download, Camera, RefreshCw, Monitor, FileText, Lock } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useAuth } from '../context/AuthContext';
 import SearchableSelect from './SearchableSelect';
 
 const API_BASE_URL = '';
@@ -99,22 +100,33 @@ const ErrorModal = ({ message, onClose, isDark }) => {
   );
 };
 
-const getWsUrl = () => {
+// El backend identifica al usuario y solo envía el peso de la balanza pedida (si está en su alcance)
+const getWsUrl = (dispositivoId) => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
-  return `${protocol}//${host}/ws`;
+  const params = new URLSearchParams();
+  try {
+    const user = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (user?.id) params.set('userId', user.id);
+  } catch {
+    // Ignorar errores
+  }
+  if (dispositivoId) params.set('dispositivoId', dispositivoId);
+  return `${protocol}//${host}/ws?${params}`;
 };
-const WS_URL = getWsUrl();
 
 /* ─── Sub-componente para el Display de la Balanza (Localiza re-renders) ─── */
-const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark }) => {
+const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark, dispositivoId }) => {
   const [peso, setPeso] = useState(0);
   const [status, setStatus] = useState('DISCONNECTED');
   const wsRef = useRef(null);
 
   useEffect(() => {
+    let cerrado = false;
+    let reconnectTimer = null;
+
     const connectWS = () => {
-      const socket = new WebSocket(WS_URL);
+      const socket = new WebSocket(getWsUrl(dispositivoId));
       wsRef.current = socket;
 
       socket.onopen = () => {
@@ -123,12 +135,14 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark }) => {
 
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        if (dispositivoId && data.dispositivo_id && data.dispositivo_id !== dispositivoId) return;
         if (data.type === 'STATUS') {
           setStatus(data.status);
           statusRef.current = data.status;
-          if (data.currentWeight !== undefined && data.currentWeight !== null) {
-            setPeso(data.currentWeight);
-            weightRef.current = data.currentWeight;
+          // El STATUS inicial trae currentWeight (null si la balanza aún no envió peso)
+          if ('currentWeight' in data) {
+            setPeso(data.currentWeight ?? 0);
+            weightRef.current = data.currentWeight ?? 0;
           }
         } else if (data.type === 'WEIGHT') {
           setPeso(data.weight);
@@ -137,10 +151,11 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark }) => {
       };
 
       socket.onclose = () => {
-        console.log('[BalanzaDisplay] Desconectado. Reintentando en 3s...');
         setStatus('DISCONNECTED');
         statusRef.current = 'DISCONNECTED';
-        setTimeout(connectWS, 3000);
+        if (cerrado) return;
+        console.log('[BalanzaDisplay] Desconectado. Reintentando en 3s...');
+        reconnectTimer = setTimeout(connectWS, 3000);
       };
 
       socket.onerror = (err) => {
@@ -151,9 +166,11 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark }) => {
 
     connectWS();
     return () => {
+      cerrado = true;
+      clearTimeout(reconnectTimer);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [weightRef, statusRef]);
+  }, [weightRef, statusRef, dispositivoId]);
 
   return (
     <div className="flex-1 w-full space-y-3">
@@ -183,6 +200,7 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark }) => {
 export default function PesadaForm({ transportes: transportesProp, choferes: choferesProp, productos: productosProp, productores: productoresProp, onPesadaCreated }) {
   const { isDark } = useThemeContext();
   const { canEnterManualWeight, rol } = usePermissions();
+  const { isGlobal } = useAuth();
   const [errorModal, setErrorModal] = useState(null);
   const [vehiculos, setVehiculos] = useState([]);
   const [choferes, setChoferes] = useState([]);
@@ -191,7 +209,16 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
   const [transportes, setTransportes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const [balanzas, setBalanzas] = useState([]);
   const [dispositivoId, setDispositivoId] = useState(null);
+
+  // Localidad de trabajo = la de la balanza elegida. Un usuario global la envía en cada request;
+  // para un usuario local el backend usa siempre la suya.
+  const localidadId = balanzas.find(b => b.id === dispositivoId)?.localidad_id ?? null;
+  const withLocalidad = useCallback((url) => {
+    if (!isGlobal || !localidadId) return url;
+    return `${url}${url.includes('?') ? '&' : '?'}localidad_id=${localidadId}`;
+  }, [isGlobal, localidadId]);
 
   // Refs para capturar peso sin disparar re-renders del form entero constantemente
   const currentWeightRef = useRef(0);
@@ -224,7 +251,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
     if (formData.vehiculo_patente.trim().length >= 6) {
       const fetchActiva = async () => {
         try {
-          const res = await fetch(`${API_BASE_URL}/api/pesadas/activa/${formData.vehiculo_patente}`, {
+          const res = await fetch(withLocalidad(`${API_BASE_URL}/api/pesadas/activa/${formData.vehiculo_patente}`), {
             headers: getAuthHeaders()
           });
           const data = await res.json();
@@ -249,9 +276,26 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       const timeout = setTimeout(fetchActiva, 600);
       return () => clearTimeout(timeout);
     }
-  }, [formData.vehiculo_patente]);
+  }, [formData.vehiculo_patente, withLocalidad]);
+
+  // Balanzas disponibles: una para usuarios locales, todas las de la empresa para usuarios globales
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/config/balanzas`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (data.success && data.data?.length) {
+          setBalanzas(data.data);
+          setDispositivoId(prev => prev ?? data.data[0].id);
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  }, []);
 
   useEffect(() => {
+    // Usuario global: esperar a conocer la balanza (y su localidad) antes de cargar catálogos
+    if (isGlobal && !localidadId) return;
+
     const cargarDatos = async () => {
       try {
         setLoading(true);
@@ -266,7 +310,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
         const keys = Object.keys(endpoints);
         const responses = await Promise.all(
           Object.values(endpoints).map(async (url) => {
-            const res = await fetch(url, { headers: getAuthHeaders() });
+            const res = await fetch(withLocalidad(url), { headers: getAuthHeaders() });
             if (!res.ok) {
               const errorText = await res.text();
               console.error(`Error en fetch a ${url}:`, errorText);
@@ -299,23 +343,12 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
     // Cargar config cámaras
     (async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/camaras/config`, { headers: getAuthHeaders() });
+        const res = await fetch(withLocalidad(`${API_BASE_URL}/api/camaras/config`), { headers: getAuthHeaders() });
         const data = await res.json();
         if (data.success && data.canales) setActiveChannels(data.canales);
       } catch (e) { /* ignore */ }
     })();
-
-    // Obtener dispositivo_id de la balanza para esta localidad
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/config`, { headers: getAuthHeaders() });
-        const data = await res.json();
-        if (data.success && data.data?.balanza?.id) {
-          setDispositivoId(data.data.balanza.id);
-        }
-      } catch (e) { /* ignore */ }
-    })();
-  }, []);
+  }, [isGlobal, localidadId, withLocalidad]);
 
   useEffect(() => {
     const handleKey = (e) => {
@@ -351,7 +384,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
     try {
       setCamLoading(true);
       setCamStatus('capturing');
-      const res = await fetch(`${API_BASE_URL}/api/camaras/capturar-todo?patente=${encodeURIComponent(patente)}`, {
+      const res = await fetch(withLocalidad(`${API_BASE_URL}/api/camaras/capturar-todo?patente=${encodeURIComponent(patente)}`), {
         headers: getAuthHeaders()
       });
       const data = await res.json();
@@ -383,6 +416,10 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
     const sentidoFinal = pesadaActiva ? pesadaActiva.sentido : formData.sentido;
     if (!sentidoFinal) {
       setErrorModal('Debe seleccionar si es Ingreso o Salida');
+      return;
+    }
+    if (!dispositivoId) {
+      setErrorModal('No hay una balanza configurada para su localidad');
       return;
     }
 
@@ -417,7 +454,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
           const res = await fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'POST',
             headers: getAuthHeaders('application/json'),
-            body: JSON.stringify(payload)
+            body: JSON.stringify(isGlobal ? { ...payload, localidad_id: localidadId } : payload)
           });
           const data = await res.json();
           return data.success && data.data ? data.data.id : null;
@@ -465,7 +502,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       if (formData.nro_remito) d.append('nro_remito', formData.nro_remito);
       if (archivoPDF) d.append('archivo', archivoPDF);
       d.append('es_contenedor', formData.es_contenedor);
-      if (dispositivoId) d.append('dispositivo_id', dispositivoId);
+      d.append('dispositivo_id', dispositivoId);
 
       // Pasar las fotos capturadas (array de objetos o strings)
       if (fotosCapturadas && fotosCapturadas.length > 0) {
@@ -536,6 +573,26 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
               </div>
               <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Operación de Pesaje</h3>
             </div>
+            {balanzas.length > 1 && (
+              <label className={`flex items-center gap-2 text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                Balanza
+                <select
+                  value={dispositivoId ?? ''}
+                  onChange={(e) => {
+                    setDispositivoId(Number(e.target.value));
+                    setPesadaActiva(null);
+                    setFormData(prev => ({ ...prev, chofer_id: '', producto_id: '', productor_id: '', transporte_id: '' }));
+                  }}
+                  className={`px-3 py-2 rounded-lg border font-medium ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                >
+                  {balanzas.map(b => (
+                    <option key={b.id} value={b.id}>
+                      {b.localidad_nombre}{b.connected ? '' : ' (sin conexión)'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {pesadaActiva && (
               <div className={`px-4 py-1.5 rounded-lg text-xs font-bold ${isDark ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`}>
                 {pesadaActiva.sentido || 'INGRESO'} — PENDIENTE: {pesadaActiva.tipo === 'BRUTO' ? 'TARA (Vacío)' : 'BRUTO (Cargado)'}
@@ -624,7 +681,9 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
           {/* Peso Section */}
           <div className={`p-8 rounded-3xl mb-8 flex flex-col lg:flex-row items-center gap-8 ${isDark ? 'bg-blue-600/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-100'}`}>
             <BalanzaDisplay
+              key={dispositivoId ?? 'auto'}
               isDark={isDark}
+              dispositivoId={dispositivoId}
               onCapture={handleCapture}
               weightRef={currentWeightRef}
               statusRef={currentStatusRef}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle } from "lucide-react";
 import { useThemeContext } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 
 const API_BASE_URL = "";
 const STORAGE_KEY = "balanza_user";
@@ -20,6 +21,10 @@ const getAuthHeaders = () => {
 
 export default function DispositivosConfig() {
     const { isDark } = useThemeContext();
+    const { isGlobal } = useAuth();
+    // Usuario global: elige qué localidad configura
+    const [localidades, setLocalidades] = useState([]);
+    const [localidadSel, setLocalidadSel] = useState(null);
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -34,7 +39,9 @@ export default function DispositivosConfig() {
     const fetchConfig = async () => {
         try {
             setLoading(true);
-            const res = await fetch(`${API_BASE_URL}/api/config`, {
+            if (isGlobal && !localidadSel) return;
+            const qs = isGlobal ? `?localidad_id=${localidadSel}` : "";
+            const res = await fetch(`${API_BASE_URL}/api/config${qs}`, {
                 headers: getAuthHeaders()
             });
             const data = await res.json();
@@ -50,8 +57,24 @@ export default function DispositivosConfig() {
     };
 
     useEffect(() => {
+        if (!isGlobal) return;
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/config/balanzas`, { headers: getAuthHeaders() });
+                const data = await res.json();
+                if (data.success && data.data?.length) {
+                    setLocalidades(data.data.map(b => ({ id: b.localidad_id, nombre: b.localidad_nombre })));
+                    setLocalidadSel(data.data[0].localidad_id);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        })();
+    }, [isGlobal]);
+
+    useEffect(() => {
         fetchConfig();
-    }, []);
+    }, [localidadSel]);
 
     const handleSave = async (tipo) => {
         try {
@@ -62,7 +85,7 @@ export default function DispositivosConfig() {
                 ...config[tipo],
                 puerto: config[tipo].puerto ? Number(config[tipo].puerto) : null,
                 marca: config[tipo]?.marca || null,
-                localidad_id: config[tipo]?.localidad_id ?? null
+                localidad_id: config[tipo]?.localidad_id ?? localidadSel ?? null
             };
 
             const res = await fetch(`/api/config/${tipo}`, {
@@ -232,6 +255,21 @@ export default function DispositivosConfig() {
                         )}
                         <span className="font-semibold">{msg}</span>
                     </div>
+                )}
+
+                {isGlobal && localidades.length > 0 && (
+                    <label className={`mb-6 flex items-center gap-3 font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                        Localidad
+                        <select
+                            value={localidadSel ?? ""}
+                            onChange={(e) => setLocalidadSel(Number(e.target.value))}
+                            className={`px-4 py-2 rounded-xl border font-medium ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
+                        >
+                            {localidades.map(l => (
+                                <option key={l.id} value={l.id}>{l.nombre}</option>
+                            ))}
+                        </select>
+                    </label>
                 )}
 
                 {/* DEVICE CARDS GRID */}

@@ -1,15 +1,17 @@
 import pool from '../config/database.js';
+import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError } from '../utils/scope.js';
 
 export const getTransportes = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', userForRead(req), 1);
     const result = await pool.query(`
-      SELECT id, codigo, nombre, cuit, activo, created_at
+      SELECT id, codigo, nombre, cuit, activo, created_at,
+             localidad_id, (SELECT nombre FROM localidad l WHERE l.id = transporte.localidad_id) AS localidad_nombre
       FROM transporte
       WHERE activo = true
-        AND ($1::int IS NULL OR localidad_id = $1)
+        AND ${scope.sql}
       ORDER BY nombre ASC
-    `, [localidadId]);
+    `, [...scope.params]);
     res.json({ success: true, data: result.rows, count: result.rows.length });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -18,10 +20,10 @@ export const getTransportes = async (req, res) => {
 
 export const getTransporteById = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', userForRead(req), 2);
     const result = await pool.query(
-      'SELECT * FROM transporte WHERE id = $1 AND ($2::int IS NULL OR localidad_id = $2)',
-      [req.params.id, localidadId]
+      `SELECT * FROM transporte WHERE id = $1 AND ${scope.sql}`,
+      [req.params.id, ...scope.params]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Transporte no encontrado' });
@@ -38,14 +40,14 @@ export const createTransporte = async (req, res) => {
     if (!nombre) {
       return res.status(400).json({ success: false, error: 'El nombre es requerido' });
     }
-    const localidadId = req.user?.localidad_id ?? null;
+    const localidadId = await resolveLocalidadForWrite(req);
     const result = await pool.query(
       'INSERT INTO transporte (codigo, nombre, cuit, activo, localidad_id) VALUES ($1, $2, $3, true, $4) RETURNING *',
       [codigo || null, nombre, cuit || null, localidadId]
     );
     res.status(201).json({ success: true, message: 'Transporte creado', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -53,16 +55,16 @@ export const updateTransporte = async (req, res) => {
   try {
     const { id } = req.params;
     const { codigo, nombre, cuit, activo } = req.body;
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', req.user, 6);
     const result = await pool.query(`
       UPDATE transporte
       SET codigo = COALESCE($1, codigo), nombre = COALESCE($2, nombre),
           cuit = COALESCE($3, cuit), activo = COALESCE($4, activo),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $5
-        AND ($6::int IS NULL OR localidad_id = $6)
+        AND ${scope.sql}
       RETURNING *
-    `, [codigo, nombre, cuit, activo, id, localidadId]);
+    `, [codigo, nombre, cuit, activo, id, ...scope.params]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Transporte no encontrado' });
     }
@@ -74,12 +76,12 @@ export const updateTransporte = async (req, res) => {
 
 export const deleteTransporte = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('localidad_id', req.user, 2);
     const result = await pool.query(`
       UPDATE transporte SET activo = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND ($2::int IS NULL OR localidad_id = $2)
+      WHERE id = $1 AND ${scope.sql}
       RETURNING *
-    `, [req.params.id, localidadId]);
+    `, [req.params.id, ...scope.params]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Transporte no encontrado' });
     }

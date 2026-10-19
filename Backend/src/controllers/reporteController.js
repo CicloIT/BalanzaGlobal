@@ -1,4 +1,5 @@
 import pool from '../config/database.js';
+import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError } from '../utils/scope.js';
 
 // ─── POST /api/reportes ──────────────────────────────────────────────────────
 // Body: { pesadas: [...], observaciones?: string }
@@ -18,7 +19,12 @@ export const createReporte = async (req, res) => {
         const totalTara = pesadas.reduce((acc, p) => acc + (Number(p.tara) || 0), 0);
         const totalNeto = pesadas.reduce((acc, p) => acc + (Number(p.neto) || 0), 0);
 
-        const localidadId = req.user?.localidad_id ?? null;
+        // Usuario global sin localidad explícita: la de las pesadas, si son todas de una misma localidad
+        const localidadesPesadas = [...new Set(pesadas.map(p => p.localidad_id).filter(Boolean))];
+        const localidadId = await resolveLocalidadForWrite(
+            req,
+            req.body.localidad_id ?? (localidadesPesadas.length === 1 ? localidadesPesadas[0] : undefined)
+        );
         const result = await pool.query(
             `INSERT INTO reporte (
         cantidad_pesadas, total_bruto, total_tara, total_neto,
@@ -42,23 +48,23 @@ export const createReporte = async (req, res) => {
             data: result.rows[0]
         });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
 // ─── GET /api/reportes ───────────────────────────────────────────────────────
 export const getReportes = async (req, res) => {
     try {
-        const localidadId = req.user?.localidad_id ?? null;
+        const scope = scopeSql('localidad_id', userForRead(req), 1);
         const result = await pool.query(`
       SELECT id, numero_reporte, cantidad_pesadas,
              total_bruto, total_tara, total_neto,
              observaciones, created_at
       FROM reporte
-      WHERE ($1::int IS NULL OR localidad_id = $1)
+      WHERE ${scope.sql}
       ORDER BY created_at DESC
       LIMIT 200
-    `, [localidadId]);
+    `, [...scope.params]);
         res.json({ success: true, data: result.rows, count: result.rows.length });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
@@ -70,8 +76,9 @@ export const getReportes = async (req, res) => {
 export const getReporteById = async (req, res) => {
     try {
         const { id } = req.params;
+        const scope = scopeSql('localidad_id', req.user, 2);
         const result = await pool.query(
-            `SELECT * FROM reporte WHERE id = $1`, [id]
+            `SELECT * FROM reporte WHERE id = $1 AND ${scope.sql}`, [id, ...scope.params]
         );
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, error: 'Reporte no encontrado' });
@@ -103,11 +110,12 @@ export const deleteReporte = async (req, res) => {
       });
     }
 
+    const scope = scopeSql('localidad_id', req.user, 2);
     const result = await pool.query(
       `DELETE FROM reporte
-       WHERE id = ANY($1::int[])
+       WHERE id = ANY($1::int[]) AND ${scope.sql}
        RETURNING id`,
-      [ids]
+      [ids, ...scope.params]
     );
 
     res.json({

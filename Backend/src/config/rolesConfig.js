@@ -50,6 +50,12 @@ export const PERMISSIONS = {
   LOCALIDADES_UPDATE: 'localidades:update',
   LOCALIDADES_DELETE: 'localidades:delete',
 
+  // Empresas (solo superadmin de plataforma)
+  EMPRESAS_VIEW: 'empresas:view',
+  EMPRESAS_CREATE: 'empresas:create',
+  EMPRESAS_UPDATE: 'empresas:update',
+  EMPRESAS_DELETE: 'empresas:delete',
+
   // Módulo de pesaje (especial)
   PESAJE_VIEW: 'pesaje:view',           // Ver historial de pesadas
   PESAJE_CREATE: 'pesaje:create',       // Crear nueva pesada
@@ -80,6 +86,7 @@ export const PERMISSIONS = {
 
 // Definición de roles y sus permisos
 export const ROLES = {
+  SUPERADMIN: 'superadmin',
   ADMIN: 'admin',
   LOGISTICA: 'logistica',
   GERENTE: 'gerente',
@@ -89,10 +96,11 @@ export const ROLES = {
 
 // Mapa de permisos por rol
 export const ROLE_PERMISSIONS = {
-  [ROLES.ADMIN]: [
-    // Admin tiene todos los permisos
-    ...Object.values(PERMISSIONS),
-  ],
+  // Superadmin de plataforma: todo, incluidas las empresas
+  [ROLES.SUPERADMIN]: Object.values(PERMISSIONS),
+
+  // Admin de empresa: todo salvo administrar empresas
+  [ROLES.ADMIN]: Object.values(PERMISSIONS).filter(p => !p.startsWith('empresas:')),
 
   [ROLES.LOGISTICA]: [
     // Global, solo lectura — ve todo pero no puede crear/editar/borrar nada
@@ -207,10 +215,12 @@ export const MODULES = {
   LOCALIDADES: 'localidades',
   REPORTES: 'reportes-historial',
   CONFIGURACION: 'configuracion',
+  EMPRESAS: 'empresas',
 };
 
 // Permisos requeridos por módulo
 export const MODULE_PERMISSIONS = {
+  [MODULES.EMPRESAS]: [PERMISSIONS.EMPRESAS_VIEW],
   [MODULES.DASHBOARD]: [PERMISSIONS.DASHBOARD_VIEW],
   [MODULES.PESADA]: [PERMISSIONS.PESAJE_CREATE],
   [MODULES.PESADAS]: [PERMISSIONS.PESAJE_VIEW],

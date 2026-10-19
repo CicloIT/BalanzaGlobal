@@ -1,8 +1,9 @@
 import pool from '../config/database.js';
+import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError } from '../utils/scope.js';
 
 export const getTickets = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('t.localidad_id', userForRead(req), 1);
     const result = await pool.query(`
       SELECT t.id, t.numero_ticket, t.estado, t.observaciones, t.nro_remito, t.created_at,
              p.peso, p.tipo as tipo_pesada, p.neto, p.fecha_hora as fecha_pesada,
@@ -17,10 +18,10 @@ export const getTickets = async (req, res) => {
       LEFT JOIN productor pr ON p.productor_id = pr.id
       LEFT JOIN transporte tr ON p.transporte_id = tr.id
       LEFT JOIN vehiculo v ON p.vehiculo_patente = v.patente
-      WHERE ($1::int IS NULL OR t.localidad_id = $1)
+      WHERE ${scope.sql}
       ORDER BY t.numero_ticket DESC
       LIMIT 100
-    `, [localidadId]);
+    `, [...scope.params]);
     res.json({
       success: true,
       data: result.rows,
@@ -34,6 +35,7 @@ export const getTickets = async (req, res) => {
 export const getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
+    const scope = scopeSql('t.localidad_id', req.user, 2);
     const result = await pool.query(`
       SELECT t.*, 
              p.peso, p.tipo, p.neto, p.fecha_hora,
@@ -50,8 +52,8 @@ export const getTicketById = async (req, res) => {
       LEFT JOIN transporte tr ON p.transporte_id = tr.id
       LEFT JOIN producto prod ON p.producto_id = prod.id
       LEFT JOIN vehiculo v ON p.vehiculo_patente = v.patente
-      WHERE t.id = $1
-    `, [id]);
+      WHERE t.id = $1 AND ${scope.sql}
+    `, [id, ...scope.params]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Ticket no encontrado' });
@@ -65,7 +67,7 @@ export const getTicketById = async (req, res) => {
 export const getTicketsByEstado = async (req, res) => {
   try {
     const { estado } = req.params;
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('t.localidad_id', userForRead(req), 2);
     const result = await pool.query(`
       SELECT t.id, t.numero_ticket, t.estado, t.observaciones, t.nro_remito, t.created_at,
              p.peso, p.tipo as tipo_pesada, p.neto, p.fecha_hora as fecha_pesada,
@@ -80,9 +82,9 @@ export const getTicketsByEstado = async (req, res) => {
       LEFT JOIN productor pr ON p.productor_id = pr.id
       LEFT JOIN transporte tr ON p.transporte_id = tr.id
       LEFT JOIN vehiculo v ON p.vehiculo_patente = v.patente
-      WHERE t.estado = $1 AND ($2::int IS NULL OR t.localidad_id = $2)
+      WHERE t.estado = $1 AND ${scope.sql}
       ORDER BY t.numero_ticket DESC
-    `, [estado, localidadId]);
+    `, [estado, ...scope.params]);
     res.json({
       success: true,
       data: result.rows,
@@ -105,7 +107,7 @@ export const createTicket = async (req, res) => {
       return res.status(400).json({ success: false, error: 'pesada_id es requerido' });
     }
 
-    const localidadId = req.user?.localidad_id ?? null;
+    const localidadId = await resolveLocalidadForWrite(req);
     const result = await pool.query(
       `INSERT INTO ticket (
         pesada_id, nro_remito, observaciones, estado, localidad_id
@@ -120,7 +122,7 @@ export const createTicket = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -128,15 +130,16 @@ export const updateTicket = async (req, res) => {
   try {
     const { id } = req.params;
     const { estado, observaciones, nro_remito } = req.body;
+    const scope = scopeSql('localidad_id', req.user, 5);
 
     const result = await pool.query(
-      `UPDATE ticket SET 
+      `UPDATE ticket SET
        estado = COALESCE($1, estado),
        observaciones = COALESCE($2, observaciones),
        nro_remito = COALESCE($3, nro_remito),
        updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 RETURNING *`,
-      [estado, observaciones, nro_remito, id]
+       WHERE id = $4 AND ${scope.sql} RETURNING *`,
+      [estado, observaciones, nro_remito, id, ...scope.params]
     );
 
     if (result.rows.length === 0) {
@@ -156,13 +159,14 @@ export const updateTicket = async (req, res) => {
 export const closeTicket = async (req, res) => {
   try {
     const { id } = req.params;
+    const scope = scopeSql('localidad_id', req.user, 2);
 
     const result = await pool.query(
-      `UPDATE ticket SET 
+      `UPDATE ticket SET
        estado = 'CERRADO',
        updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 RETURNING *`,
-      [id]
+       WHERE id = $1 AND ${scope.sql} RETURNING *`,
+      [id, ...scope.params]
     );
 
     if (result.rows.length === 0) {
@@ -186,7 +190,7 @@ export const getTicketsByDateRange = async (req, res) => {
       return res.status(400).json({ success: false, error: 'startDate y endDate son requeridos' });
     }
 
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('t.localidad_id', userForRead(req), 3);
     const result = await pool.query(`
       SELECT t.*, p.fecha_hora, v.patente
       FROM ticket t
@@ -194,9 +198,9 @@ export const getTicketsByDateRange = async (req, res) => {
       JOIN vehiculo v ON p.vehiculo_patente = v.patente
       WHERE p.fecha_hora >= $1::DATE
         AND p.fecha_hora < $2::DATE + INTERVAL '1 day'
-        AND ($3::int IS NULL OR t.localidad_id = $3)
+        AND ${scope.sql}
       ORDER BY p.fecha_hora DESC
-    `, [startDate, endDate, localidadId]);
+    `, [startDate, endDate, ...scope.params]);
 
     res.json({
       success: true,

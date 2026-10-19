@@ -19,6 +19,8 @@ import { provinciasConfig } from './config/provinciasConfig';
 import { localidadesConfig } from './config/localidadesConfig';
 import { vehiculosConfig } from './config/vehiculosConfig';
 import { pesadasConfig } from './config/pesadasConfig';
+import { empresasConfig } from './config/empresasConfig';
+import { useAuth } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
 import ReportePesadas from './components/ReportePesadas';
 import ReportesHistorial from './components/ReportesHistorial';
@@ -31,6 +33,7 @@ import Configuracion from './components/Configuracion';
 export default function GestionApp() {
   const { isDark } = useThemeContext();
   const { hasModuleAccess, canEditModule, isAdmin, PERMISSIONS, MODULES } = usePermissions();
+  const { isGlobal, isSuperadmin } = useAuth();
 
   const configs = {
     choferes: choferesConfig,
@@ -41,6 +44,7 @@ export default function GestionApp() {
     localidades: localidadesConfig,
     vehiculos: vehiculosConfig,
     pesadas: pesadasConfig,
+    empresas: empresasConfig,
   };
 
   // Determinar el tab inicial según los permisos del usuario
@@ -70,8 +74,10 @@ export default function GestionApp() {
   const productos = useGestionAPI(productosConfig, hasModuleAccess(MODULES.PRODUCTOS));
   const transportes = useGestionAPI(transportesConfig, hasModuleAccess(MODULES.TRANSPORTES));
   const provincias = useGestionAPI(provinciasConfig, canEditModule(MODULES.PROVINCIAS));
-  const localidades = useGestionAPI(localidadesConfig, canEditModule(MODULES.LOCALIDADES));
-  const [searchTerm, setSearchTerm] = useState('');
+  // Usuarios globales necesitan las localidades para elegir dónde crear cada catálogo
+  const localidades = useGestionAPI(localidadesConfig, canEditModule(MODULES.LOCALIDADES) || isGlobal);
+  const empresas = useGestionAPI(empresasConfig, isSuperadmin);
+const [searchTerm, setSearchTerm] = useState('');
   const vehiculos = useVehiculosInfinite(vehiculosConfig, hasModuleAccess(MODULES.VEHICULOS) && activeTab === MODULES.VEHICULOS, activeTab === MODULES.VEHICULOS ? searchTerm : '');
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -186,11 +192,29 @@ export default function GestionApp() {
 
   const gestionMap = {
     choferes, productores, productos, transportes,
-    provincias, localidades, vehiculos, pesadas,
+    provincias, localidades, vehiculos, pesadas, empresas,
   };
 
   const currentGestion = gestionMap[activeTab];
   const currentConfig = configs[activeTab];
+
+  // Catálogos por localidad: un usuario global ve la columna y elige la localidad al crear
+  const TABS_POR_LOCALIDAD = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES, MODULES.VEHICULOS];
+  const muestraLocalidad = isGlobal && TABS_POR_LOCALIDAD.includes(activeTab);
+  const columnasKeys = muestraLocalidad ? [...currentConfig.columnasKeys, 'localidad_nombre'] : currentConfig?.columnasKeys;
+  const columnasLabels = muestraLocalidad ? [...currentConfig.columnasLabels, 'Localidad'] : currentConfig?.columnasLabels;
+  const opcionesLocalidad = localidades.items.map(l => ({ value: l.id, label: l.nombre }));
+  const camposFormulario = (() => {
+    if (!currentConfig?.campos) return currentConfig?.campos;
+    if (muestraLocalidad && !currentGestion?.modal?.item) {
+      return [...currentConfig.campos, { name: 'localidad_id', label: 'Localidad', type: 'select', options: opcionesLocalidad }];
+    }
+    if (activeTab === MODULES.LOCALIDADES && isSuperadmin && !currentGestion?.modal?.item) {
+      const opcionesEmpresa = empresas.items.map(e => ({ value: e.id, label: e.nombre }));
+      return [...currentConfig.campos, { name: 'empresa_id', label: 'Empresa', type: 'select', options: opcionesEmpresa }];
+    }
+    return currentConfig.campos;
+  })();
 
   const SEARCHABLE_TABS = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES, MODULES.VEHICULOS];
   const CLIENT_FILTER_TABS = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES, MODULES.VEHICULOS];
@@ -216,7 +240,8 @@ export default function GestionApp() {
       { id: MODULES.TRANSPORTES, label: transportesConfig.label, count: transportes.items.length },
       { id: MODULES.PROVINCIAS, label: provinciasConfig.label, count: provincias.items.length },
       { id: MODULES.LOCALIDADES, label: localidadesConfig.label, count: localidades.items.length },
-      { id: MODULES.VEHICULOS, label: vehiculosConfig.label, count: vehiculos.items.length },
+      { id: MODULES.EMPRESAS, label: empresasConfig.label, count: empresas.items.length },
+{ id: MODULES.VEHICULOS, label: vehiculosConfig.label, count: vehiculos.items.length },
       { id: MODULES.PESADA, label: 'Nueva Pesada', count: null },
       { id: MODULES.PESADAS, label: pesadasConfig.label, count: pesadas.items.length },
       { id: MODULES.REPORTES, label: 'Reportes', count: null },
@@ -240,6 +265,7 @@ export default function GestionApp() {
     transportes.items.length,
     provincias.items.length,
     localidades.items.length,
+    empresas.items.length,
     vehiculos.items.length,
     pesadas.items.length,
     hasModuleAccess,
@@ -452,8 +478,8 @@ export default function GestionApp() {
                   <TablaItems
                     items={filteredItems}
                     tipo={activeTab}
-                    columnasKeys={currentConfig.columnasKeys}
-                    columnasLabels={currentConfig.columnasLabels}
+                    columnasKeys={columnasKeys}
+                    columnasLabels={columnasLabels}
                     onEditar={currentGestion.abrirModal}
                     onEliminar={handleEliminarIndividual}
                     onToggleEstado={currentGestion.toggleEstado}
@@ -493,7 +519,7 @@ export default function GestionApp() {
           onFormChange={currentGestion.handleFormChange}
           onGuardar={currentGestion.guardarItem}
           onCancelar={currentGestion.cerrarModal}
-          campos={currentConfig.campos}
+          campos={camposFormulario}
           loading={currentGestion.loading}
           error={currentGestion.error}
         />

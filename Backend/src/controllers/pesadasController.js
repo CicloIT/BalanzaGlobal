@@ -1,9 +1,16 @@
 import pool from '../config/database.js';
 import { hasPermission, PERMISSIONS } from '../config/rolesConfig.js';
+import { scopeSql, userForRead, ScopeError, sendScopeError } from '../utils/scope.js';
+
+// Subconsulta: operaciones dentro del alcance del usuario → `columna ${sql}`
+const operacionesEnScope = (user, startIdx) => {
+  const scope = scopeSql('op.localidad_id', user, startIdx);
+  return { sql: `IN (SELECT op.id FROM operacion_pesaje op WHERE ${scope.sql})`, params: scope.params };
+};
 
 export const getPesadas = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('op.localidad_id', userForRead(req), 1);
     const result = await pool.query(`
       SELECT
         p.*,
@@ -15,15 +22,14 @@ export const getPesadas = async (req, res) => {
         tr.nombre          AS transporte
       FROM pesada p
       JOIN operacion_pesaje op ON p.operacion_id = op.id
-      JOIN configuracion_dispositivos cd ON p.dispositivo_id = cd.id
       LEFT JOIN chofer    c   ON p.chofer_id    = c.id
       LEFT JOIN producto  prod ON p.producto_id  = prod.id
       LEFT JOIN productor ptr  ON p.productor_id = ptr.id
       LEFT JOIN transporte tr  ON p.transporte_id = tr.id
-      WHERE ($1::int IS NULL OR cd.localidad_id = $1)
+      WHERE ${scope.sql}
       ORDER BY p.fecha_hora DESC
       LIMIT 200
-    `, [localidadId]);
+    `, scope.params);
     res.json({ success: true, data: result.rows, count: result.rows.length });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -33,6 +39,7 @@ export const getPesadas = async (req, res) => {
 export const getPesadasByTicket = async (req, res) => {
   try {
     const { ticketId } = req.params;
+    const scope = operacionesEnScope(req.user, 2);
     const result = await pool.query(`
       SELECT p.*
       FROM pesada p
@@ -43,8 +50,9 @@ export const getPesadasByTicket = async (req, res) => {
         JOIN ticket t ON p2.id = t.pesada_id
         WHERE t.id = $1
       )
+        AND p.operacion_id ${scope.sql}
       ORDER BY p.tipo DESC, p.fecha_hora ASC
-    `, [ticketId]);
+    `, [ticketId, ...scope.params]);
     res.json({
       success: true,
       data: result.rows,
@@ -68,18 +76,21 @@ export const createPesada = async (req, res) => {
 
     // Validaciones
     if (!vehiculo_patente || !sentido || !peso) {
-      return res.status(400).json({ success: false, error: 'Faltan campos requeridos (patente, sentido, peso)' });
+      throw new ScopeError('Faltan campos requeridos (patente, sentido, peso)', 400);
+    }
+    if (!dispositivo_id) {
+      throw new ScopeError('dispositivo_id es requerido (balanza de la localidad)', 400);
     }
 
     const esContenedor = es_contenedor === 'true' || es_contenedor === true;
     const nroContenedorFinal = esContenedor ? (nro_contenedor || '0') : null;
 
     if (!['INGRESO', 'SALIDA'].includes(sentido)) {
-      return res.status(400).json({ success: false, error: 'Sentido debe ser INGRESO o SALIDA' });
+      throw new ScopeError('Sentido debe ser INGRESO o SALIDA', 400);
     }
 
     if (peso <= 0) {
-      return res.status(400).json({ success: false, error: 'El peso debe ser positivo' });
+      throw new ScopeError('El peso debe ser positivo', 400);
     }
 
     // Validación de permiso para carga manual
@@ -97,10 +108,33 @@ export const createPesada = async (req, res) => {
       }
     }
 
+    // La localidad de la operación es la de la balanza (validada contra el alcance del usuario)
+    const scopeDisp = scopeSql('localidad_id', req.user, 2);
+    const dispResult = await client.query(
+      `SELECT id, localidad_id FROM configuracion_dispositivos
+       WHERE id = $1 AND tipo_dispositivo = 'balanza' AND ${scopeDisp.sql}`,
+      [dispositivo_id, ...scopeDisp.params]
+    );
+    if (dispResult.rows.length === 0) {
+      throw new ScopeError('La balanza indicada no pertenece a su localidad');
+    }
+    const localidadId = dispResult.rows[0].localidad_id;
+
+    // Los catálogos referenciados deben ser de la misma localidad
+    const referencias = [
+      ['chofer', chofer_id], ['productor', productor_id],
+      ['transporte', transporte_id], ['producto', producto_id],
+    ];
+    for (const [tabla, refId] of referencias) {
+      if (!refId) continue;
+      const ref = await client.query(`SELECT 1 FROM ${tabla} WHERE id = $1 AND localidad_id = $2`, [refId, localidadId]);
+      if (ref.rows.length === 0) throw new ScopeError(`El ${tabla} no pertenece a la localidad de la balanza`, 400);
+    }
+
     // Buscar operación abierta
     let operacionResult = await client.query(
-      'SELECT id, sentido FROM operacion_pesaje WHERE vehiculo_patente = $1 AND abierta = true',
-      [vehiculo_patente]
+      'SELECT id, sentido FROM operacion_pesaje WHERE vehiculo_patente = $1 AND abierta = true AND localidad_id = $2',
+      [vehiculo_patente, localidadId]
     );
 
     let operacion_id;
@@ -109,8 +143,7 @@ export const createPesada = async (req, res) => {
     if (operacionResult.rows.length === 0) {
       // Nueva operación: tipo determinado por sentido
       tipo = sentido === 'INGRESO' ? 'BRUTO' : 'TARA';
-      const localidadId = req.user?.localidad_id ?? null;
-      const newOp = await client.query(
+      const newOp= await client.query(
         'INSERT INTO operacion_pesaje (vehiculo_patente, sentido, localidad_id) VALUES ($1, $2, $3) RETURNING id',
         [vehiculo_patente, sentido, localidadId]
       );
@@ -157,7 +190,7 @@ export const createPesada = async (req, res) => {
         esContenedor ? (cantidad_bultos || null) : null,
         esContenedor ? (nro_proforma || null) : null,
         esContenedor ? (nro_permiso_embarque || null) : null,
-        dispositivo_id || null
+        dispositivo_id
       ]
     );
 
@@ -170,15 +203,19 @@ export const createPesada = async (req, res) => {
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   } finally {
     client.release();
   }
 };
 
-export const getPesadaById = async (req, res) => {
+export const getPesadaById= async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM pesada WHERE id = $1', [req.params.id]);
+    const scope = operacionesEnScope(req.user, 2);
+    const result = await pool.query(
+      `SELECT * FROM pesada WHERE id = $1 AND operacion_id ${scope.sql}`,
+      [req.params.id, ...scope.params]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Pesada no encontrada' });
     }
@@ -211,13 +248,14 @@ export const updatePesada = async (req, res) => {
       }
     }
 
+    const scope = operacionesEnScope(req.user, 5);
     const result = await pool.query(
-      `UPDATE pesada SET 
+      `UPDATE pesada SET
        peso = COALESCE($1, peso),
        balancero = COALESCE($2, balancero),
        ruta = COALESCE($3, ruta)
-       WHERE id = $4 RETURNING *`,
-      [peso, balancero, req.file ? `documentos/${req.file.filename}` : null, id]
+       WHERE id = $4 AND operacion_id ${scope.sql} RETURNING *`,
+      [peso, balancero, req.file ? `documentos/${req.file.filename}` : null, id, ...scope.params]
     );
 
     if (result.rows.length === 0) {
@@ -241,11 +279,12 @@ export const updatePdfByOperacion = async (req, res) => {
       return res.status(400).json({ success: false, error: 'No se envió ningún archivo PDF' });
     }
 
+    const scope = operacionesEnScope(req.user, 3);
     const result = await pool.query(
-      `UPDATE pesada SET 
+      `UPDATE pesada SET
        ruta = $1
-       WHERE operacion_id = $2 RETURNING *`,
-      [`documentos/${req.file.filename}`, operacionId]
+       WHERE operacion_id = $2 AND operacion_id ${scope.sql} RETURNING *`,
+      [`documentos/${req.file.filename}`, operacionId, ...scope.params]
     );
 
     if (result.rows.length === 0) {
@@ -266,9 +305,10 @@ export const deletePesada = async (req, res) => {
    try {
     const { id } = req.params;
 
+    const scope = scopeSql('op.localidad_id', req.user, 2);
     const result = await pool.query(
-      'DELETE FROM operacion_pesaje WHERE id = $1 RETURNING *',
-      [id]
+      `DELETE FROM operacion_pesaje op WHERE op.id = $1 AND ${scope.sql} RETURNING *`,
+      [id, ...scope.params]
     );
 
     if (result.rows.length === 0) {
@@ -295,14 +335,16 @@ export const deleteOperacionesMasivo = async (req, res) => {
   try {
     const { ids } = req.body; // array
 
-    await pool.query(
-      'DELETE FROM operacion_pesaje WHERE id = ANY($1)',
-      [ids]
+    const scope = scopeSql('op.localidad_id', req.user, 2);
+    const result = await pool.query(
+      `DELETE FROM operacion_pesaje op WHERE op.id = ANY($1) AND ${scope.sql}`,
+      [ids, ...scope.params]
     );
 
     res.json({
       success: true,
-      message: 'Operaciones eliminadas'
+      message: 'Operaciones eliminadas',
+      eliminadas: result.rowCount
     });
 
   } catch (error) {
@@ -322,14 +364,11 @@ export const getPesadasAgrupadas = async (req, res) => {
     const fechaFilter = req.query.fecha;
     const mesParam = parseInt(req.query.mes, 10);
     const anioParam = parseInt(req.query.anio, 10);
-    const localidadId = req.user?.localidad_id ?? null;
 
-    const conditions = [];
-    const filterParams = [];
-
-    // Localidad filter
-    filterParams.push(localidadId);
-    conditions.push(`($${filterParams.length}::int IS NULL OR cd.localidad_id = $${filterParams.length})`);
+    // Alcance empresa/localidad (por la localidad de la operación)
+    const scope = scopeSql('op.localidad_id', userForRead(req), 1);
+    const conditions = [scope.sql];
+    const filterParams = [...scope.params];
 
     if (sentidoFilter && ['INGRESO', 'SALIDA'].includes(sentidoFilter)) {
       filterParams.push(sentidoFilter);
@@ -359,7 +398,7 @@ export const getPesadasAgrupadas = async (req, res) => {
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const countResult = await pool.query(
-      `SELECT COUNT(*) FROM operacion_pesaje op LEFT JOIN pesada p ON op.id = p.operacion_id LEFT JOIN configuracion_dispositivos cd ON p.dispositivo_id = cd.id ${whereClause}`,
+      `SELECT COUNT(DISTINCT op.id) FROM operacion_pesaje op ${whereClause}`,
       filterParams
     );
     const total = parseInt(countResult.rows[0].count, 10);
@@ -372,7 +411,7 @@ export const getPesadasAgrupadas = async (req, res) => {
 
     const result = await pool.query(`
       SELECT op.id as id, op.id as operacion_id, op.vehiculo_patente,
-             op.sentido,
+             op.sentido, op.localidad_id, MAX(loc.nombre) as localidad_nombre,
              MAX(CASE WHEN p.tipo::text = 'BRUTO' THEN p.peso END) as bruto,
              MAX(CASE WHEN p.tipo::text = 'TARA'  THEN p.peso END) as tara,
              MAX(p.neto) as neto,
@@ -396,13 +435,13 @@ export const getPesadasAgrupadas = async (req, res) => {
              MAX(p.nro_permiso_embarque)        as nro_permiso_embarque
       FROM operacion_pesaje op
       LEFT JOIN pesada    p    ON op.id = p.operacion_id
-      LEFT JOIN configuracion_dispositivos cd ON p.dispositivo_id = cd.id
+      LEFT JOIN localidad loc  ON op.localidad_id = loc.id
       LEFT JOIN chofer    c    ON p.chofer_id    = c.id
       LEFT JOIN producto  prod ON p.producto_id  = prod.id
       LEFT JOIN productor ptr  ON p.productor_id = ptr.id
       LEFT JOIN transporte tr  ON p.transporte_id = tr.id
       ${whereClause}
-      GROUP BY op.id, op.vehiculo_patente, op.abierta, op.sentido
+      GROUP BY op.id, op.vehiculo_patente, op.abierta, op.sentido, op.localidad_id
       ORDER BY op.id DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `, mainParams);
@@ -433,7 +472,16 @@ export const updateContenedorByOperacion = async (req, res) => {
     const { nro_contenedor, peso_vgm, tara_contenedor, cantidad_bultos, nro_proforma, nro_permiso_embarque } = req.body;
 
     if (!nro_contenedor) {
-      return res.status(400).json({ success: false, error: 'Nro de contenedor es obligatorio' });
+      throw new ScopeError('Nro de contenedor es obligatorio', 400);
+    }
+
+    const scope = scopeSql('op.localidad_id', req.user, 2);
+    const opResult = await client.query(
+      `SELECT 1 FROM operacion_pesaje op WHERE op.id = $1 AND ${scope.sql}`,
+      [operacionId, ...scope.params]
+    );
+    if (opResult.rows.length === 0) {
+      throw new ScopeError('Operación no encontrada', 404);
     }
 
     // Traer bruto y tara actuales para recalcular
@@ -488,7 +536,7 @@ export const updateContenedorByOperacion = async (req, res) => {
     res.json({ success: true, message: 'Datos de contenedor actualizados exitosamente' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   } finally {
     client.release();
   }
@@ -497,7 +545,7 @@ export const updateContenedorByOperacion = async (req, res) => {
 export const getPesadaActivaByPatente = async (req, res) => {
   try {
     const { patente } = req.params;
-    const localidadId = req.user?.localidad_id ?? null;
+    const scope = scopeSql('op.localidad_id', userForRead(req), 2);
     const result = await pool.query(`
       SELECT
         p.*,
@@ -514,10 +562,10 @@ export const getPesadaActivaByPatente = async (req, res) => {
       LEFT JOIN transporte tr  ON p.transporte_id = tr.id
       WHERE op.vehiculo_patente = $1
         AND op.abierta = true
-        AND ($2::int IS NULL OR op.localidad_id = $2)
+        AND ${scope.sql}
       ORDER BY p.fecha_hora DESC
       LIMIT 1
-    `, [patente, localidadId]);
+    `, [patente, ...scope.params]);
 
     if (result.rows.length === 0) {
       return res.json({ success: true, data: null });

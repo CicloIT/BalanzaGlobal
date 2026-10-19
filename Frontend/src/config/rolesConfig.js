@@ -48,6 +48,12 @@ export const PERMISSIONS = {
   LOCALIDADES_UPDATE: 'localidades:update',
   LOCALIDADES_DELETE: 'localidades:delete',
 
+  // Empresas (solo superadmin de plataforma)
+  EMPRESAS_VIEW: 'empresas:view',
+  EMPRESAS_CREATE: 'empresas:create',
+  EMPRESAS_UPDATE: 'empresas:update',
+  EMPRESAS_DELETE: 'empresas:delete',
+
   // Módulo de pesaje (especial)
   PESAJE_VIEW: 'pesaje:view',
   PESAJE_CREATE: 'pesaje:create',
@@ -78,6 +84,7 @@ export const PERMISSIONS = {
 
 // Definición de roles
 export const ROLES = {
+  SUPERADMIN: 'superadmin',
   ADMIN: 'admin',
   LOGISTICA: 'logistica',
   GERENTE: 'gerente',
@@ -87,7 +94,11 @@ export const ROLES = {
 
 // Mapa de permisos por rol (debe coincidir con el backend)
 export const ROLE_PERMISSIONS = {
-  [ROLES.ADMIN]: Object.values(PERMISSIONS),
+  // Superadmin de plataforma: todo, incluidas las empresas
+  [ROLES.SUPERADMIN]: Object.values(PERMISSIONS),
+
+  // Admin de empresa: todo salvo administrar empresas
+  [ROLES.ADMIN]: Object.values(PERMISSIONS).filter(p => !p.startsWith('empresas:')),
 
   [ROLES.LOGISTICA]: [
     PERMISSIONS.USUARIOS_VIEW,
@@ -180,10 +191,12 @@ export const MODULES = {
   LOCALIDADES: 'localidades',
   REPORTES: 'reportes-historial',
   CONFIGURACION: 'configuracion',
+  EMPRESAS: 'empresas',
 };
 
 // Permisos requeridos por módulo
 export const MODULE_PERMISSIONS = {
+  [MODULES.EMPRESAS]: [PERMISSIONS.EMPRESAS_VIEW],
   [MODULES.CONFIGURACION]: [PERMISSIONS.BACKUP_MANAGE],
   [MODULES.DASHBOARD]: [PERMISSIONS.DASHBOARD_VIEW],
   [MODULES.PESADA]: [PERMISSIONS.PESAJE_CREATE],
@@ -246,6 +259,7 @@ export const canEditModule = (rol, moduleId) => {
     [MODULES.VEHICULOS]: 'vehiculos',
     [MODULES.PROVINCIAS]: 'provincias',
     [MODULES.LOCALIDADES]: 'localidades',
+    [MODULES.EMPRESAS]: 'empresas',
   };
   const prefix = modulePrefixes[moduleId];
   return prefix ? canWrite(rol, prefix) : false;

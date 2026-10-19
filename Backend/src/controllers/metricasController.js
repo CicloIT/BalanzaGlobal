@@ -1,4 +1,9 @@
 import pool from '../config/database.js';
+import { scopeSqlLiteral, userForRead } from '../utils/scope.js';
+
+// Pesadas dentro del alcance: por la localidad de su operación
+const filtroPesadas = (user) =>
+  `AND p.operacion_id IN (SELECT id FROM operacion_pesaje WHERE ${scopeSqlLiteral('localidad_id', user)})`;
 
 export const getMetricasDashboard = async (req, res) => {
   try {
@@ -8,19 +13,11 @@ export const getMetricasDashboard = async (req, res) => {
     inicioSemana.setDate(hoy.getDate() - 7); // Últimos 7 días en lugar de inicio de semana
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
-    const localidadId = req.user?.localidad_id ?? null;
-    // localidad_filter: null = sin filtro (global), número = filtrar por esa localidad
-    // Para pesada: filtro via JOIN con configuracion_dispositivos
-    // Para operacion_pesaje: filtro directo por localidad_id
-    const localidadFiltroDisp = localidadId
-      ? `AND EXISTS (SELECT 1 FROM configuracion_dispositivos cd WHERE cd.id = p.dispositivo_id AND cd.localidad_id = ${parseInt(localidadId)})`
-      : '';
-    const localidadFiltroOp = localidadId
-      ? `AND localidad_id = ${parseInt(localidadId)}`
-      : '';
-    const localidadFiltroRep = localidadId
-      ? `AND localidad_id = ${parseInt(localidadId)}`
-      : '';
+    // Alcance empresa/localidad (un usuario global puede acotar con ?localidad_id=)
+    const usuario = userForRead(req);
+    const localidadFiltroDisp = filtroPesadas(usuario);
+    const localidadFiltroOp = `AND ${scopeSqlLiteral('localidad_id', usuario)}`;
+    const localidadFiltroRep = `AND ${scopeSqlLiteral('localidad_id', usuario)}`;
 
     // 1. Total de pesadas hoy
     const pesadasHoy = await pool.query(`
@@ -279,7 +276,6 @@ export const getMetricasDashboard = async (req, res) => {
 export const getMetricasPorFecha = async (req, res) => {
   try {
     const { fechaInicio, fechaFin } = req.query;
-    const localidadId = req.user?.localidad_id ?? null;
 
     const conditions = [];
     const params = [];
@@ -293,9 +289,7 @@ export const getMetricasPorFecha = async (req, res) => {
       params.push(fechaFin);    conditions.push(`p.fecha_hora <= $${params.length}`);
     }
 
-    if (localidadId) {
-      conditions.push(`EXISTS (SELECT 1 FROM configuracion_dispositivos cd WHERE cd.id = p.dispositivo_id AND cd.localidad_id = ${parseInt(localidadId)})`);
-    }
+    conditions.push(`p.operacion_id IN (SELECT id FROM operacion_pesaje WHERE ${scopeSqlLiteral('localidad_id', userForRead(req))})`);
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -331,10 +325,7 @@ export const getMetricasPorFecha = async (req, res) => {
 
 export const getComparativoMensual = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
-    const localidadFiltro = localidadId
-      ? `AND EXISTS (SELECT 1 FROM configuracion_dispositivos cd WHERE cd.id = p.dispositivo_id AND cd.localidad_id = ${parseInt(localidadId)})`
-      : '';
+    const localidadFiltro = filtroPesadas(userForRead(req));
     const result = await pool.query(`
       SELECT
         EXTRACT(YEAR FROM fecha_hora) as anio,

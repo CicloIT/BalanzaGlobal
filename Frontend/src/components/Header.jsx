@@ -26,6 +26,7 @@ const TAB_ICONS = {
 };
 
 const ROLE_ICONS = {
+  superadmin:  <Crown       size={13} strokeWidth={2.5} />,
   admin:       <Crown       size={13} strokeWidth={2.5} />,
   logistica:   <TrendingUp  size={13} strokeWidth={2.5} />,
   gerente:     <UserCog     size={13} strokeWidth={2.5} />,
@@ -34,6 +35,7 @@ const ROLE_ICONS = {
 };
 
 const ROLE_COLORS = {
+  superadmin:  'text-rose-400',
   admin:       'text-amber-400',
   logistica:   'text-emerald-400',
   gerente:     'text-blue-400',
@@ -79,7 +81,7 @@ function cleanLabel(label) {
 /* ─── Component ─────────────────────────────────────────────────────────── */
 export default function Header({ activeTab, onTabChange, tabs }) {
   const { isDark, toggleTheme } = useThemeContext();
-  const { user, logout, localidad_nombre, isGlobal } = useAuth();
+  const { user, logout, localidad_nombre, empresa_nombre, isGlobal, isSuperadmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const drawerRef = useRef(null);
 
@@ -206,7 +208,7 @@ export default function Header({ activeTab, onTabChange, tabs }) {
                   <span className={`${rolColor} flex-shrink-0`}>{rolIcon}</span>
                   <div className="leading-none">
                     <p className={`text-[8px] font-black uppercase tracking-[0.12em] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {user.rol}{isGlobal ? ' · Global' : localidad_nombre ? ` · ${localidad_nombre}` : ''}
+                      {user.rol}{empresa_nombre ? ` · ${empresa_nombre}` : ''}{isSuperadmin ? ' · Plataforma' : isGlobal ? ' · Global' : localidad_nombre ? ` · ${localidad_nombre}` : ''}
                     </p>
                     <p className={`text-sm font-bold mt-0.5 ${isDark ? 'text-white' : 'text-slate-800'}`}>{user.username}</p>
                   </div>
@@ -294,7 +296,7 @@ export default function Header({ activeTab, onTabChange, tabs }) {
                     {rolIcon}
                     <span className="font-bold">{user.username}</span>
                     <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>
-                      · {user.rol}{isGlobal ? ' · Global' : localidad_nombre ? ` · ${localidad_nombre}` : ''}
+                      · {user.rol}{empresa_nombre ? ` · ${empresa_nombre}` : ''}{isSuperadmin ? ' · Plataforma' : isGlobal ? ' · Global' : localidad_nombre ? ` · ${localidad_nombre}` : ''}
                     </span>
                   </p>
                 )}

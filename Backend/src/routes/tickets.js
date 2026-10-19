@@ -18,7 +18,7 @@ router.get('/estado/:estado', optionalAuth, requirePermission(PERMISSIONS.TICKET
 router.get('/fecha/rango', optionalAuth, requirePermission(PERMISSIONS.TICKETS_VIEW), getTicketsByDateRange);
 router.get('/:id', optionalAuth, requirePermission(PERMISSIONS.TICKETS_VIEW), getTicketById);
 router.post('/', requireAuth, requirePermission(PERMISSIONS.TICKETS_CREATE), createTicket);
-router.put('/:id', requireAuth, requirePermission(PERMISSIONS.TICKETS_UPDATE), updateTicket);
+router.put('/:id', requireAuth, requirePermission(PERMISSIONS.TICKETS_CLOSE), updateTicket);
 router.post('/:id/cerrar', requireAuth, requirePermission(PERMISSIONS.TICKETS_CLOSE), closeTicket);
 
 export default router;

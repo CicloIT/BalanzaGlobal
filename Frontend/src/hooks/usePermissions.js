@@ -89,7 +89,7 @@ export function usePermissions() {
    * Verifica si el usuario es admin
    */
   const isAdmin = useCallback(() => {
-    return rol?.toLowerCase() === 'admin';
+    return ['admin', 'superadmin'].includes(rol?.toLowerCase());
   }, [rol]);
 
   /**

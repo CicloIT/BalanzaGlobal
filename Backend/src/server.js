@@ -8,7 +8,9 @@ import pool from './config/database.js';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from "url";
-import { inicializarBalanza, getEstadoBalanza } from './services/balanzaService.js';
+import { inicializarBalanzas, getEstadoBalanza, getEstadosBalanzas } from './services/balanzaService.js';
+import { loadUser } from './middleware/authMiddleware.js';
+import { scopeSql } from './utils/scope.js';
 
 // Importar rutas
 import choferesRoutes from './routes/choferes.js';
@@ -28,6 +30,7 @@ import reportesRoutes from './routes/reporte.js';
 import backupRoutes from './routes/backups.js';
 import { createBackup } from './controllers/backupController.js';
 import configRoutes from './routes/configuraciones.js';
+import empresasRoutes from './routes/empresas.js';
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,25 +43,56 @@ const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Función de broadcast para WebSockets
+// Broadcast de la balanza: solo a los clientes suscriptos a ese dispositivo
 function broadcast(msg) {
   wss.clients.forEach(ws => {
-    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(msg));
+    if (ws.readyState === ws.OPEN && ws.dispositivoId === msg.dispositivo_id) {
+      ws.send(JSON.stringify(msg));
+    }
   });
 }
 
-// Inicializar servicio de balanza (lee config desde BD)
-inicializarBalanza(broadcast);
+// Inicializar servicio de balanzas (una conexión por balanza activa, lee config desde BD)
+inicializarBalanzas(broadcast);
 
-// Manejar conexiones WebSocket entrantes
-wss.on('connection', (ws) => {
-  console.log('🔌 Nuevo cliente WebSocket conectado');
-  const estado = getEstadoBalanza();
-  ws.send(JSON.stringify({
-    type: 'STATUS',
-    status: estado.connected ? 'CONNECTED' : 'DISCONNECTED',
-    currentWeight: estado.lastWeight
-  }));
+// Balanza a la que se suscribe un cliente: la pedida si está en su alcance, si no la primera de su alcance
+const resolverBalanzaWs = async (user, requestedId) => {
+  const scope = scopeSql('localidad_id', user, 1);
+  const requested = /^\d+$/.test(requestedId || '') ? parseInt(requestedId, 10) : null;
+  const result = await pool.query(`
+    SELECT id FROM configuracion_dispositivos
+    WHERE tipo_dispositivo = 'balanza' AND activo = true AND ${scope.sql}
+    ORDER BY (id = $3) DESC NULLS LAST, id
+    LIMIT 1
+  `, [...scope.params, requested]);
+  return result.rows[0]?.id ?? null;
+};
+
+// Manejar conexiones WebSocket entrantes: ws://host/ws?userId=X&dispositivoId=Y
+wss.on('connection', async (ws, req) => {
+  try {
+    const params = new URL(req.url, 'http://localhost').searchParams;
+    const user = await loadUser({ userId: params.get('userId'), username: params.get('username') });
+    if (!user) {
+      ws.close(4401, 'No autorizado');
+      return;
+    }
+    const dispositivoId = await resolverBalanzaWs(user, params.get('dispositivoId'));
+    ws.dispositivoId = dispositivoId;
+    console.log(`🔌 Cliente WebSocket conectado: ${user.username} → balanza ${dispositivoId ?? '-'}`);
+
+    const estado = dispositivoId ? getEstadoBalanza(dispositivoId) : null;
+    ws.send(JSON.stringify({
+      type: 'STATUS',
+      status: estado?.connected ? 'CONNECTED' : 'DISCONNECTED',
+      currentWeight: estado?.lastWeight ?? null,
+      dispositivo_id: dispositivoId,
+      ...(!dispositivoId && { error: 'Sin balanza asignada' })
+    }));
+  } catch (err) {
+    console.error('❌ Error en conexión WebSocket:', err.message);
+    ws.close(1011, 'Error interno');
+  }
 });
 
 // Middleware
@@ -82,6 +116,7 @@ app.use('/api/camaras', camarasRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/empresas', empresasRoutes);
 
 const CAPTURAS_DIR = path.join(__dirname, "../capturas");
 if (!fs.existsSync(CAPTURAS_DIR)) {
@@ -109,7 +144,7 @@ app.get('/api/health', async (req, res) => {
       status: 'OK',
       message: '✅ Backend conectado a PostgreSQL',
       timestamp: result.rows[0].now,
-      scale: getEstadoBalanza()
+      scale: getEstadosBalanzas()
     });
   } catch (error) {
     res.status(500).json({

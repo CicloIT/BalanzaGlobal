@@ -71,11 +71,15 @@ export function AuthProvider({ children }) {
     rol: user?.rol,
     localidad_id: user?.localidad_id ?? null,
     localidad_nombre: user?.localidad_nombre ?? null,
+    empresa_id: user?.empresa_id ?? null,
+    empresa_nombre: user?.empresa_nombre ?? null,
+    // Global = sin localidad fija (admin/logística de empresa o superadmin)
     isGlobal: !user?.localidad_id,
+    isSuperadmin: user?.rol?.toLowerCase() === 'superadmin',
     isLogistica: user?.rol?.toLowerCase() === 'logistica',
     permissions: userPermissions,
     hasPermission: checkPermission,
-    isAdmin: user?.rol?.toLowerCase() === 'admin',
+    isAdmin: ['admin', 'superadmin'].includes(user?.rol?.toLowerCase()),
   };
 
   return (
