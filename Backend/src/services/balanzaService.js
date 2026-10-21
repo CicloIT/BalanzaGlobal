@@ -1,26 +1,19 @@
 import net from 'net';
 import pool from '../config/database.js';
+import { parseFrame, cleanFrame, splitFrames, createStabilityTracker } from '../utils/balanzaProtocol.js';
 
 // ─── Estado interno ───────────────────────────────────────────────────────────
 // Una entrada por balanza (configuracion_dispositivos.id)
-// { id, localidadId, ip, puerto, socket, buffer, lastWeight, connected, reconnectTimer, destroying }
+// { id, localidadId, ip, puerto, modo ('directo'|'agente'), socket, buffer, agentWs,
+//   lastWeight, lastWeightTs, stable, historial, connected, error, reconnectTimer, destroying }
+// modo 'directo': el backend abre el TCP a la balanza.
+// modo 'agente':  un agente local del sitio lee la balanza y la publica por /agent (agenteGateway.js).
 const balanzas = new Map();
 let broadcastFn = null;   // inyectado desde server.js
 
 const RECONNECT_MS = 5000;
 const RETRY_CONFIG_MS = 10000;
-
-// ─── Protocolo ────────────────────────────────────────────────────────────────
-// Trama: ":00|6893|000060|000000|000060|12"
-// Índices: [0] status  [1] ID  [2] PESO  [3] TARA  [4] NETO  [5] checksum
-// El peso está en el campo índice 2 (e.g. "000060" → 60 kg, o "-00020" → -20 kg)
-export const parseFrame = (clean) => {
-    const parts = clean.split('|').map(p => p.replace(/^:/, '').trim());
-    const rawWeight = parts[2];
-    return rawWeight !== undefined && /^-?\d+$/.test(rawWeight)
-        ? parseInt(rawWeight, 10)
-        : null;
-};
+const HISTORIAL_MS = 5 * 60 * 1000;   // cuánto se recuerdan las lecturas para validar pesadas
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const broadcast = (estado, msg) => {
@@ -47,50 +40,109 @@ const destruirSocket = (estado) => {
 
 const etiqueta = (estado) => `[balanza ${estado.id} · loc ${estado.localidadId}]`;
 
+const enviarAlAgente = (estado, msg) => {
+    if (estado.agentWs?.readyState === estado.agentWs?.OPEN) estado.agentWs.send(JSON.stringify(msg));
+};
+
+// Tramos de peso leídos: { weight, desde, hasta }. Sirve para verificar que el peso
+// de una pesada realmente lo marcó esa balanza (y no otra, ni uno tipeado).
+const registrarHistorial = (estado, weight, ts) => {
+    const ultimo = estado.historial[estado.historial.length - 1];
+    if (ultimo && ultimo.weight === weight) ultimo.hasta = ts;
+    else estado.historial.push({ weight, desde: ts, hasta: ts });
+    const limite = ts - HISTORIAL_MS;
+    while (estado.historial.length && estado.historial[0].hasta < limite) estado.historial.shift();
+};
+
 // ─── Punto de entrada único para peso/estado ─────────────────────────────────
-// Lo usa el socket TCP local; el agente remoto (WSS) usará los mismos.
-export const ingestWeight = (dispositivoId, weight) => {
+// Lo usan el socket TCP local y el agente remoto (agenteGateway.js).
+// `stable` lo informa el agente; en modo directo se calcula acá.
+export const ingestWeight = (dispositivoId, weight, { stable } = {}) => {
     const estado = balanzas.get(Number(dispositivoId));
-    if (!estado || weight === null || weight === estado.lastWeight) return;
+    if (!estado || weight === null || !Number.isFinite(weight)) return;
+    const ts = Date.now();
+    const esEstable = typeof stable === 'boolean' ? stable : estado.stability(weight, ts);
+    registrarHistorial(estado, weight, ts);
+    estado.lastWeightTs = ts;
+    if (weight === estado.lastWeight && esEstable === estado.stable) return;
     estado.lastWeight = weight;
-    broadcast(estado, { type: 'WEIGHT', weight, ts: Date.now() });
+    estado.stable = esEstable;
+    broadcast(estado, { type: 'WEIGHT', weight, stable: esEstable, ts });
 };
 
 export const setStatus = (dispositivoId, connected, error) => {
     const estado = balanzas.get(Number(dispositivoId));
     if (!estado) return;
     estado.connected = connected;
-    broadcast(estado, { type: 'STATUS', status: connected ? 'CONNECTED' : 'DISCONNECTED', ...(error && { error }) });
+    estado.error = connected ? null : (error || null);
+    if (!connected) estado.stable = false;
+    broadcast(estado, { type: 'STATUS', status: connected ? 'CONNECTED' : 'DISCONNECTED', ...(estado.error && { error: estado.error }) });
 };
 
-// ─── Socket TCP por balanza ───────────────────────────────────────────────────
+// ¿La balanza marcó `peso` (± tolerancia) en los últimos `maxEdadMs`?
+export const pesoLeidoRecientemente = (dispositivoId, peso, { maxEdadMs = 60000, toleranciaKg = 0 } = {}) => {
+    const estado = balanzas.get(Number(dispositivoId));
+    if (!estado) return false;
+    const desde = Date.now() - maxEdadMs;
+    return estado.historial.some(t => t.hasta >= desde && Math.abs(t.weight - peso) <= toleranciaKg);
+};
+
+// ─── Agente remoto ────────────────────────────────────────────────────────────
+// Asocia la conexión WSS del agente a la balanza. Si ya había otro agente, lo reemplaza.
+export const attachAgent = (dispositivoId, ws) => {
+    const estado = balanzas.get(Number(dispositivoId));
+    if (!estado || estado.modo !== 'agente') return false;
+    if (estado.agentWs && estado.agentWs !== ws) {
+        console.warn(`⚠️  ${etiqueta(estado)} otro agente tomó la balanza; se cierra la conexión anterior`);
+        estado.agentWs.close(4409, 'Reemplazado por otra conexión del agente');
+    }
+    estado.agentWs = ws;
+    console.log(`🛰️  ${etiqueta(estado)} agente conectado`);
+    return true;
+};
+
+export const detachAgent = (dispositivoId, ws) => {
+    const estado = balanzas.get(Number(dispositivoId));
+    if (!estado || estado.agentWs !== ws) return;
+    estado.agentWs = null;
+    console.log(`🛰️  ${etiqueta(estado)} agente desconectado`);
+    setStatus(estado.id, false, 'Agente desconectado');
+};
+
+export const getConfigBalanza = (dispositivoId) => {
+    const estado = balanzas.get(Number(dispositivoId));
+    return estado ? { ip: estado.ip, puerto: estado.puerto } : null;
+};
+
+// ─── Socket TCP por balanza (modo directo) ────────────────────────────────────
 const crearSocket = (estado) => {
     const socket = new net.Socket();
 
+    // Tras reconfigurar, el socket viejo puede emitir eventos tarde: ignorarlos
+    const vigente = () => balanzas.get(estado.id) === estado;
+
     socket.on('connect', () => {
+        if (!vigente()) return;
         console.log(`✅ ${etiqueta(estado)} conectada en ${estado.ip}:${estado.puerto}`);
         setStatus(estado.id, true);
     });
 
     socket.on('data', (data) => {
-        estado.buffer = Buffer.concat([estado.buffer, data]);
-        let idx;
-        while ((idx = estado.buffer.indexOf('\n')) !== -1) {
-            const frame = estado.buffer.slice(0, idx + 1);
-            estado.buffer = estado.buffer.slice(idx + 1);
-            const clean = frame.toString('ascii').replace(/[\x02\x03\r]/g, '').trim();
-            ingestWeight(estado.id, parseFrame(clean));
-        }
+        const { frames, rest } = splitFrames(Buffer.concat([estado.buffer, data]));
+        estado.buffer = rest;
+        frames.forEach(frame => ingestWeight(estado.id, parseFrame(cleanFrame(frame))));
     });
 
     socket.on('error', (err) => {
+        if (!vigente()) return;
         console.error(`❌ ${etiqueta(estado)} error de conexión:`, err.message);
         setStatus(estado.id, false, err.message);
     });
 
     socket.on('close', () => {
-        setStatus(estado.id, false);
-        if (!estado.destroying && balanzas.get(estado.id) === estado) {
+        if (!vigente()) return;
+        setStatus(estado.id, false, estado.error);
+        if (!estado.destroying) {
             console.log(`⚠️  ${etiqueta(estado)} conexión cerrada. Reintentando en ${RECONNECT_MS / 1000} s...`);
             cancelReconnect(estado);
             estado.reconnectTimer = setTimeout(() => conectar(estado), RECONNECT_MS);
@@ -117,7 +169,7 @@ const conectar = (estado) => {
 const obtenerConfigBalanzas = async (dispositivoId = null) => {
     const localidadEnv = process.env.LOCALIDAD_ID ? parseInt(process.env.LOCALIDAD_ID, 10) : null;
     const result = await pool.query(`
-        SELECT id, ip, puerto, localidad_id
+        SELECT id, ip, puerto, localidad_id, modo_conexion
         FROM configuracion_dispositivos
         WHERE tipo_dispositivo = 'balanza' AND activo = true
           AND ($1::int IS NULL OR localidad_id = $1)
@@ -127,28 +179,49 @@ const obtenerConfigBalanzas = async (dispositivoId = null) => {
     return result.rows;
 };
 
-const registrar = (row) => {
+const registrar = (row, agentWsPrevio = null) => {
     const estado = {
         id: row.id,
         localidadId: row.localidad_id,
         ip: row.ip,
         puerto: row.puerto ? parseInt(row.puerto, 10) : null,
+        modo: row.modo_conexion === 'agente' ? 'agente' : 'directo',
         socket: null,
         buffer: Buffer.alloc(0),
+        agentWs: null,
         lastWeight: null,
+        lastWeightTs: null,
+        stable: false,
+        stability: createStabilityTracker(),
+        historial: [],
         connected: false,
+        error: null,
         reconnectTimer: null,
         destroying: false,
     };
     balanzas.set(row.id, estado);
-    conectar(estado);
+
+    if (estado.modo === 'directo') {
+        if (agentWsPrevio) agentWsPrevio.close(4410, 'La balanza pasó a modo directo');
+        conectar(estado);
+        return;
+    }
+    // Modo agente: no se abre TCP; se espera (o se conserva) la conexión del agente
+    if (agentWsPrevio) {
+        estado.agentWs = agentWsPrevio;
+        enviarAlAgente(estado, { type: 'CONFIG', config: { ip: estado.ip, puerto: estado.puerto } });
+        setStatus(estado.id, false, 'Reconfigurando balanza');
+    } else {
+        console.log(`🛰️  ${etiqueta(estado)} en modo agente; esperando conexión del agente`);
+        setStatus(estado.id, false, 'Agente desconectado');
+    }
 };
 
 const cargarTodas = async () => {
     try {
         const rows = await obtenerConfigBalanzas();
         if (!rows.length) console.warn('⚠️ No hay balanzas activas configuradas en la base de datos');
-        rows.forEach(registrar);
+        rows.forEach(row => registrar(row));
     } catch (err) {
         console.error('❌ No se pudo obtener la config de balanzas:', err.message);
         setTimeout(cargarTodas, RETRY_CONFIG_MS);
@@ -158,23 +231,33 @@ const cargarTodas = async () => {
 // ─── Reconectar (llamado cuando se actualiza la config) ───────────────────────
 export const reconectarBalanza = async (dispositivoId) => {
     const id = Number(dispositivoId);
-    console.log(`🔄 Reconectando balanza ${id} con nueva configuración...`);
+    console.log(`🔄 Recargando balanza ${id} con nueva configuración...`);
     const previo = balanzas.get(id);
     if (previo) {
         balanzas.delete(id);
         destruirSocket(previo);
     }
     const [row] = await obtenerConfigBalanzas(id);
-    if (row) registrar(row);
-    else if (previo) setStatus(id, false);   // quedó inactiva o fuera de LOCALIDAD_ID
+    if (row) {
+        registrar(row, previo?.agentWs ?? null);
+    } else if (previo) {
+        // quedó inactiva o fuera de LOCALIDAD_ID
+        previo.agentWs?.close(4403, 'Balanza inactiva');
+        broadcast(previo, { type: 'STATUS', status: 'DISCONNECTED', error: 'Balanza inactiva' });
+    }
 };
 
 // ─── Getters de estado ────────────────────────────────────────────────────────
 const resumen = (estado) => ({
     dispositivo_id: estado.id,
     localidad_id: estado.localidadId,
+    modo: estado.modo,
+    agente_online: Boolean(estado.agentWs),
     connected: estado.connected,
+    error: estado.error,
     lastWeight: estado.lastWeight,
+    lastWeightTs: estado.lastWeightTs,
+    stable: estado.stable,
     config: { ip: estado.ip, port: estado.puerto },
 });
 

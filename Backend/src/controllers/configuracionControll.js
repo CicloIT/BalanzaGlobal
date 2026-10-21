@@ -7,7 +7,8 @@ export const getConfiguracion = async (req, res) => {
         // Usuario global: ?localidad_id= elige la localidad a configurar
         const scope = scopeSql('localidad_id', userForRead(req), 1);
         const result = await pool.query(`
-            SELECT id, tipo_dispositivo, ip, puerto, usuario, contraseña, activo, localidad_id, marca
+            SELECT id, tipo_dispositivo, ip, puerto, usuario, contraseña, activo, localidad_id, marca,
+                   modo_conexion, agente_ultima_conexion, agente_info
             FROM configuracion_dispositivos
             WHERE activo = true
               AND ${scope.sql}
@@ -60,16 +61,17 @@ export const updateConfiguracion = async (req, res) => {
             });
         }
 
-        // Si se actualizó la balanza, reconectar el socket TCP con la nueva config
+        // Si se actualizó la balanza, reconectar el TCP (modo directo) o avisar al agente (modo agente)
         if (tipo.toLowerCase() === 'balanza') {
             reconectarBalanza(result.rows[0].id).catch(err =>
                 console.error('❌ Error al reconectar balanza:', err.message)
             );
         }
 
+        const { agente_token_hash, ...data } = result.rows[0];
         res.json({
             success: true,
-            data: result.rows[0]
+            data
         });
 
     } catch (error) {
@@ -82,7 +84,8 @@ export const getBalanzas = async (req, res) => {
     try {
         const scope = scopeSql('cd.localidad_id', req.user, 1);
         const result = await pool.query(`
-            SELECT cd.id, cd.localidad_id, l.nombre AS localidad_nombre
+            SELECT cd.id, cd.localidad_id, l.nombre AS localidad_nombre,
+                   cd.modo_conexion, cd.agente_ultima_conexion
             FROM configuracion_dispositivos cd
             JOIN localidad l ON l.id = cd.localidad_id
             WHERE cd.tipo_dispositivo = 'balanza' AND cd.activo = true
@@ -91,7 +94,14 @@ export const getBalanzas = async (req, res) => {
         `, scope.params);
         const data = result.rows.map(row => {
             const estado = getEstadoBalanza(row.id);
-            return { ...row, connected: estado?.connected ?? false, lastWeight: estado?.lastWeight ?? null };
+            return {
+                ...row,
+                connected: estado?.connected ?? false,
+                lastWeight: estado?.lastWeight ?? null,
+                stable: estado?.stable ?? false,
+                error: estado?.error ?? null,
+                agente_online: estado?.agente_online ?? false,
+            };
         });
         res.json({ success: true, data });
     } catch (error) {

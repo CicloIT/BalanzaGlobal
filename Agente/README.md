@@ -1,0 +1,44 @@
+# Agente local de balanzas
+
+Servicio Node que corre en la PC de cada sitio: lee la balanza (conversor RS232→TCP) por la LAN
+y publica el peso al backend central por una conexión **WSS saliente** (`/agent`).
+El sitio no necesita IP pública ni puertos abiertos.
+
+## Cómo funciona
+- Un **token por balanza**. El central identifica la balanza (y su localidad) solo por el token:
+  el agente no puede publicar en la balanza de otro sitio.
+- Al conectar, el central responde `WELCOME` con la `ip/puerto` de la balanza configurados en
+  *Configuración de Dispositivos*. Si la config del sitio trae `ip/puerto`, esos tienen prioridad.
+- El agente calcula si el peso está **estable** (sin variación durante 1,5 s) y lo envía junto al peso.
+- Sin internet (nivel 1): sigue leyendo la balanza, descarta pesos y reconecta solo (backoff 1→30 s).
+  La pantalla muestra "Agente desconectado" y no se puede registrar pesada automática.
+- Dos agentes con el mismo token: el último reemplaza al anterior (cierre 4409).
+
+## Alta de un sitio
+1. En el servidor central (con la migración `migration_agente.sql` aplicada):
+   ```
+   cd Backend
+   node scripts/agente_token.mjs --listar
+   node scripts/agente_token.mjs <idBalanza>      # imprime el token una sola vez
+   ```
+   Para volver a modo directo: `node scripts/agente_token.mjs <idBalanza> --directo` y reiniciar el backend.
+2. En la PC del sitio (Node 18+):
+   ```
+   cd Agente
+   npm install
+   copy sitios\ejemplo.json sitios\mi-sitio.json   # completar central, token, ip/puerto
+   node src/index.js sitios\mi-sitio.json
+   ```
+   `central` es `wss://<dominio>/agent` (o `ws://localhost:3000/agent` en desarrollo).
+   `headers` permite agregar cabeceras extra (p. ej. `x-daytona-preview-token` si el sandbox es privado).
+
+Las configs de `sitios/` tienen tokens: no se versionan (salvo `ejemplo.json`).
+
+## Prueba local con varios sitios
+```
+node Backend/scripts/sim_balanzas.mjs 4101:1000:camion 4102:5000:camion
+node Agente/src/index.js Agente/sitios/mirador.json
+node Agente/src/index.js Agente/sitios/quines.json
+node Backend/scripts/smoke_agentes.mjs <baseUrl> <tokenElMirador> <tokenQuines>
+```
+El modo `camion` del simulador sube, queda estable ~8 s en el peso base y baja, en ciclo.

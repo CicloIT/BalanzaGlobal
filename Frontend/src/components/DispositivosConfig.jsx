@@ -297,6 +297,16 @@ export default function DispositivosConfig() {
                             <div className={`h-3 w-3 rounded-full ${isDark ? 'bg-emerald-500/50' : 'bg-emerald-400'}`} />
                         </div>
 
+                        {config.balanza.modo_conexion === "agente" && (
+                            <p className={`mb-4 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                Leída por el agente local del sitio · última conexión:{" "}
+                                {config.balanza.agente_ultima_conexion
+                                    ? new Date(config.balanza.agente_ultima_conexion).toLocaleString()
+                                    : "nunca"}
+                                {config.balanza.agente_info?.hostname && ` (${config.balanza.agente_info.hostname})`}
+                            </p>
+                        )}
+
                         <div className="space-y-4 mb-6">
                             <div className="input-field">
                                 <input

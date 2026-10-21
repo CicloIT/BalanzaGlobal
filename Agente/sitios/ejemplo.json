@@ -1,0 +1,13 @@
+{
+  "sitio": "El Mirador",
+  "central": "wss://3000-0aa84ebe-d5e1-4f41-831c-2ab887d976f2.proxy.daytona.works/agent",
+  "headers": {},
+  "balanzas": [
+    {
+      "nombre": "Balanza principal",
+      "token": "PEGAR_TOKEN_DE_agente_token.mjs",
+      "ip": "127.0.0.1",
+      "puerto": 4101
+    }
+  ]
+}

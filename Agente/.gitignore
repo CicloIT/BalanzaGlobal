@@ -1,0 +1,5 @@
+node_modules/
+*.log
+# Las configs de sitio llevan tokens: no se versionan (salvo el ejemplo)
+sitios/*.json
+!sitios/ejemplo.json

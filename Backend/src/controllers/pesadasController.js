@@ -1,6 +1,12 @@
 import pool from '../config/database.js';
 import { hasPermission, PERMISSIONS } from '../config/rolesConfig.js';
 import { scopeSql, userForRead, ScopeError, sendScopeError } from '../utils/scope.js';
+import { pesoLeidoRecientemente } from '../services/balanzaService.js';
+
+// Una pesada no manual debe tener un peso que esa misma balanza haya marcado hace poco
+const VALIDAR_PESO_BALANZA = process.env.VALIDAR_PESO_BALANZA !== 'false';
+const PESO_MAX_EDAD_MS = parseInt(process.env.PESO_MAX_EDAD_MS, 10) || 60000;
+const PESO_TOLERANCIA_KG = parseFloat(process.env.PESO_TOLERANCIA_KG) || 0;
 
 // Subconsulta: operaciones dentro del alcance del usuario → `columna ${sql}`
 const operacionesEnScope = (user, startIdx) => {
@@ -94,7 +100,8 @@ export const createPesada = async (req, res) => {
     }
 
     // Validación de permiso para carga manual
-    if (es_manual === 'true' || es_manual === true) {
+    const esManual = es_manual === 'true' || es_manual === true;
+    if (esManual) {
       const userRol = req.user?.rol;
       if (!hasPermission(userRol, PERMISSIONS.PESAJE_MANUAL)) {
         await client.query('ROLLBACK');
@@ -129,6 +136,14 @@ export const createPesada = async (req, res) => {
       if (!refId) continue;
       const ref = await client.query(`SELECT 1 FROM ${tabla} WHERE id = $1 AND localidad_id = $2`, [refId, localidadId]);
       if (ref.rows.length === 0) throw new ScopeError(`El ${tabla} no pertenece a la localidad de la balanza`, 400);
+    }
+
+    if (!esManual && VALIDAR_PESO_BALANZA &&
+        !pesoLeidoRecientemente(dispositivo_id, Number(peso), { maxEdadMs: PESO_MAX_EDAD_MS, toleranciaKg: PESO_TOLERANCIA_KG })) {
+      throw new ScopeError(
+        `La balanza no marcó ${peso} kg en los últimos ${Math.round(PESO_MAX_EDAD_MS / 1000)} s. Vuelva a capturar el peso o cárguelo como manual.`,
+        409
+      );
     }
 
     // Buscar operación abierta

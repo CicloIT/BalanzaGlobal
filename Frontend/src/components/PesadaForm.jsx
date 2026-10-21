@@ -116,9 +116,11 @@ const getWsUrl = (dispositivoId) => {
 };
 
 /* ─── Sub-componente para el Display de la Balanza (Localiza re-renders) ─── */
-const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark, dispositivoId }) => {
+const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, stableRef, isDark, dispositivoId }) => {
   const [peso, setPeso] = useState(0);
   const [status, setStatus] = useState('DISCONNECTED');
+  const [estable, setEstable] = useState(false);
+  const [errorBalanza, setErrorBalanza] = useState(null);
   const wsRef = useRef(null);
 
   useEffect(() => {
@@ -139,6 +141,12 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark, disposit
         if (data.type === 'STATUS') {
           setStatus(data.status);
           statusRef.current = data.status;
+          setErrorBalanza(data.error || null);
+          if (data.status !== 'CONNECTED' || 'stable' in data) {
+            const st = data.status === 'CONNECTED' && data.stable === true;
+            setEstable(st);
+            stableRef.current = st;
+          }
           // El STATUS inicial trae currentWeight (null si la balanza aún no envió peso)
           if ('currentWeight' in data) {
             setPeso(data.currentWeight ?? 0);
@@ -147,12 +155,17 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark, disposit
         } else if (data.type === 'WEIGHT') {
           setPeso(data.weight);
           weightRef.current = data.weight;
+          setEstable(data.stable === true);
+          stableRef.current = data.stable === true;
         }
       };
 
       socket.onclose = () => {
         setStatus('DISCONNECTED');
         statusRef.current = 'DISCONNECTED';
+        setEstable(false);
+        stableRef.current = false;
+        setErrorBalanza('Sin conexión con el servidor');
         if (cerrado) return;
         console.log('[BalanzaDisplay] Desconectado. Reintentando en 3s...');
         reconnectTimer = setTimeout(connectWS, 3000);
@@ -170,7 +183,7 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark, disposit
       clearTimeout(reconnectTimer);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [weightRef, statusRef, dispositivoId]);
+  }, [weightRef, statusRef, stableRef, dispositivoId]);
 
   return (
     <div className="flex-1 w-full space-y-3">
@@ -180,9 +193,14 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, isDark, disposit
         </label>
         <div className={`flex items-center gap-2 text-xs font-mono ${status === 'CONNECTED' ? 'text-green-500' : 'text-red-500'}`}>
           <div className={`w-2 h-2 rounded-full ${status === 'CONNECTED' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-          {status === 'CONNECTED' ? 'LIVE' : 'CABEZAL FUERA DE SERVICIO'}
+          {status === 'CONNECTED' ? 'LIVE' : (errorBalanza || 'CABEZAL FUERA DE SERVICIO').toUpperCase()}
         </div>
       </div>
+      {status === 'CONNECTED' && (
+        <div className={`text-xs font-bold font-mono ${estable ? 'text-green-500' : 'text-amber-500'}`}>
+          {estable ? '● PESO ESTABLE' : '◌ PESO INESTABLE — esperar'}
+        </div>
+      )}
       <div className={`relative group px-8 py-6 rounded-2xl flex items-center justify-center min-h-[120px] transition-all ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
         }`}>
         <span className={`text-6xl md:text-7xl font-mono font-black ${status === 'CONNECTED'
@@ -223,6 +241,8 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
   // Refs para capturar peso sin disparar re-renders del form entero constantemente
   const currentWeightRef = useRef(0);
   const currentStatusRef = useRef('DISCONNECTED');
+  const currentStableRef = useRef(false);
+  const capturedWeightRef = useRef(null);   // peso tomado de la balanza con el botón Capturar
 
   const [camLoading, setCamLoading] = useState(false);
   const [camImages, setCamImages] = useState([]);
@@ -375,6 +395,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
   }, []);
 
   const handleCapture = useCallback((peso) => {
+    capturedWeightRef.current = peso;
     setFormData(prev => ({ ...prev, peso: peso.toString() }));
     setMessage({ type: 'success', text: `Peso capturado: ${peso} kg` });
     setTimeout(() => setMessage(null), 2000);
@@ -423,10 +444,9 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       return;
     }
 
-    // Usamos las refs para verificar manual vs real-time
-    const pesoCapturado = currentWeightRef.current.toString();
+    // Es manual si el peso no salió del botón Capturar (el backend además verifica que la balanza lo haya marcado)
     const pesoIngresado = formData.peso.toString();
-    const esManual = pesoIngresado !== pesoCapturado && currentStatusRef.current === 'CONNECTED';
+    const esManual = capturedWeightRef.current === null || pesoIngresado !== capturedWeightRef.current.toString();
 
     if (esManual && !canEnterManualWeight()) {
       setErrorModal('No tiene permiso para cargar peso manualmente.');
@@ -535,6 +555,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
         sentido: 'INGRESO',
         es_contenedor: false,
       });
+      capturedWeightRef.current = null;
       setArchivoPDF(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e) {
@@ -687,6 +708,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
               onCapture={handleCapture}
               weightRef={currentWeightRef}
               statusRef={currentStatusRef}
+              stableRef={currentStableRef}
             />
 
             <div className="hidden lg:flex flex-col items-center opacity-30">
@@ -718,9 +740,12 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
                 <button
                   type="button"
                   onClick={() => {
-                    if (currentStatusRef.current === 'CONNECTED') {
-                      handleCapture(currentWeightRef.current);
+                    if (currentStatusRef.current !== 'CONNECTED') return;
+                    if (!currentStableRef.current) {
+                      setErrorModal('El peso todavía no está estable. Espere a que el camión quede quieto sobre la balanza.');
+                      return;
                     }
+                    handleCapture(currentWeightRef.current);
                   }}
                   disabled={currentStatusRef.current !== 'CONNECTED'}
                   className={`w-full py-4 px-6 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg ${currentStatusRef.current === 'CONNECTED'

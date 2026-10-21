@@ -9,6 +9,7 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import { fileURLToPath } from "url";
 import { inicializarBalanzas, getEstadoBalanza, getEstadosBalanzas } from './services/balanzaService.js';
+import { crearAgenteGateway } from './services/agenteGateway.js';
 import { loadUser } from './middleware/authMiddleware.js';
 import { scopeSql } from './utils/scope.js';
 
@@ -41,7 +42,14 @@ const PORT = process.env.PORT || 3000;
 
 // Crear servidor HTTP y WebSocket
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ noServer: true });      // navegadores: /ws?userId=&dispositivoId=
+const agenteWss = crearAgenteGateway();                    // agentes locales: /agent (token por balanza)
+
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://localhost');
+  const destino = pathname === '/agent' ? agenteWss : wss;
+  destino.handleUpgrade(req, socket, head, (ws) => destino.emit('connection', ws, req));
+});
 
 // Broadcast de la balanza: solo a los clientes suscriptos a ese dispositivo
 function broadcast(msg) {
@@ -86,7 +94,9 @@ wss.on('connection', async (ws, req) => {
       type: 'STATUS',
       status: estado?.connected ? 'CONNECTED' : 'DISCONNECTED',
       currentWeight: estado?.lastWeight ?? null,
+      stable: estado?.stable ?? false,
       dispositivo_id: dispositivoId,
+      ...(estado?.error && { error: estado.error }),
       ...(!dispositivoId && { error: 'Sin balanza asignada' })
     }));
   } catch (err) {
