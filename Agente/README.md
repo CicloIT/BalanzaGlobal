@@ -1,5 +1,7 @@
 # Agente local de balanzas
 
+> Despliegue en VPS, configuración de los conversores y prueba con hardware: ver [DESPLIEGUE.md](DESPLIEGUE.md).
+
 Servicio Node que corre en la PC de cada sitio: lee la balanza (conversor RS232→TCP) por la LAN
 y publica el peso al backend central por una conexión **WSS saliente** (`/agent`).
 El sitio no necesita IP pública ni puertos abiertos.
