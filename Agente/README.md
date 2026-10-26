@@ -43,8 +43,9 @@ Las configs de `sitios/` tienen tokens: no se versionan (salvo `ejemplo.json`).
 ## Prueba local con varios sitios
 ```
 node Backend/scripts/sim_balanzas.mjs 4101:1000:camion 4102:5000:camion
-node Agente/src/index.js Agente/sitios/mirador.json
-node Agente/src/index.js Agente/sitios/quines.json
+node Agente/src/index.js Agente/sitios/mirador-local.json
+node Agente/src/index.js Agente/sitios/quines-local.json
 node Backend/scripts/smoke_agentes.mjs <baseUrl> <tokenElMirador> <tokenQuines>
 ```
+Los `*-local.json` apuntan a `ws://localhost:<puerto>/agent`: el puerto tiene que ser el del backend local.
 El modo `camion` del simulador sube, queda estable ~8 s en el peso base y baja, en ciclo.

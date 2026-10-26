@@ -45,7 +45,6 @@ export class AgenteBalanza {
         // Central (WSS)
         this.ws = null;
         this.bienvenido = false;
-        this.dispositivoId = null;
         this.backoff = BACKOFF_MIN_MS;
         this.reconnectCentralTimer = null;
         this.silencioTimer = null;
@@ -239,7 +238,6 @@ export class AgenteBalanza {
         this.bienvenido = true;
         this.avisoOffline = false;
         this.backoff = BACKOFF_MIN_MS;
-        this.dispositivoId = msg.dispositivo_id;
         this.log(`🛰️  conectado al central → balanza ${msg.dispositivo_id} (localidad ${msg.localidad_id})`);
         this.enviar({ type: 'HELLO', version: this.version, hostname: process.env.COMPUTERNAME || process.env.HOSTNAME || null });
         this.enviarStatus();

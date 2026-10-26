@@ -189,7 +189,8 @@ Lecciones de la primera prueba:
 | Central | Daytona (`wss://3000-<sandbox>.proxy.daytona.works/agent`) — falta VPS con dominio |
 
 Pendientes antes de producción: VPS con dominio + HTTPS + nginx WebSocket, agente como servicio
-en cada PC de sitio, cambiar las contraseñas de los usuarios del seed (`123456`).
+en cada PC de sitio, cambiar las contraseñas de los usuarios del seed (`123456`) y guardar las
+contraseñas con hash (hoy se comparan en texto plano en el login).
 
 ## 6. Checklist por sitio nuevo
 
