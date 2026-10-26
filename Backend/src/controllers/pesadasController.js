@@ -318,7 +318,7 @@ export const updatePdfByOperacion = async (req, res) => {
 
 export const deletePesada = async (req, res) => {
    try {
-    const { id } = req.params;
+    const { operacionId: id } = req.params;
 
     const scope = scopeSql('op.localidad_id', req.user, 2);
     const result = await pool.query(

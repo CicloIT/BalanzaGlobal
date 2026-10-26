@@ -145,16 +145,14 @@ export function useVehiculosInfinite(config, enabled = true, search = '') {
     fetchPage(nextPage, true, search);
   }, [hasMore, loadingMore, loading, page, fetchPage, total, items.length, search]);
 
-  const reset = useCallback(() => {
+  // Recarga desde la página 1 con la búsqueda actual (p. ej. después de eliminar)
+  const fetchItems = useCallback(() => {
     fetchingRef.current = false;
-    initializedRef.current = false;
-    setItems([]);
-    setPage(1);
-    setHasMore(true);
-    setTotal(0);
     loadedPagesRef.current.clear();
+    loadedPagesRef.current.add(1);
     lastFetchRef.current = 0;
-  }, []);
+    fetchPage(1, false, searchRef.current);
+  }, [fetchPage]);
 
   const loadAll = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -307,7 +305,7 @@ export function useVehiculosInfinite(config, enabled = true, search = '') {
     formData,
     loadMore,
     loadAll,
-    reset,
+    fetchItems,
     abrirModal,
     cerrarModal,
     guardarItem,
