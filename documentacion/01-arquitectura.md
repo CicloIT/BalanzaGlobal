@@ -37,20 +37,27 @@ suscritos a esa balanza.
    Hay dos copias idénticas de este archivo (`Backend/src/utils/` y `Agente/src/`): si se cambia una, cambiar la otra.
 4. El agente manda `WEIGHT` por WebSocket. El central le había mandado antes `WELCOME` con la
    ip/puerto a leer, y manda `CONFIG` si se editan.
-5. El navegador abre `/ws?userId=<id>&dispositivoId=<balanza>` y recibe el peso en vivo.
+5. El navegador abre `/ws?dispositivoId=<balanza>` (el usuario sale de la cookie) y recibe el peso en vivo.
 6. Al registrar la pesada, el backend compara el peso enviado contra lo que la balanza marcó
    en los últimos 60 s.
 
 Mensajes del protocolo del agente: `HELLO`, `STATUS`, `WEIGHT` (agente → central) y `WELCOME`,
 `CONFIG` (central → agente). Ping cada 15 s; sin noticias en 45 s se da por desconectado.
 
-## Autenticación (estado actual)
+## Autenticación
 
-- `POST /api/usuarios/login` devuelve el usuario. El frontend lo guarda en `localStorage`
-  (`balanza_user`).
-- Cada request manda `x-user-id` y `x-username` (armados en `Frontend/src/lib/api.js`).
-- El backend carga el usuario de la base en cada request (`middleware/authMiddleware.js`) y
-  aplica permisos (`config/rolesConfig.js`) y alcance (`utils/scope.js`).
+- Contraseñas guardadas con **scrypt** (`Backend/src/utils/password.js`).
+- `POST /api/usuarios/login` verifica la contraseña y deja una **cookie de sesión httpOnly**
+  (`balanza_sesion`) firmada con `SESSION_SECRET` (`Backend/src/utils/session.js`). Dura
+  `SESSION_TTL_HORAS` (12 h por defecto).
+- El navegador manda la cookie sola en cada request, en las imágenes y PDF, y en el WebSocket `/ws`.
+  JavaScript no la puede leer. El frontend guarda una copia de los datos del usuario en
+  `localStorage` solo para mostrar el menú, y al cargar la valida con `GET /api/usuarios/me`.
+- Los scripts pueden mandar el mismo token como `Authorization: Bearer <token>`.
+- En cada request el backend carga el usuario de la base (`middleware/authMiddleware.js`): si se
+  desactiva, pierde el acceso en el acto. Después aplica permisos (`config/rolesConfig.js`) y
+  alcance (`utils/scope.js`).
+- `/capturas` y `/documentos` exigen sesión.
 
 ## Estructura del repositorio
 
@@ -74,6 +81,7 @@ Balanza/
 │  ├─ src/components/          pantallas
 │  └─ src/hooks/               acceso a datos y permisos
 ├─ Agente/                     agente local + sitios/*.json + DESPLIEGUE.md
+├─ schema.sql                 esquema completo de la base (sin datos)
 ├─ migration_*.sql seed_*.sql  cambios de base y datos iniciales
 └─ documentacion/              esta carpeta
 ```

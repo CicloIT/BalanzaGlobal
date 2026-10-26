@@ -23,20 +23,32 @@ Cada usuario tiene un **rol** (qué puede hacer) y un **alcance** (qué datos ve
 | Rol | Alcance típico | Puede |
 |---|---|---|
 | `superadmin` | Plataforma | Todo, incluido administrar empresas |
-| `admin` | Empresa o localidad | Todo menos empresas: catálogos, pesajes (incluido manual), reportes, usuarios, respaldos, **dispositivos y tokens** |
+| `admin` | Empresa o localidad | Todo menos empresas: catálogos, pesajes (incluido manual), reportes, usuarios, **dispositivos y tokens**; respaldos solo si es global |
 | `logistica` | Empresa (global) | Solo lectura: pesajes, reportes, dashboard, usuarios |
 | `gerente` | Localidad | Catálogos completos, ver pesajes, reportes, dashboard, cámaras. No pesa ni configura |
 | `balancero` | Localidad | Pesar con la balanza (sin peso manual), editar pesajes, ver catálogos, crear reportes, cámaras |
-| `subalancero` | Localidad | Lo mismo que balancero, más **peso manual** y **respaldos** |
+| `subalancero` | Localidad | Lo mismo que balancero, más **peso manual** |
 
 Notas:
 - *Dispositivos* (ip/puerto, generar y revocar tokens) es solo para admin y superadmin.
+- *Respaldos* es solo para **admin global** (sin localidad) y superadmin, porque el respaldo
+  incluye la base completa. Un admin de localidad no los ve.
 - Los permisos están en `Backend/src/config/rolesConfig.js` (la fuente de verdad) y copiados en
   `Frontend/src/config/rolesConfig.js` para armar el menú. **Si se cambia uno, cambiar el otro.**
 - Un admin de localidad no puede crear usuarios globales.
 
-## Gestión de usuarios
+## Gestión de usuarios y contraseñas
 
-Todavía no hay pantalla de usuarios: la API existe (`/api/usuarios`) pero el alta se hace por
-SQL o con `seed_usuarios.sql`. La columna `password_hash` guarda hoy la contraseña **en texto
-plano** (ver doc 07).
+Todavía no hay pantalla de usuarios: la API existe.
+
+| Acción | Cómo |
+|---|---|
+| Alta | `POST /api/usuarios` con `username`, `password` (mín. 6), `rol`, `localidad_id` |
+| Reset por un admin | `PUT /api/usuarios/:id` con `password` |
+| Cambio propio | `PUT /api/usuarios/me/password` con `actual` y `nueva` |
+| Desde la consola del servidor | `node Backend/scripts/usuario_password.mjs <usuario> <nueva>` |
+| Desactivar | `DELETE /api/usuarios/:id` (pierde el acceso de inmediato) |
+
+Las contraseñas se guardan con hash (scrypt) en `usuario.password_hash`. Si se inserta una en
+texto plano por SQL, funciona y se hashea sola en el primer login; o correr
+`node Backend/scripts/hashear_passwords.mjs`.

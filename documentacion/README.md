@@ -38,9 +38,10 @@ balanzas; un servidor central guarda las pesadas y sirve la aplicación web.
 5. **Pesada automática = peso que marcó la balanza.** El backend rechaza (409) un peso que la
    balanza no marcó en los últimos 60 s. Para cargar a mano hace falta el permiso de peso manual.
 6. **Los PDF subidos (`Backend/src/documentos/`) y las fotos (`Backend/capturas/`) no están en git.**
-   Hay que respaldarlos aparte. Ojo al hacer `git pull` sobre una copia vieja (ver doc 06).
+   Entran en el `.zip` de respaldo; bajar copias fuera del servidor. Ojo al hacer `git pull` sobre una copia vieja (ver doc 06).
 7. **En el central, `LOCALIDAD_ID` va vacío.** Con un valor, el servidor solo atiende las balanzas
    de esa localidad (pensado para instalaciones de un solo sitio).
 8. **Después de cambiar el frontend hay que compilar** (`npm run build`) y recargar con Ctrl+Shift+R.
-9. **Seguridad todavía no es de producción**: contraseñas en texto plano y la API confía en el
-   header `x-user-id`. Ver doc 07.
+9. **Definir `SESSION_SECRET` en `Backend/.env`.** Firma las sesiones; sin él, cada reinicio del
+   backend cierra la sesión de todos.
+10. **Respaldos = base completa**: solo los ve el admin global (y superadmin).

@@ -11,8 +11,10 @@
 | Variable | Obligatoria | Qué hace |
 |---|---|---|
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Sí | Conexión a PostgreSQL |
+| `SESSION_SECRET` | **Sí** | Clave que firma las sesiones (ver abajo cómo generarla). Si falta, se genera una al arrancar y cada reinicio cierra todas las sesiones. Cambiarla también cierra todas |
+| `SESSION_TTL_HORAS` | No (12) | Duración de la sesión |
 | `PORT` | No (3000) | Puerto del backend |
-| `LOCALIDAD_ID` | No | **Vacío en el central.** Con un id, el servidor solo conecta las balanzas de esa localidad y el backup automático es solo de esa localidad |
+| `LOCALIDAD_ID` | No | **Vacío en el central.** Con un id, el servidor solo conecta las balanzas de esa localidad |
 | `VALIDAR_PESO_BALANZA` | No (`true`) | `false` desactiva la validación del peso contra la balanza |
 | `PESO_MAX_EDAD_MS` | No (60000) | Antigüedad máxima de la lectura que respalda una pesada automática |
 | `PESO_TOLERANCIA_KG` | No (0) | Diferencia permitida entre el peso enviado y el leído |
@@ -27,18 +29,32 @@ DB_PORT=5432
 DB_NAME=balanzaglobal
 PORT=3000
 LOCALIDAD_ID=
+SESSION_SECRET=<64 caracteres hex>
+```
+
+Generar `SESSION_SECRET`:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 El frontend acepta `VITE_API_URL` al compilar (vacío = mismo origen, que es lo normal).
 
 ## Base de datos
 
-> **Importante:** el repo no tiene el esquema base completo. Los `migration_*.sql` solo agregan
-> cambios sobre una base existente. Para una instalación nueva, partir de un respaldo
-> (`database.sql` dentro de un `.zip` de *Configuración → Respaldos*) o de un
-> `pg_dump --schema-only` de una base que funcione. Ver pendientes (doc 07).
+**Instalación nueva:** `schema.sql` (raíz del repo) tiene el esquema completo actual, sin datos.
+```bash
+createdb balanzaglobal
+psql -v ON_ERROR_STOP=1 -d balanzaglobal -f schema.sql
+```
+Después cargar empresa, localidades y usuarios (o restaurar un `database.sql` de un respaldo).
 
-Sobre una base existente, en este orden (todas son idempotentes):
+Al agregar una migración nueva, **regenerar `schema.sql`**:
+```bash
+pg_dump --schema-only --no-owner --no-privileges -d balanzaglobal -f schema.sql
+```
+y borrar las líneas `\restrict` / `\unrestrict` que agrega pg_dump 18 (un psql más viejo no las entiende).
+
+**Base existente:** aplicar las migraciones en este orden (todas son idempotentes):
 ```bash
 psql -v ON_ERROR_STOP=1 -d balanzaglobal -f migration_localidad_maestros.sql
 psql -v ON_ERROR_STOP=1 -d balanzaglobal -f migration_empresa_scope.sql
@@ -48,7 +64,8 @@ psql -v ON_ERROR_STOP=1 -d balanzaglobal -f migration_agente.sql
 Datos iniciales (opcionales):
 - `seed_localidades.sql`: localidades de ejemplo.
 - `seed_usuarios.sql`: un usuario por rol y localidad, **todos con contraseña `123456`**.
-  Cambiarlas antes de usar en serio.
+  Las inserta en texto plano; después correr `node Backend/scripts/hashear_passwords.mjs`
+  (igual se hashean solas en el primer login). Cambiarlas antes de usar en serio.
 
 ## Desarrollo local
 

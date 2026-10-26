@@ -35,6 +35,20 @@ pm2 logs balanza --lines 30 --nostream
 
 En el navegador: **Ctrl+Shift+R** para no quedarse con el frontend viejo en caché.
 
+### Una sola vez: actualización de seguridad (sesiones y contraseñas)
+
+Al desplegar por primera vez la versión con sesión en cookie:
+```bash
+cd /root/BalanzaGlobal/Backend
+# 1. Clave de sesiones (si no existe)
+grep -q '^SESSION_SECRET=' .env || echo "SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" >> .env
+# 2. Hashear las contraseñas existentes (los usuarios siguen entrando igual)
+node scripts/hashear_passwords.mjs
+# 3. Build del frontend + reinicio
+cd ../Frontend && npm run build && pm2 restart balanza --update-env
+```
+Todos los usuarios tienen que volver a iniciar sesión una vez.
+
 > **Por qué el respaldo de PDF:** `Backend/src/documentos/` antes estaba versionado. En una copia
 > del repo anterior a ese cambio, `git pull` borra esos archivos. Hoy ya están fuera de git y
 > no debería volver a pasar, pero el respaldo es barato.
@@ -44,8 +58,10 @@ En el navegador: **Ctrl+Shift+R** para no quedarse con el frontend viejo en cach
 | Script | Uso |
 |---|---|
 | `agente_token.mjs` | `--listar`, generar token de una balanza, `--directo` |
+| `hashear_passwords.mjs` | Pasa a hash las contraseñas en texto plano (idempotente) |
+| `usuario_password.mjs` | `node scripts/usuario_password.mjs <usuario> <nueva>` |
 | `sim_balanzas.mjs` | Simula conversores: `node scripts/sim_balanzas.mjs 4101:1000:camion 4102:5000:camion` (puerto:peso:modo; `camion` sube, queda estable ~8 s y baja) |
-| `smoke_scope.mjs` | Prueba alcance empresa/localidad y permisos: `node scripts/smoke_scope.mjs [baseUrl]` |
+| `smoke_scope.mjs` | Prueba alcance, permisos, sesión y respaldos: `node scripts/smoke_scope.mjs [baseUrl]` (usa los usuarios del seed con `123456`) |
 | `smoke_agentes.mjs` | Prueba dos agentes aislados: `node scripts/smoke_agentes.mjs <baseUrl> <tokenA> <tokenB>` |
 
 ## Probar sin hardware
@@ -73,7 +89,7 @@ ip/puerto `127.0.0.1:4102`.
 | "Agente desconectado" | Log del agente en la PC del sitio; cierres `4401` token inválido, `4403` balanza inactiva, `4409` token duplicado |
 | Agente conectado pero sin peso | `ECONNREFUSED` (conversor no en TCP Server :6000), `ECONNRESET` (otro cliente conectado), "sin tramas" (balanza, cable, baud) |
 | 409 al registrar pesada | La balanza no marcó ese peso en los últimos 60 s: capturar de nuevo |
-| 401 en la app | Sesión vieja: cerrar sesión y volver a entrar |
+| 401 en la app / vuelve al login | Sesión vencida (12 h), backend reiniciado sin `SESSION_SECRET`, o usuario desactivado: volver a entrar |
 | La app no muestra cambios | Falta `npm run build` o Ctrl+Shift+R |
 | Fotos vacías | El central no llega a la IP del NVR, o credenciales/marca mal |
 | `pg_dump` falla en respaldo | Definir `PG_DUMP_PATH` |

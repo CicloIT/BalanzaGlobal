@@ -42,10 +42,9 @@ Respeta el alcance del usuario.
 
 ## Respaldos
 
-*Configuración → Respaldos* (admin, superadmin, subalancero):
-- **Respaldo manual**: genera un `.zip` con `database.sql` (pg_dump) y las fotos de la localidad.
+*Configuración → Respaldos* (solo **admin global** y superadmin):
+- **Respaldo manual**: genera un `.zip` con `database.sql` (pg_dump de la base completa),
+  `capturas/` (fotos) y `documentos/` (PDF).
 - **Automático**: los domingos a las 3 AM.
-- Se guardan en `Backend/backups/<localidad>/` y se descargan desde la misma vista.
-
-> Hoy un usuario global de empresa obtiene un respaldo de **toda** la base, no solo de su
-> empresa. Los PDF de `Backend/src/documentos/` conviene respaldarlos aparte.
+- Se guardan en `Backend/backups/` y se descargan desde la misma vista.
+- Conviene bajar una copia fuera del servidor cada tanto.
