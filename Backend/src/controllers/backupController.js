@@ -2,11 +2,9 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import archiver from 'archiver';
 import pool from '../config/database.js';
-
-dotenv.config();
+import { slugLocalidadPorId } from '../utils/scope.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,18 +38,9 @@ const getPgDumpCommand = () =>
 
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-const slugLocalidad = (nombre) =>
-  nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-
-const getNombreLocalidad = async (localidadId) => {
-  if (!localidadId) return null;
-  const result = await pool.query('SELECT nombre FROM localidad WHERE id = $1', [localidadId]);
-  return result.rows.length ? slugLocalidad(result.rows[0].nombre) : null;
-};
-
 // localidadId: número o null (global)
 export const createBackup = async (localidadId = null) => {
-  const localidadNombre = await getNombreLocalidad(localidadId);
+  const localidadNombre = await slugLocalidadPorId(localidadId);
   const backupSubDir = localidadNombre ? path.join(BACKUP_DIR, localidadNombre) : BACKUP_DIR;
   if (!fs.existsSync(backupSubDir)) fs.mkdirSync(backupSubDir, { recursive: true });
 
@@ -133,7 +122,7 @@ export const handleManualBackup = async (req, res) => {
 export const listBackups = async (req, res) => {
   try {
     const localidadId = req.user?.localidad_id ?? null;
-    const localidadNombre = await getNombreLocalidad(localidadId);
+    const localidadNombre = await slugLocalidadPorId(localidadId);
     const dir = localidadNombre ? path.join(BACKUP_DIR, localidadNombre) : BACKUP_DIR;
 
     if (!fs.existsSync(dir)) {
@@ -163,7 +152,7 @@ export const downloadBackup = async (req, res) => {
     }
 
     const localidadId = req.user?.localidad_id ?? null;
-    const localidadNombre = await getNombreLocalidad(localidadId);
+    const localidadNombre = await slugLocalidadPorId(localidadId);
     const dir = localidadNombre ? path.join(BACKUP_DIR, localidadNombre) : BACKUP_DIR;
     const filePath = path.join(dir, filename);
 

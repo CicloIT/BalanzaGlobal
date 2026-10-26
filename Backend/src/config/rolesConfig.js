@@ -71,10 +71,6 @@ export const PERMISSIONS = {
   // Dashboard
   DASHBOARD_VIEW: 'dashboard:view',
 
-  // Tickets
-  TICKETS_VIEW: 'tickets:view',
-  TICKETS_CREATE: 'tickets:create',
-  TICKETS_CLOSE: 'tickets:close',
 
   // Cámaras
   CAMARAS_VIEW: 'camaras:view',
@@ -118,7 +114,6 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.PESAJE_VIEW,
     PERMISSIONS.REPORTES_VIEW,
     PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.TICKETS_VIEW,
     PERMISSIONS.CAMARAS_VIEW,
   ],
 
@@ -153,9 +148,6 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.REPORTES_VIEW,
     PERMISSIONS.REPORTES_CREATE,
     PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.TICKETS_VIEW,
-    PERMISSIONS.TICKETS_CREATE,
-    PERMISSIONS.TICKETS_CLOSE,
     PERMISSIONS.CAMARAS_VIEW,
     PERMISSIONS.CAMARAS_CAPTURE,
   ],
@@ -204,92 +196,10 @@ export const ROLE_PERMISSIONS = {
   ],
 };
 
-// Módulos disponibles en el frontend (para filtrar tabs)
-export const MODULES = {
-  DASHBOARD: 'dashboard',
-  PESADA: 'pesada',
-  PESADAS: 'pesadas',
-  CHOFERES: 'choferes',
-  PRODUCTORES: 'productores',
-  PRODUCTOS: 'productos',
-  TRANSPORTES: 'transportes',
-  VEHICULOS: 'vehiculos',
-  PROVINCIAS: 'provincias',
-  LOCALIDADES: 'localidades',
-  REPORTES: 'reportes-historial',
-  CONFIGURACION: 'configuracion',
-  EMPRESAS: 'empresas',
-};
-
-// Permisos requeridos por módulo
-export const MODULE_PERMISSIONS = {
-  [MODULES.EMPRESAS]: [PERMISSIONS.EMPRESAS_VIEW],
-  [MODULES.DASHBOARD]: [PERMISSIONS.DASHBOARD_VIEW],
-  [MODULES.PESADA]: [PERMISSIONS.PESAJE_CREATE],
-  [MODULES.PESADAS]: [PERMISSIONS.PESAJE_VIEW],
-  [MODULES.CHOFERES]: [PERMISSIONS.CHOFERES_VIEW],
-  [MODULES.PRODUCTORES]: [PERMISSIONS.PRODUCTORES_VIEW],
-  [MODULES.PRODUCTOS]: [PERMISSIONS.PRODUCTOS_VIEW],
-  [MODULES.TRANSPORTES]: [PERMISSIONS.TRANSPORTES_VIEW],
-  [MODULES.VEHICULOS]: [PERMISSIONS.VEHICULOS_VIEW],
-  [MODULES.PROVINCIAS]: [PERMISSIONS.PROVINCIAS_VIEW],
-  [MODULES.LOCALIDADES]: [PERMISSIONS.LOCALIDADES_VIEW],
-  [MODULES.REPORTES]: [PERMISSIONS.REPORTES_VIEW],
-  [MODULES.CONFIGURACION]: [PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE],
-};
-
 // Helper para verificar si un rol tiene un permiso
 export const hasPermission = (rol, permission) => {
   if (!rol || !permission) return false;
   const normalizedRol = rol.toLowerCase();
   const permissions = ROLE_PERMISSIONS[normalizedRol] || [];
   return permissions.includes(permission);
-};
-
-// Helper para verificar si un rol tiene acceso a un módulo
-export const hasModuleAccess = (rol, moduleId) => {
-  if (!rol || !moduleId) return false;
-  const requiredPermissions = MODULE_PERMISSIONS[moduleId] || [];
-  if (requiredPermissions.length === 0) return true;
-  return requiredPermissions.some(perm => hasPermission(rol, perm));
-};
-
-// Helper para verificar múltiples permisos (AND o OR)
-export const hasPermissions = (rol, permissions, operator = 'OR') => {
-  if (!rol || !permissions || permissions.length === 0) return false;
-  if (operator === 'AND') {
-    return permissions.every(perm => hasPermission(rol, perm));
-  }
-  return permissions.some(perm => hasPermission(rol, perm));
-};
-
-// Obtener todos los permisos de un rol
-export const getRolePermissions = (rol) => {
-  if (!rol) return [];
-  const normalizedRol = rol.toLowerCase();
-  return ROLE_PERMISSIONS[normalizedRol] || [];
-};
-
-// Verificar si un rol puede realizar acciones de escritura en un módulo
-export const canWrite = (rol, modulePrefix) => {
-  if (!rol || !modulePrefix) return false;
-  const writePermissions = [
-    `${modulePrefix}:create`,
-    `${modulePrefix}:update`,
-    `${modulePrefix}:delete`,
-  ];
-  return writePermissions.some(perm => hasPermission(rol, perm));
-};
-
-export default {
-  PERMISSIONS,
-  ROLES,
-  ROLE_PERMISSIONS,
-  MODULES,
-  MODULE_PERMISSIONS,
-  hasPermission,
-  hasModuleAccess,
-  hasPermissions,
-  getRolePermissions,
-  canWrite,
 };

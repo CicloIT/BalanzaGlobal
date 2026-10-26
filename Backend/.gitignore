@@ -28,3 +28,6 @@ backups/
 logs/
 *.log
 capturas/
+
+# Uploads de usuarios (PDF de CPE)
+src/documentos/*

@@ -42,33 +42,6 @@ export const getPesadas = async (req, res) => {
   }
 };
 
-export const getPesadasByTicket = async (req, res) => {
-  try {
-    const { ticketId } = req.params;
-    const scope = operacionesEnScope(req.user, 2);
-    const result = await pool.query(`
-      SELECT p.*
-      FROM pesada p
-      WHERE p.operacion_id = (
-        SELECT op.id 
-        FROM operacion_pesaje op
-        JOIN pesada p2 ON op.id = p2.operacion_id
-        JOIN ticket t ON p2.id = t.pesada_id
-        WHERE t.id = $1
-      )
-        AND p.operacion_id ${scope.sql}
-      ORDER BY p.tipo DESC, p.fecha_hora ASC
-    `, [ticketId, ...scope.params]);
-    res.json({
-      success: true,
-      data: result.rows,
-      count: result.rows.length,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
 export const createPesada = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -418,7 +391,6 @@ export const getPesadasAgrupadas = async (req, res) => {
     );
     const total = parseInt(countResult.rows[0].count, 10);
 
-    console.log(`[API /pesadas/agrupadas] Req: Page=${page}, Limit=${limit}, Sentido=${sentidoFilter || '-'}, Fecha=${fechaFilter || '-'}`);
 
     const mainParams = [...filterParams, limit, offset];
     const limitIdx = mainParams.length - 1;
@@ -462,7 +434,6 @@ export const getPesadasAgrupadas = async (req, res) => {
     `, mainParams);
 
     const hasMore = (result.rows.length === limit) && (offset + result.rows.length < total);
-    console.log(`[API /pesadas/agrupadas] Result: Rows=${result.rows.length}, Total=${total}, hasMore=${hasMore}`);
 
 
     res.json({

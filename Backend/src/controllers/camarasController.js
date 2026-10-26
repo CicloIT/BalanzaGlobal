@@ -2,7 +2,7 @@ import DigestFetch from "digest-fetch";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { scopeSql, userForRead } from "../utils/scope.js";
+import { scopeSql, userForRead, slugLocalidadPorId } from "../utils/scope.js";
 import pool from "../config/database.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,15 +12,6 @@ const CAPTURAS_DIR = path.join(__dirname, "../../capturas");
 if (!fs.existsSync(CAPTURAS_DIR)) {
     fs.mkdirSync(CAPTURAS_DIR, { recursive: true });
 }
-
-const slugLocalidad = (nombre) =>
-    nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
-
-const getNombreLocalidad = async (localidadId) => {
-    if (!localidadId) return 'global';
-    const result = await pool.query('SELECT nombre FROM localidad WHERE id = $1', [localidadId]);
-    return result.rows.length ? slugLocalidad(result.rows[0].nombre) : 'global';
-};
 
 const buildSnapshotUrl = (ip, marca, canal) => {
     if (marca === "hikvision") {
@@ -116,7 +107,7 @@ export const capturarTodo = async (req, res) => {
     const patente = (req.query.patente || "SIN_PATENTE").toUpperCase().trim();
     const usuario = userForRead(req);
     const localidadId = usuario?.localidad_id ?? null;
-    console.log(`📸 Iniciando capturapara Patente: ${patente}...`);
+    console.log(`📸 Iniciando captura para patente: ${patente}...`);
 
     let client, ip, marca;
     try {
@@ -135,7 +126,7 @@ export const capturarTodo = async (req, res) => {
     }
 
     // Estructura: capturas/{localidad}/{patente}/
-    const localidadNombre = await getNombreLocalidad(localidadId);
+    const localidadNombre = (await slugLocalidadPorId(localidadId)) ?? 'global';
     const patenteDir = path.join(CAPTURAS_DIR, localidadNombre, patente);
     if (!fs.existsSync(patenteDir)) {
         fs.mkdirSync(patenteDir, { recursive: true });
@@ -145,7 +136,6 @@ export const capturarTodo = async (req, res) => {
     const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0];
 
     for (const ch of canales) {
-        console.log(`🔍 Intentando capturar Canal ${ch} para ${patente}...`);
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
 

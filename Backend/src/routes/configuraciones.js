@@ -1,5 +1,5 @@
 import express from 'express'
-import { getConfiguracion, updateConfiguracion, getBalanzas, generarToken, revocarToken } from '../controllers/configuracionControll.js'
+import { getConfiguracion, updateConfiguracion, getBalanzas, generarToken, revocarToken } from '../controllers/configuracionController.js'
 import { requireAuth, requirePermission } from '../middleware/authMiddleware.js'
 import { PERMISSIONS } from '../config/rolesConfig.js'
 

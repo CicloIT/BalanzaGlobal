@@ -9,15 +9,12 @@ export const getMetricasDashboard = async (req, res) => {
   try {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    const inicioSemana = new Date(hoy);
-    inicioSemana.setDate(hoy.getDate() - 7); // Últimos 7 días en lugar de inicio de semana
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
 
     // Alcance empresa/localidad (un usuario global puede acotar con ?localidad_id=)
     const usuario = userForRead(req);
     const localidadFiltroDisp = filtroPesadas(usuario);
     const localidadFiltroOp = `AND ${scopeSqlLiteral('localidad_id', usuario)}`;
-    const localidadFiltroRep = `AND ${scopeSqlLiteral('localidad_id', usuario)}`;
 
     // 1. Total de pesadas hoy
     const pesadasHoy = await pool.query(`
@@ -32,8 +29,7 @@ export const getMetricasDashboard = async (req, res) => {
     // 2. Operaciones del día
     const operacionesHoy = await pool.query(`
       SELECT COUNT(*) as total,
-             SUM(CASE WHEN abierta = true THEN 1 ELSE 0 END) as abiertas,
-             SUM(CASE WHEN abierta = false THEN 1 ELSE 0 END) as cerradas
+             SUM(CASE WHEN abierta = true THEN 1 ELSE 0 END) as abiertas
       FROM operacion_pesaje
       WHERE DATE(created_at) = CURRENT_DATE
       ${localidadFiltroOp}
@@ -142,38 +138,6 @@ export const getMetricasDashboard = async (req, res) => {
       ${localidadFiltroDisp}
     `, [inicioMes]);
 
-    // 10. Reportes generados hoy
-    const ticketsHoy = await pool.query(`
-      SELECT COUNT(*) as total_tickets
-      FROM reporte
-      WHERE DATE(created_at) = CURRENT_DATE
-      ${localidadFiltroRep}
-    `);
-
-    // 11. Comparativo últimos 6 meses
-    const comparativoResult = await pool.query(`
-      SELECT
-        EXTRACT(YEAR FROM fecha_hora) as anio,
-        EXTRACT(MONTH FROM fecha_hora) as mes,
-        COUNT(DISTINCT operacion_id) as total_operaciones,
-        COALESCE(SUM(neto), 0) as peso_neto
-      FROM pesada p
-      WHERE fecha_hora >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
-      ${localidadFiltroDisp}
-      GROUP BY EXTRACT(YEAR FROM fecha_hora), EXTRACT(MONTH FROM fecha_hora)
-      ORDER BY anio DESC, mes DESC
-      LIMIT 6
-    `);
-
-    const mesesLabels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const comparativoMensual = comparativoResult.rows.map(row => ({
-      anio: parseInt(row.anio),
-      mes: parseInt(row.mes),
-      mesNombre: mesesLabels[parseInt(row.mes) - 1],
-      totalOperaciones: parseInt(row.total_operaciones),
-      pesoNeto: parseFloat(row.peso_neto)
-    })).reverse();
-
     // 12. Actividad por hora (últimos 7 días)
     const actividadPorHora = await pool.query(`
       SELECT
@@ -204,7 +168,6 @@ export const getMetricasDashboard = async (req, res) => {
 
     res.json({
       success: true,
-      debug_version: 'PHASE_3_V2',
       data: {
         hoy: {
           pesadas: parseInt(pesadasHoy.rows[0]?.total || 0),
@@ -212,8 +175,6 @@ export const getMetricasDashboard = async (req, res) => {
           tara: parseFloat(pesadasHoy.rows[0]?.tara_total || 0),
           operaciones: parseInt(operacionesHoy.rows[0]?.total || 0),
           operacionesAbiertas: parseInt(operacionesHoy.rows[0]?.abiertas || 0),
-          operacionesCerradas: parseInt(operacionesHoy.rows[0]?.cerradas || 0),
-          tickets: parseInt(ticketsHoy.rows[0]?.total_tickets || 0),
         },
         semana: pesadasSemana.rows.map(row => ({
           fecha: row.fecha,
@@ -258,7 +219,6 @@ export const getMetricasDashboard = async (req, res) => {
         eficiencia: {
           promedioMinutos: Math.round(parseFloat(eficienciaResult.rows[0]?.promedio_minutos || 0))
         },
-        comparativoMensual,
         estadisticasMes: {
           totalPesadas: parseInt(estadisticasGenerales.rows[0]?.total_pesadas_mes || 0),
           totalOperaciones: parseInt(estadisticasGenerales.rows[0]?.total_operaciones_mes || 0),
@@ -269,92 +229,6 @@ export const getMetricasDashboard = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en getMetricasDashboard:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-export const getMetricasPorFecha = async (req, res) => {
-  try {
-    const { fechaInicio, fechaFin } = req.query;
-
-    const conditions = [];
-    const params = [];
-
-    if (fechaInicio && fechaFin) {
-      params.push(fechaInicio); conditions.push(`p.fecha_hora >= $${params.length}`);
-      params.push(fechaFin);    conditions.push(`p.fecha_hora <= $${params.length}`);
-    } else if (fechaInicio) {
-      params.push(fechaInicio); conditions.push(`p.fecha_hora >= $${params.length}`);
-    } else if (fechaFin) {
-      params.push(fechaFin);    conditions.push(`p.fecha_hora <= $${params.length}`);
-    }
-
-    conditions.push(`p.operacion_id IN (SELECT id FROM operacion_pesaje WHERE ${scopeSqlLiteral('localidad_id', userForRead(req))})`);
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const result = await pool.query(`
-      SELECT
-        DATE(p.fecha_hora) as fecha,
-        COUNT(*) as total_pesadas,
-        COUNT(DISTINCT p.operacion_id) as operaciones,
-        COALESCE(SUM(CASE WHEN p.tipo::text = 'BRUTO' THEN p.peso END), 0) as bruto,
-        COALESCE(SUM(CASE WHEN p.tipo::text = 'TARA' THEN p.peso END), 0) as tara
-      FROM pesada p
-      ${whereClause}
-      GROUP BY DATE(p.fecha_hora)
-      ORDER BY fecha ASC
-    `, params);
-
-    res.json({
-      success: true,
-      data: result.rows.map(row => ({
-        fecha: row.fecha,
-        totalPesadas: parseInt(row.total_pesadas),
-        operaciones: parseInt(row.operaciones),
-        bruto: parseFloat(row.bruto),
-        tara: parseFloat(row.tara),
-        neto: parseFloat(row.bruto) - parseFloat(row.tara)
-      }))
-    });
-  } catch (error) {
-    console.error('Error en getMetricasPorFecha:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-export const getComparativoMensual = async (req, res) => {
-  try {
-    const localidadFiltro = filtroPesadas(userForRead(req));
-    const result = await pool.query(`
-      SELECT
-        EXTRACT(YEAR FROM fecha_hora) as anio,
-        EXTRACT(MONTH FROM fecha_hora) as mes,
-        COUNT(*) as total_pesadas,
-        COALESCE(SUM(CASE WHEN tipo::text = 'BRUTO' THEN peso END), 0) -
-        COALESCE(SUM(CASE WHEN tipo::text = 'TARA' THEN peso END), 0) as peso_neto
-      FROM pesada p
-      WHERE fecha_hora >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
-      ${localidadFiltro}
-      GROUP BY EXTRACT(YEAR FROM fecha_hora), EXTRACT(MONTH FROM fecha_hora)
-      ORDER BY anio DESC, mes DESC
-      LIMIT 6
-    `);
-
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-    res.json({
-      success: true,
-      data: result.rows.map(row => ({
-        anio: parseInt(row.anio),
-        mes: parseInt(row.mes),
-        mesNombre: meses[parseInt(row.mes) - 1],
-        totalPesadas: parseInt(row.total_pesadas),
-        pesoNeto: parseFloat(row.peso_neto)
-      })).reverse()
-    });
-  } catch (error) {
-    console.error('Error en getComparativoMensual:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 };

@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import fs from "fs";
 import path from "path";
-import dotenv from 'dotenv';
 import pool from './config/database.js';
 import http from 'http';
 import { WebSocketServer } from 'ws';
@@ -19,12 +18,10 @@ import productoresRoutes from './routes/productores.js';
 import productosRoutes from './routes/productos.js';
 import transportesRoutes from './routes/transportes.js';
 import vehiculosRoutes from './routes/vehiculos.js';
-import ticketsRoutes from './routes/tickets.js';
 import pesadasRoutes from './routes/pesadas.js';
 import usuariosRoutes from './routes/usuarios.js';
 import provinciasRoutes from './routes/provincias.js';
 import localidadesRoutes from './routes/localidades.js';
-import operacionesRoutes from './routes/operaciones.js';
 import metricasRoutes from './routes/metricas.js';
 import camarasRoutes from './routes/camaras.js';
 import reportesRoutes from './routes/reporte.js';
@@ -32,7 +29,6 @@ import backupRoutes from './routes/backups.js';
 import { createBackup } from './controllers/backupController.js';
 import configRoutes from './routes/configuraciones.js';
 import empresasRoutes from './routes/empresas.js';
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,12 +111,10 @@ app.use('/api/productores', productoresRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/transportes', transportesRoutes);
 app.use('/api/vehiculos', vehiculosRoutes);
-app.use('/api/tickets', ticketsRoutes);
 app.use('/api/pesadas', pesadasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/provincias', provinciasRoutes);
 app.use('/api/localidades', localidadesRoutes);
-app.use('/api/operaciones', operacionesRoutes);
 app.use('/api/metricas', metricasRoutes);
 app.use('/api/camaras', camarasRoutes);
 app.use('/api/reportes', reportesRoutes);
@@ -192,19 +186,7 @@ app.use((err, req, res, next) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Backend ejecutándose en http://0.0.0.0:${PORT}`);
-  console.log(`🌐 Accesible desde la red local en: http://[TU_IP_LOCAL]:${PORT}`);
-  console.log(`📡 Endpoints disponibles:`);
-  console.log(`   GET  /api/health              - Verificar conexión`);
-  console.log(`   GET  /api/choferes            - Listar choferes`);
-  console.log(`   GET  /api/productores         - Listar productores`);
-  console.log(`   GET  /api/productos           - Listar productos`);
-  console.log(`   GET  /api/transportes         - Listar transportes`);
-  console.log(`   GET  /api/vehiculos           - Listar vehículos`);
-  console.log(`   GET  /api/tickets             - Listar tickets`);
-  console.log(`   GET  /api/pesadas             - Listar pesadas`);
-  console.log(`   GET  /api/usuarios            - Listar usuarios`);
-  console.log(`   GET  /api/camaras             - Captura NVR`);
-  console.log(`   GET  /api/reportes            - Listar reportes\n`);
+  console.log(`   Health: GET /api/health · WS navegadores: /ws · WS agentes: /agent`);
 
   // Tarea programada semanal para backup (Domingo a las 00:00)
   // Check cada hora si es Domingo y hora 0.

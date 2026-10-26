@@ -20,8 +20,6 @@ export const getScope = (user) => ({
   isSuperadmin: user?.rol?.toLowerCase() === 'superadmin',
 });
 
-export const isGlobalUser = (user) => !user?.localidad_id;
-
 /**
  * Fragmento SQL que restringe `${col}` (una columna localidad_id) al alcance del usuario.
  * @param {string} col - columna calificada, ej: 'c.localidad_id'
@@ -87,4 +85,12 @@ export const userForRead = (req) => {
 export const sendScopeError = (res, error) => {
   const status = error instanceof ScopeError ? error.status : 500;
   return res.status(status).json({ success: false, error: error.message, message: error.message });
+};
+
+// Nombre de la localidad como slug para carpetas (capturas, backups); null si no hay localidad
+export const slugLocalidadPorId = async (localidadId) => {
+  if (!localidadId) return null;
+  const result = await pool.query('SELECT nombre FROM localidad WHERE id = $1', [localidadId]);
+  if (!result.rows.length) return null;
+  return result.rows[0].nombre.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
 };

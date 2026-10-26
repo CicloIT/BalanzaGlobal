@@ -1,7 +1,6 @@
 import express from 'express';
 import {
   getPesadas,
-  getPesadasByTicket,
   getPesadaById,
   createPesada,
   updatePesada,
@@ -49,7 +48,6 @@ const router = express.Router();
 // Rutas de lectura (solo requieren permiso de ver)
 router.get('/', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadas);
 router.get('/agrupadas', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadasAgrupadas);
-router.get('/ticket/:ticketId', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadasByTicket);
 router.get('/activa/:patente', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadaActivaByPatente);
 router.get('/:id', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadaById);
 
