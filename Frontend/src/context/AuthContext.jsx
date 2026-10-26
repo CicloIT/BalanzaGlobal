@@ -1,39 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getRolePermissions, hasPermission } from '../config/rolesConfig';
+import React, { createContext, useContext, useState } from 'react';
+import { API_BASE_URL, STORAGE_KEY, getStoredUser } from '../lib/api';
 
 const AuthContext = createContext();
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-const STORAGE_KEY = 'balanza_user';
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState(getStoredUser);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Obtener permisos del usuario basado en su rol
-  const userPermissions = user?.rol ? getRolePermissions(user.rol) : [];
-
-  /**
-   * Verifica si el usuario tiene un permiso específico
-   */
-  const checkPermission = useCallback((permission) => {
-    if (!user?.rol) return false;
-    return hasPermission(user.rol, permission);
-  }, [user?.rol]);
 
   const login = async (username, password) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/usuarios/login`, {
+      const res = await fetch(`${API_BASE_URL}/api/usuarios/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -68,18 +47,11 @@ export function AuthProvider({ children }) {
     loading,
     error,
     setError,
-    rol: user?.rol,
-    localidad_id: user?.localidad_id ?? null,
     localidad_nombre: user?.localidad_nombre ?? null,
-    empresa_id: user?.empresa_id ?? null,
     empresa_nombre: user?.empresa_nombre ?? null,
     // Global = sin localidad fija (admin/logística de empresa o superadmin)
     isGlobal: !user?.localidad_id,
     isSuperadmin: user?.rol?.toLowerCase() === 'superadmin',
-    isLogistica: user?.rol?.toLowerCase() === 'logistica',
-    permissions: userPermissions,
-    hasPermission: checkPermission,
-    isAdmin: ['admin', 'superadmin'].includes(user?.rol?.toLowerCase()),
   };
 
   return (

@@ -1,33 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_BASE_URL = '';
-const STORAGE_KEY = 'balanza_user';
-
-// Helper para obtener headers con información del usuario
-const getAuthHeaders = (contentType = 'application/json') => {
-  const headers = {};
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
-
-  // Obtener usuario del localStorage
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user?.id) {
-        headers['x-user-id'] = user.id.toString();
-      }
-      if (user?.username) {
-        headers['x-username'] = user.username;
-      }
-    }
-  } catch {
-    // Ignorar errores de parsing
-  }
-
-  return headers;
-};
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 export function useGestionAPI(config, enabled = true) {
   const [items, setItems] = useState([]);
@@ -135,34 +107,6 @@ export function useGestionAPI(config, enabled = true) {
     }
   };
 
-  const eliminarItem = useCallback(async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este elemento?')) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}${config.endpoint}/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(null),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error: ${response.statusText}`);
-      }
-
-      setItems(items => items.filter(item => item.id !== id));
-      setSuccess('Elemento eliminado correctamente');
-    } catch (err) {
-      setError(err.message);
-      console.error('Error eliminando item:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [config.endpoint]);
-
   const toggleEstado = useCallback(async (id) => {
     // Necesitamos el item actual. Lo buscamos en la función de actualización de estado para evitar refrescos circulares
     setItems(currentItems => {
@@ -210,7 +154,6 @@ export function useGestionAPI(config, enabled = true) {
     abrirModal,
     cerrarModal,
     guardarItem,
-    eliminarItem,
     toggleEstado,
     handleFormChange,
     fetchItems: cargarItems,

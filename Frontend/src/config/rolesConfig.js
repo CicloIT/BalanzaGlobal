@@ -231,12 +231,6 @@ export const hasPermissions = (rol, permissions, operator = 'OR') => {
   return permissions.some(perm => hasPermission(rol, perm));
 };
 
-export const getRolePermissions = (rol) => {
-  if (!rol) return [];
-  const normalizedRol = rol.toLowerCase();
-  return ROLE_PERMISSIONS[normalizedRol] || [];
-};
-
 export const canWrite = (rol, modulePrefix) => {
   if (!rol || !modulePrefix) return false;
   const writePermissions = [
@@ -260,18 +254,4 @@ export const canEditModule = (rol, moduleId) => {
   };
   const prefix = modulePrefixes[moduleId];
   return prefix ? canWrite(rol, prefix) : false;
-};
-
-export default {
-  PERMISSIONS,
-  ROLES,
-  ROLE_PERMISSIONS,
-  MODULES,
-  MODULE_PERMISSIONS,
-  hasPermission,
-  hasModuleAccess,
-  hasPermissions,
-  getRolePermissions,
-  canWrite,
-  canEditModule,
 };

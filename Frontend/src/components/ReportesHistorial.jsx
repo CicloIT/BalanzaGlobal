@@ -2,35 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Printer, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
 import { ReportePreview } from './ReportePesadas';
-
-const API_BASE_URL = '';
-
-const STORAGE_KEY = 'balanza_user';
-
-// Helper para obtener headers con información del usuario
-const getAuthHeaders = (contentType = 'application/json') => {
-    const headers = {};
-    if (contentType) {
-        headers['Content-Type'] = contentType;
-    }
-
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            const user = JSON.parse(stored);
-            if (user?.id) {
-                headers['x-user-id'] = user.id.toString();
-            }
-            if (user?.username) {
-                headers['x-username'] = user.username;
-            }
-        }
-    } catch {
-        // Ignorar errores
-    }
-
-    return headers;
-};
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
+import { formatFecha } from '../lib/format';
 
 export default function ReportesHistorial() {
     const { isDark } = useThemeContext();
@@ -113,11 +86,6 @@ export default function ReportesHistorial() {
             setError(e.message);
         }
     };
-
-    const formatFecha = (v) => new Date(v).toLocaleString('es-AR', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-    });
 
     const formatKg = (v) => v != null
         ? Number(v).toLocaleString('es-AR', { minimumFractionDigits: 0 }) + ' kg'

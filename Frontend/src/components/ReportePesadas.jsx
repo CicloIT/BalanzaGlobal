@@ -1,35 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Printer, X, Loader2, Truck } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
-
-const API_BASE_URL = '';
-
-const STORAGE_KEY = 'balanza_user';
-
-// Helper para obtener headers con información del usuario
-const getAuthHeaders = (contentType = 'application/json') => {
-    const headers = {};
-    if (contentType) {
-        headers['Content-Type'] = contentType;
-    }
-
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            const user = JSON.parse(stored);
-            if (user?.id) {
-                headers['x-user-id'] = user.id.toString();
-            }
-            if (user?.username) {
-                headers['x-username'] = user.username;
-            }
-        }
-    } catch {
-        // Ignorar errores
-    }
-
-    return headers;
-};
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 export default function ReportePesadas({ pesadas, onClose }) {
     const { isDark } = useThemeContext();

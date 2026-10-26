@@ -1,22 +1,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
-const API_BASE_URL = '';
-const STORAGE_KEY  = 'balanza_user';
 const PAGE_SIZE    = 50; 
-
-function getAuthHeaders() {
-  const headers = { 'Content-Type': 'application/json' };
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const u = JSON.parse(stored);
-      if (u?.id)       headers['x-user-id']  = u.id.toString();
-      if (u?.username) headers['x-username'] = u.username;
-    }
-  } catch { /* ignore */ }
-  return headers;
-}
 
 export function useVehiculosInfinite(config, enabled = true, search = '') {
   const [items,   setItems]   = useState([]);
@@ -230,31 +216,6 @@ export function useVehiculosInfinite(config, enabled = true, search = '') {
     }
   }, [modal.item, config.endpoint, formData, cerrarModal]);
 
-  const eliminarItem = useCallback(async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este vehículo?')) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`${API_BASE_URL}${config.endpoint}/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) { 
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Error: ${response.statusText}`);
-      }
-
-      setItems(prev => prev.filter(item => item.id !== id));
-      setSuccess('Vehículo eliminado correctamente');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [config.endpoint]);
-
   const toggleEstado = useCallback(async (id) => {
     setItems(currentItems => {
       const item = currentItems.find(i => i.id === id);
@@ -309,7 +270,6 @@ export function useVehiculosInfinite(config, enabled = true, search = '') {
     abrirModal,
     cerrarModal,
     guardarItem,
-    eliminarItem,
     toggleEstado,
     handleFormChange,
   };

@@ -1,5 +1,4 @@
 import React from 'react';
-import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { ShieldAlert } from 'lucide-react';
 
@@ -17,7 +16,6 @@ export default function ProtectedRoute({
   operator = 'OR', 
   children 
 }) {
-  const { user } = useAuth();
   const { hasPermissions, isAuthenticated } = usePermissions();
 
   // Si no está autenticado, no debería estar aquí (App.jsx maneja el login)

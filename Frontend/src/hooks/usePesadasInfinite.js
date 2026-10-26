@@ -7,23 +7,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
-const API_BASE_URL = '';
-const STORAGE_KEY  = 'balanza_user';
 const PAGE_SIZE    = 50; // Aumentamos a 50 para que llene mejor la pantalla inicialmente
-
-function getAuthHeaders() {
-  const headers = {};
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const u = JSON.parse(stored);
-      if (u?.id)       headers['x-user-id']  = u.id.toString();
-      if (u?.username) headers['x-username'] = u.username;
-    }
-  } catch { /* ignore */ }
-  return headers;
-}
 
 export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFilter = null, fechaFilter = null, mesFilter = null, anioFilter = null) {
   const [items,   setItems]   = useState([]);
@@ -52,7 +38,7 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
       if (anioFilter) url += `&anio=${encodeURIComponent(anioFilter)}`;
       if (mesFilter) url += `&mes=${encodeURIComponent(mesFilter)}`;
       if (!anioFilter && fechaFilter) url += `&fecha=${encodeURIComponent(fechaFilter)}`;
-      const res = await fetch(url, { headers: getAuthHeaders() });
+      const res = await fetch(url, { headers: getAuthHeaders(null) });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -62,7 +48,6 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
       const json = await res.json();
       const newItems = json.data ?? [];
       
-      console.log(`[usePesadasInfinite] Recibidas ${newItems.length} pesadas (Page ${pageNum}). Total en BD: ${json.total}`);
 
       const totalCalculado = json.total ?? 0;
       const hasMoreServer  = json.hasMore ?? false;
@@ -166,14 +151,6 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
     fetchPage(nextPage, true);
   }, [hasMore, loadingMore, loading, page, fetchPage, total, items.length]);
 
-  // Hard refresh (e.g. after PDF upload)
-  const refresh = useCallback(() => {
-    setItems([]);
-    setPage(1);
-    setHasMore(true);
-    fetchPage(1, false);
-  }, [fetchPage]);
-
   return {
     items,
     loading,
@@ -182,7 +159,6 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
     total,
     error,
     loadMore,
-    refresh,
     // Compatibility shims so GestionApp doesn't need major changes
     modal: { abierto: false, item: null },
     formData: {},
@@ -190,7 +166,6 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
     abrirModal: () => {},
     cerrarModal: () => {},
     guardarItem: async () => {},
-    eliminarItem: async () => {},
     toggleEstado: async () => {},
     handleFormChange: () => {},
   };

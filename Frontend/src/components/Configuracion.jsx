@@ -4,22 +4,7 @@ import { useThemeContext } from '../context/ThemeContext';
 import DispositivosConfig from './DispositivosConfig';
 import { usePermissions } from '../hooks/usePermissions';
 import { PERMISSIONS } from '../config/rolesConfig';
-const API_BASE_URL = '';
-const STORAGE_KEY = 'balanza_user';
-
-const getAuthHeaders = (contentType = 'application/json') => {
-  const headers = {};
-  if (contentType) headers['Content-Type'] = contentType;
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user?.id) headers['x-user-id'] = user.id.toString();
-      if (user?.username) headers['x-username'] = user.username;
-    }
-  } catch { /* ignore */ }
-  return headers;
-};
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 export default function Configuracion() {
   const { isDark } = useThemeContext();

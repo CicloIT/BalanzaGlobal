@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
 

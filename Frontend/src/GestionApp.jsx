@@ -24,15 +24,15 @@ import { useAuth } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
 import ReportePesadas from './components/ReportePesadas';
 import ReportesHistorial from './components/ReportesHistorial';
-import Guard from './components/Guard';
 import ProtectedRoute from './components/ProtectedRoute';
 import DetallePesadaModal from './components/DetallePesadaModal';
 import ContenedorModal from './components/ContenedorModal';
 import Configuracion from './components/Configuracion';
+import { API_BASE_URL, getAuthHeaders } from './lib/api';
 
 export default function GestionApp() {
   const { isDark } = useThemeContext();
-  const { hasModuleAccess, canEditModule, isAdmin, PERMISSIONS, MODULES } = usePermissions();
+  const { hasModuleAccess, canEditModule, PERMISSIONS, MODULES } = usePermissions();
   const { isGlobal, isSuperadmin } = useAuth();
 
   const configs = {
@@ -103,17 +103,11 @@ const [searchTerm, setSearchTerm] = useState('');
     const confirmacion = window.confirm('¿Eliminar este registro?');
     if (!confirmacion) return;
 
-    const storedUser = JSON.parse(localStorage.getItem('balanza_user') || '{}');
-    const headers = {
-      ...(storedUser.id && { 'x-user-id': storedUser.id.toString() }),
-      ...(storedUser.username && { 'x-username': storedUser.username }),
-    };
-
     const endpoint = activeTab === 'pesadas'
       ? `/api/pesadas/operacion/${id}`
       : `${currentConfig.endpoint}/${id}`;
 
-    const response = await fetch(endpoint, { method: 'DELETE', headers });
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'DELETE', headers: getAuthHeaders(null) });
     if (!response.ok) throw new Error('Error eliminando');
 
     if (activeTab === 'pesadas') {
@@ -133,15 +127,9 @@ const [searchTerm, setSearchTerm] = useState('');
       const confirmacion = window.confirm(`¿Eliminar ${ids.length} operaciones de pesaje?`);
       if (!confirmacion) return;
 
-      const storedUser = JSON.parse(localStorage.getItem('balanza_user') || '{}');
-
-      const response = await fetch('/api/pesadas/operaciones/delete-masivo', {
+      const response = await fetch(`${API_BASE_URL}/api/pesadas/operaciones/delete-masivo`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(storedUser.id && { 'x-user-id': storedUser.id.toString() }),
-          ...(storedUser.username && { 'x-username': storedUser.username }),
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ ids })
       });
 
@@ -169,15 +157,9 @@ const [searchTerm, setSearchTerm] = useState('');
       const formData = new FormData();
       formData.append('archivo', file);
 
-      const storedUser = JSON.parse(localStorage.getItem('balanza_user') || '{}');
-      const headers = {};
-      if (storedUser.id) headers['x-user-id'] = storedUser.id.toString();
-      if (storedUser.username) headers['x-username'] = storedUser.username;
-
-      const url = `/api/pesadas/operacion/${id}`;
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE_URL}/api/pesadas/operacion/${id}`, {
         method: 'PUT',
-        headers,
+        headers: getAuthHeaders(null),
         body: formData
       });
 
@@ -269,12 +251,11 @@ const [searchTerm, setSearchTerm] = useState('');
     vehiculos.items.length,
     pesadas.items.length,
     hasModuleAccess,
+    canEditModule,
     MODULES
   ]);
 
   // Verificar si el usuario puede editar el módulo actual
-  const canEditCurrentModule = canEditModule(activeTab);
-
   // Tabs que no usan el layout genérico de tabla
   const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION];
 

@@ -12,11 +12,6 @@ export default function DetallePesadaModal({ abierto, item, onClose }) {
     return new Date(val).toLocaleString('es-AR');
   };
 
-  const formatPeso = (val) => {
-    if (val == null) return '-';
-    return `${Number(val).toLocaleString('es-AR')} kg`;
-  };
-
   // Procesar fotos: el backend devuelve todas_fotos como un array de arrays por el jsonb_agg
   const fotosRaw = item.todas_fotos || (item.fotos ? [item.fotos] : []);
   const fotos = Array.isArray(fotosRaw) ? fotosRaw.flat().filter(Boolean) : [];

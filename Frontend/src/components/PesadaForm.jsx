@@ -1,37 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Plus, Trash2, Scale, Info, Wifi, WifiOff, Download, Camera, RefreshCw, Monitor, FileText, Lock } from 'lucide-react';
+import { Scale, Info, Download, Camera, RefreshCw, Monitor, FileText, Lock } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from '../context/AuthContext';
 import SearchableSelect from './SearchableSelect';
-
-const API_BASE_URL = '';
-const STORAGE_KEY = 'balanza_user';
-
-// Helper para obtener headers con información del usuario
-const getAuthHeaders = (contentType = null) => {
-  const headers = {};
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user?.id) {
-        headers['x-user-id'] = user.id.toString();
-      }
-      if (user?.username) {
-        headers['x-username'] = user.username;
-      }
-    }
-  } catch {
-    // Ignorar errores
-  }
-
-  return headers;
-};
+import { API_BASE_URL, getStoredUser, getAuthHeaders } from '../lib/api';
 
 const getFriendlyError = (msg = '') => {
   const m = msg.toLowerCase();
@@ -105,18 +78,14 @@ const getWsUrl = (dispositivoId) => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
   const params = new URLSearchParams();
-  try {
-    const user = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    if (user?.id) params.set('userId', user.id);
-  } catch {
-    // Ignorar errores
-  }
+  const user = getStoredUser();
+  if (user?.id) params.set('userId', user.id);
   if (dispositivoId) params.set('dispositivoId', dispositivoId);
   return `${protocol}//${host}/ws?${params}`;
 };
 
 /* ─── Sub-componente para el Display de la Balanza (Localiza re-renders) ─── */
-const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, stableRef, isDark, dispositivoId }) => {
+const BalanzaDisplay = memo(({ weightRef, statusRef, stableRef, isDark, dispositivoId }) => {
   const [peso, setPeso] = useState(0);
   const [status, setStatus] = useState('DISCONNECTED');
   const [estable, setEstable] = useState(false);
@@ -217,7 +186,7 @@ const BalanzaDisplay = memo(({ onCapture, weightRef, statusRef, stableRef, isDar
 
 export default function PesadaForm({ transportes: transportesProp, choferes: choferesProp, productos: productosProp, productores: productoresProp, onPesadaCreated }) {
   const { isDark } = useThemeContext();
-  const { canEnterManualWeight, rol } = usePermissions();
+  const { canEnterManualWeight } = usePermissions();
   const { isGlobal } = useAuth();
   const [errorModal, setErrorModal] = useState(null);
   const [vehiculos, setVehiculos] = useState([]);
@@ -272,7 +241,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       const fetchActiva = async () => {
         try {
           const res = await fetch(withLocalidad(`${API_BASE_URL}/api/pesadas/activa/${formData.vehiculo_patente}`), {
-            headers: getAuthHeaders()
+            headers: getAuthHeaders(null)
           });
           const data = await res.json();
           if (data.success && data.data) {
@@ -302,13 +271,13 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/config/balanzas`, { headers: getAuthHeaders() });
+        const res = await fetch(`${API_BASE_URL}/api/config/balanzas`, { headers: getAuthHeaders(null) });
         const data = await res.json();
         if (data.success && data.data?.length) {
           setBalanzas(data.data);
           setDispositivoId(prev => prev ?? data.data[0].id);
         }
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     })();
   }, []);
 
@@ -330,7 +299,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
         const keys = Object.keys(endpoints);
         const responses = await Promise.all(
           Object.values(endpoints).map(async (url) => {
-            const res = await fetch(withLocalidad(url), { headers: getAuthHeaders() });
+            const res = await fetch(withLocalidad(url), { headers: getAuthHeaders(null) });
             if (!res.ok) {
               const errorText = await res.text();
               console.error(`Error en fetch a ${url}:`, errorText);
@@ -363,10 +332,10 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
     // Cargar config cámaras
     (async () => {
       try {
-        const res = await fetch(withLocalidad(`${API_BASE_URL}/api/camaras/config`), { headers: getAuthHeaders() });
+        const res = await fetch(withLocalidad(`${API_BASE_URL}/api/camaras/config`), { headers: getAuthHeaders(null) });
         const data = await res.json();
         if (data.success && data.canales) setActiveChannels(data.canales);
-      } catch (e) { /* ignore */ }
+      } catch { /* ignore */ }
     })();
   }, [isGlobal, localidadId, withLocalidad]);
 
@@ -406,7 +375,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       setCamLoading(true);
       setCamStatus('capturing');
       const res = await fetch(withLocalidad(`${API_BASE_URL}/api/camaras/capturar-todo?patente=${encodeURIComponent(patente)}`), {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(null)
       });
       const data = await res.json();
       if (data.status === 'ok') {
@@ -705,7 +674,6 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
               key={dispositivoId ?? 'auto'}
               isDark={isDark}
               dispositivoId={dispositivoId}
-              onCapture={handleCapture}
               weightRef={currentWeightRef}
               statusRef={currentStatusRef}
               stableRef={currentStableRef}

@@ -17,15 +17,11 @@ import { useThemeContext } from '../context/ThemeContext';
 import {
   Scale,
   TrendingUp,
-  Users,
-  Package,
   Truck,
   Calendar,
-  FileText,
   Activity
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 // Colores para gráficos
 const COLORS = {
@@ -41,7 +37,6 @@ const COLORS = {
     grid: '#e2e8f0'
   }
 };
-
 
 // --- Componentes Premium (Phase 2) ---
 
@@ -202,33 +197,6 @@ const ChartCard = ({ title, children, className = '', subtitle }) => {
   );
 };
 
-const STORAGE_KEY = 'balanza_user';
-
-// Helper para obtener headers con información del usuario
-const getAuthHeaders = (contentType = 'application/json') => {
-  const headers = {};
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user?.id) {
-        headers['x-user-id'] = user.id.toString();
-      }
-      if (user?.username) {
-        headers['x-username'] = user.username;
-      }
-    }
-  } catch {
-    // Ignorar errores
-  }
-
-  return headers;
-};
-
 export default function Dashboard() {
   const { isDark } = useThemeContext();
   const [loading, setLoading] = useState(true);
@@ -240,7 +208,7 @@ export default function Dashboard() {
     const fetchMetricas = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/api/metricas/dashboard`, {
+        const response = await fetch(`${API_BASE_URL}/api/metricas/dashboard`, {
           headers: getAuthHeaders()
         });
         const data = await response.json();
@@ -322,7 +290,6 @@ export default function Dashboard() {
     topChoferes = [],
     distribucionVehiculos = [],
     estadisticasMes = {},
-    comparativoMensual = [],
     actividadHeatmap = [],
     eficiencia = { promedioMinutos: 0 }
   } = metricas;
@@ -360,7 +327,6 @@ export default function Dashboard() {
     color: COLORS.primary[i % COLORS.primary.length]
   }));
 
-  const datosMensual = comparativoMensual;
 
   return (
     <div className="space-y-8 pb-16 animate-fadeIn">
@@ -721,7 +687,6 @@ export default function Dashboard() {
           </div>
         </ChartCard>
       </div>
-
 
       {/* Footer / Resumen Consolidado */}
       <div className={`p-10 rounded-[3.5rem] relative overflow-hidden shadow-2xl ${isDark

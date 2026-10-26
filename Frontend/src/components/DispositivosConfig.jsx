@@ -2,26 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug } from "lucide-react";
 import { useThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-
-const API_BASE_URL = "";
-const STORAGE_KEY = "balanza_user";
+import { API_BASE_URL, getAuthHeaders } from "../lib/api";
 
 const CONFIG_VACIA = {
     balanza: { ip: "", puerto: "" },
     grabadora: { ip: "", usuario: "", contraseña: "", marca: "hikvision" }
-};
-
-const getAuthHeaders = () => {
-    const headers = { "Content-Type": "application/json" };
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            const user = JSON.parse(stored);
-            if (user?.id) headers["x-user-id"] = user.id.toString();
-            if (user?.username) headers["x-username"] = user.username;
-        }
-    } catch { }
-    return headers;
 };
 
 export default function DispositivosConfig() {
@@ -169,7 +154,7 @@ export default function DispositivosConfig() {
                 localidad_id: config[tipo]?.localidad_id ?? localidadSel ?? null
             };
 
-            const res = await fetch(`/api/config/${tipo}`, {
+            const res = await fetch(`${API_BASE_URL}/api/config/${tipo}`, {
                 method: "PUT",
                 headers: getAuthHeaders(),
                 body: JSON.stringify(body)

@@ -1,21 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Package, Scale, Save } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
-
-const STORAGE_KEY = 'balanza_user';
-
-const getAuthHeaders = () => {
-  const headers = { 'Content-Type': 'application/json' };
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const user = JSON.parse(stored);
-      if (user?.id) headers['x-user-id'] = user.id.toString();
-      if (user?.username) headers['x-username'] = user.username;
-    }
-  } catch {}
-  return headers;
-};
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 export default function ContenedorModal({ abierto, item, onClose, onSaved }) {
   const { isDark } = useThemeContext();
@@ -63,7 +49,7 @@ export default function ContenedorModal({ abierto, item, onClose, onSaved }) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/pesadas/operacion/${item.operacion_id}/contenedor`, {
+      const res = await fetch(`${API_BASE_URL}/api/pesadas/operacion/${item.operacion_id}/contenedor`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(formData),

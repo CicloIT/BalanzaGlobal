@@ -2,18 +2,9 @@ import React, { useState, useRef } from 'react';
 import { Edit2, Trash2, Eye, EyeOff, FileText, CheckSquare, Square, Upload, Package } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
 import Guard from './Guard';
+import { formatFecha } from '../lib/format';
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
-
-function formatFecha(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return value;
-  return date.toLocaleString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
 
 function RenderCelda({ item, keyName, isDark }) {
   const value = item[keyName];
@@ -168,7 +159,7 @@ function AccionesPesada({ item, isDark, onSubirPDF, onVerDetalles, onContenedor 
 
 /* ─── Desktop table row ─────────────────────────────────────────────────── */
 const FilaTabla = React.memo(({
-  item, idx, isDark, tipo, selected, columnasKeys, columnasLabels,
+  item, idx, isDark, tipo, selected, columnasKeys,
   onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
   soloLectura, mostrarColumnaAcciones,
 }) => {
