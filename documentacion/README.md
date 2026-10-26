@@ -14,6 +14,7 @@ balanzas; un servidor central guarda las pesadas y sirve la aplicación web.
 | [05 — Operación diaria](05-operacion-diaria.md) | Pesadas, reportes, dashboard, respaldos |
 | [06 — Despliegue y mantenimiento](06-despliegue-y-mantenimiento.md) | Actualizar Daytona/VPS, scripts, pruebas, diagnóstico |
 | [07 — Pendientes y seguridad](07-pendientes-y-seguridad.md) | Lo que falta antes de producción |
+| [08 — Errores comunes](08-errores-comunes.md) | Mensajes de error frecuentes, causa y solución |
 | [Agente/DESPLIEGUE.md](../Agente/DESPLIEGUE.md) | Guía detallada de VPS + nginx + conversores + agente |
 
 ## Resumen en una página
