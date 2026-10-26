@@ -15,11 +15,12 @@ const KEEPALIVE_PESO_MS = 1000;      // reenviar el mismo peso para que el centr
 const textoError = (err) => err.message || err.errors?.map(e => e.message).join(' / ') || err.code || String(err);
 
 // Un agente por balanza: lee la balanza por TCP en la LAN y publica al central por WSS.
+// La ip/puerto de la balanza la manda el central (WELCOME/CONFIG) desde la configuración
+// de la localidad en la DB; el token identifica qué balanza es.
 export class AgenteBalanza {
-    constructor({ nombre, token, ip, puerto }, { sitio, central, headers = {}, version }) {
+    constructor({ nombre, token }, { sitio, central, headers = {}, version }) {
         this.etiqueta = `[${sitio} · ${nombre}]`;
         this.token = token;
-        this.local = ip && puerto ? { ip, puerto: Number(puerto) } : null;   // override local de ip/puerto
         this.central = central;
         this.headers = headers;
         this.version = version;
@@ -55,7 +56,6 @@ export class AgenteBalanza {
     log(...args) { console.log(new Date().toISOString(), this.etiqueta, ...args); }
 
     start() {
-        if (this.local) this.conectarBalanza(this.local);
         this.conectarCentral();
     }
 
@@ -245,14 +245,10 @@ export class AgenteBalanza {
         this.enviarStatus();
         this.ultimoEnvio = { weight: null, stable: null, ts: 0 };
         this.enviarPeso();
-        if (!this.local && !this.socket) this.alRecibirConfig(msg.config);
+        this.alRecibirConfig(msg.config);
     }
 
     alRecibirConfig(config) {
-        if (this.local) {
-            this.log('ℹ️  el central mandó config de balanza, pero se usa la ip/puerto local del archivo de config');
-            return;
-        }
         const nuevo = { ip: config?.ip, puerto: config?.puerto ? Number(config.puerto) : null };
         if (this.socket && this.destino?.ip === nuevo.ip && this.destino?.puerto === nuevo.puerto) return;
         this.log(`⚙️  config de balanza del central: ${nuevo.ip}:${nuevo.puerto}`);

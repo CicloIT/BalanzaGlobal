@@ -80,6 +80,9 @@ export const PERMISSIONS = {
 
   // Respaldos (Backup)
   BACKUP_MANAGE: 'backup:manage',
+
+  // Dispositivos (ip/puerto, tokens de agente) — solo admin y superadmin
+  DISPOSITIVOS_MANAGE: 'dispositivos:manage',
 };
 
 // Definición de roles
@@ -197,7 +200,7 @@ export const MODULES = {
 // Permisos requeridos por módulo
 export const MODULE_PERMISSIONS = {
   [MODULES.EMPRESAS]: [PERMISSIONS.EMPRESAS_VIEW],
-  [MODULES.CONFIGURACION]: [PERMISSIONS.BACKUP_MANAGE],
+  [MODULES.CONFIGURACION]: [PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE],
   [MODULES.DASHBOARD]: [PERMISSIONS.DASHBOARD_VIEW],
   [MODULES.PESADA]: [PERMISSIONS.PESAJE_CREATE],
   [MODULES.PESADAS]: [PERMISSIONS.PESAJE_VIEW],

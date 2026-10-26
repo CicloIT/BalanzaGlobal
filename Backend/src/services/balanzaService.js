@@ -109,6 +109,15 @@ export const detachAgent = (dispositivoId, ws) => {
     setStatus(estado.id, false, 'Agente desconectado');
 };
 
+// Cierra la conexión del agente actual (p. ej. al regenerar el token): no se conserva al recargar
+export const expulsarAgente = (dispositivoId, code, reason) => {
+    const estado = balanzas.get(Number(dispositivoId));
+    if (!estado?.agentWs) return;
+    const ws = estado.agentWs;
+    estado.agentWs = null;
+    ws.close(code, reason);
+};
+
 export const getConfigBalanza = (dispositivoId) => {
     const estado = balanzas.get(Number(dispositivoId));
     return estado ? { ip: estado.ip, puerto: estado.puerto } : null;

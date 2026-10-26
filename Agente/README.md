@@ -9,15 +9,19 @@ El sitio no necesita IP pública ni puertos abiertos.
 ## Cómo funciona
 - Un **token por balanza**. El central identifica la balanza (y su localidad) solo por el token:
   el agente no puede publicar en la balanza de otro sitio.
-- Al conectar, el central responde `WELCOME` con la `ip/puerto` de la balanza configurados en
-  *Configuración de Dispositivos*. Si la config del sitio trae `ip/puerto`, esos tienen prioridad.
+- La `ip/puerto` de la balanza se cargan **solo** en *Configuración de Dispositivos* (DB del central,
+  una config por localidad). Al conectar, el central la manda en `WELCOME` y, si se edita, en `CONFIG`
+  (el agente reconecta en vivo). Si el archivo del sitio trae `ip/puerto`, se ignoran con un aviso.
 - El agente calcula si el peso está **estable** (sin variación durante 1,5 s) y lo envía junto al peso.
 - Sin internet (nivel 1): sigue leyendo la balanza, descarta pesos y reconecta solo (backoff 1→30 s).
   La pantalla muestra "Agente desconectado" y no se puede registrar pesada automática.
 - Dos agentes con el mismo token: el último reemplaza al anterior (cierre 4409).
 
 ## Alta de un sitio
-1. En el servidor central (con la migración `migration_agente.sql` aplicada):
+1. En *Configuración → Dispositivos* (admin de la localidad o admin global): cargar IP/puerto de la
+   balanza y **Generar token** (se muestra una sola vez, con el JSON listo para el sitio).
+   Regenerar desconecta al agente con el token viejo; *Pasar a modo directo* lo revoca.
+   Alternativa por consola en el servidor central:
    ```
    cd Backend
    node scripts/agente_token.mjs --listar
@@ -28,7 +32,7 @@ El sitio no necesita IP pública ni puertos abiertos.
    ```
    cd Agente
    npm install
-   copy sitios\ejemplo.json sitios\mi-sitio.json   # completar central, token, ip/puerto
+   copy sitios\ejemplo.json sitios\mi-sitio.json   # completar central y token
    node src/index.js sitios\mi-sitio.json
    ```
    `central` es `wss://<dominio>/agent` (o `ws://localhost:3000/agent` en desarrollo).

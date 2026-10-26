@@ -16,11 +16,13 @@ import {
 //                   (el agente solo envía después de recibir WELCOME)
 // central → agente: { type:'WELCOME', dispositivo_id, localidad_id, config:{ ip, puerto } }
 //                   { type:'CONFIG', config:{ ip, puerto } }  cuando se edita la balanza
+// La ip/puerto de la balanza vienen siempre de configuracion_dispositivos (vista Dispositivos).
 
 const PING_MS = 15000;
 const ULTIMA_CONEXION_MS = 60000;
 
 export const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+export const generarTokenAgente = () => crypto.randomBytes(32).toString('base64url');
 
 const tokenDeRequest = (req) => {
     const auth = req.headers.authorization || '';

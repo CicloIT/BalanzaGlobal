@@ -5,9 +5,7 @@
   "balanzas": [
     {
       "nombre": "Balanza principal",
-      "token": "PEGAR_TOKEN_DE_agente_token.mjs",
-      "ip": "127.0.0.1",
-      "puerto": 4101
+      "token": "PEGAR_TOKEN_DE_agente_token.mjs"
     }
   ]
 }

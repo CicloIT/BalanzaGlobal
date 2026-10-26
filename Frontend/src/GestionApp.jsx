@@ -348,7 +348,7 @@ const [searchTerm, setSearchTerm] = useState('');
         )}
 
         {activeTab === MODULES.CONFIGURACION && (
-          <ProtectedRoute permissions={PERMISSIONS.BACKUP_MANAGE}>
+          <ProtectedRoute permissions={[PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE]}>
             <Configuracion />
           </ProtectedRoute>
         )}

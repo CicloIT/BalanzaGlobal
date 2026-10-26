@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle } from "lucide-react";
+import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug } from "lucide-react";
 import { useThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 
 const API_BASE_URL = "";
 const STORAGE_KEY = "balanza_user";
+
+const CONFIG_VACIA = {
+    balanza: { ip: "", puerto: "" },
+    grabadora: { ip: "", usuario: "", contraseña: "", marca: "hikvision" }
+};
 
 const getAuthHeaders = () => {
     const headers = { "Content-Type": "application/json" };
@@ -21,17 +26,17 @@ const getAuthHeaders = () => {
 
 export default function DispositivosConfig() {
     const { isDark } = useThemeContext();
-    const { isGlobal } = useAuth();
+    const { isGlobal, user } = useAuth();
     // Usuario global: elige qué localidad configura
     const [localidades, setLocalidades] = useState([]);
     const [localidadSel, setLocalidadSel] = useState(null);
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [config, setConfig] = useState({
-        balanza: { ip: "", puerto: "" },
-        grabadora: { ip: "", usuario: "", contraseña: "", marca: "hikvision" }
-    });
+    const [config, setConfig] = useState(CONFIG_VACIA);
+    // Token del agente recién generado: se muestra una sola vez
+    const [tokenNuevo, setTokenNuevo] = useState(null);
+    const [tokenBusy, setTokenBusy] = useState(false);
 
     const [msg, setMsg] = useState(null);
     const [msgType, setMsgType] = useState("success");
@@ -47,7 +52,7 @@ export default function DispositivosConfig() {
             const data = await res.json();
 
             if (data.success) {
-                setConfig(data.data);
+                setConfig({ ...CONFIG_VACIA, ...data.data });
             }
         } catch (err) {
             console.error(err);
@@ -73,8 +78,84 @@ export default function DispositivosConfig() {
     }, [isGlobal]);
 
     useEffect(() => {
+        setTokenNuevo(null);
         fetchConfig();
     }, [localidadSel]);
+
+    const localidadId = config.balanza?.localidad_id ?? localidadSel ?? null;
+    const localidadNombre = isGlobal
+        ? localidades.find(l => l.id === localidadSel)?.nombre
+        : user?.localidad_nombre;
+
+    const mostrarMensaje = (tipo, texto) => {
+        setMsgType(tipo);
+        setMsg(texto);
+        if (tipo === "success") setTimeout(() => setMsg(null), 3000);
+    };
+
+    const llamarToken = async (method) => {
+        const res = await fetch(`${API_BASE_URL}/api/config/balanza/token`, {
+            method,
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ localidad_id: localidadId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) throw new Error(data.message || "Error en la petición");
+        return data.data;
+    };
+
+    const handleGenerarToken = async () => {
+        if (config.balanza.con_token && !window.confirm(
+            "Se va a generar un token nuevo. El agente que usa el token actual se desconecta hasta que se le cargue el nuevo. ¿Continuar?"
+        )) return;
+        try {
+            setTokenBusy(true);
+            setMsg(null);
+            const { token } = await llamarToken("POST");
+            setTokenNuevo(token);
+            mostrarMensaje("success", "✓ Token generado: copialo ahora, no se vuelve a mostrar");
+            fetchConfig();
+        } catch (err) {
+            mostrarMensaje("error", err.message);
+        } finally {
+            setTokenBusy(false);
+        }
+    };
+
+    const handleModoDirecto = async () => {
+        if (!window.confirm(
+            "La balanza pasa a lectura directa desde el servidor y se revoca el token del agente. ¿Continuar?"
+        )) return;
+        try {
+            setTokenBusy(true);
+            setMsg(null);
+            await llamarToken("DELETE");
+            setTokenNuevo(null);
+            mostrarMensaje("success", "✓ Balanza en modo directo; token revocado");
+            fetchConfig();
+        } catch (err) {
+            mostrarMensaje("error", err.message);
+        } finally {
+            setTokenBusy(false);
+        }
+    };
+
+    // Archivo listo para Agente/sitios/<sitio>.json
+    const jsonSitio = tokenNuevo && JSON.stringify({
+        sitio: localidadNombre || "mi-sitio",
+        central: `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/agent`,
+        headers: {},
+        balanzas: [{ nombre: "Balanza principal", token: tokenNuevo }]
+    }, null, 2);
+
+    const copiar = async (texto) => {
+        try {
+            await navigator.clipboard.writeText(texto);
+            mostrarMensaje("success", "✓ Copiado al portapapeles");
+        } catch {
+            mostrarMensaje("error", "No se pudo copiar; seleccioná el texto a mano");
+        }
+    };
 
     const handleSave = async (tipo) => {
         try {
@@ -94,11 +175,11 @@ export default function DispositivosConfig() {
                 body: JSON.stringify(body)
             });
 
-            if (!res.ok) {
-                throw new Error("Error en la petición");
-            }
+            const data = await res.json().catch(() => ({}));
 
-            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.message || "Error en la petición");
+            }
 
             if (data.success) {
                 setMsgType("success");
@@ -297,15 +378,32 @@ export default function DispositivosConfig() {
                             <div className={`h-3 w-3 rounded-full ${isDark ? 'bg-emerald-500/50' : 'bg-emerald-400'}`} />
                         </div>
 
-                        {config.balanza.modo_conexion === "agente" && (
-                            <p className={`mb-4 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                Leída por el agente local del sitio · última conexión:{" "}
-                                {config.balanza.agente_ultima_conexion
-                                    ? new Date(config.balanza.agente_ultima_conexion).toLocaleString()
-                                    : "nunca"}
-                                {config.balanza.agente_info?.hostname && ` (${config.balanza.agente_info.hostname})`}
+                        <div className={`mb-4 text-sm font-semibold space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <p>
+                                Modo:{" "}
+                                <span className={config.balanza.modo_conexion === "agente" ? "text-indigo-500" : ""}>
+                                    {config.balanza.modo_conexion === "agente" ? "agente local del sitio" : "directo desde el servidor"}
+                                </span>
                             </p>
-                        )}
+                            {config.balanza.modo_conexion === "agente" && (
+                                <>
+                                    <p>
+                                        Agente:{" "}
+                                        <span className={config.balanza.agente_online ? "text-emerald-500" : "text-red-500"}>
+                                            {config.balanza.agente_online ? "conectado" : "desconectado"}
+                                        </span>
+                                        {" · "}última conexión:{" "}
+                                        {config.balanza.agente_ultima_conexion
+                                            ? new Date(config.balanza.agente_ultima_conexion).toLocaleString()
+                                            : "nunca"}
+                                        {config.balanza.agente_info?.hostname && ` (${config.balanza.agente_info.hostname})`}
+                                    </p>
+                                    <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        IP y puerto del conversor en la red del sitio: los usa el agente local.
+                                    </p>
+                                </>
+                            )}
+                        </div>
 
                         <div className="space-y-4 mb-6">
                             <div className="input-field">
@@ -356,6 +454,60 @@ export default function DispositivosConfig() {
                                 </>
                             )}
                         </button>
+
+                        {/* TOKEN DEL AGENTE */}
+                        {config.balanza.id && (
+                            <div className={`mt-6 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                                <p className={`mb-3 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                    Token del agente: {config.balanza.con_token ? "generado" : "sin token"}
+                                </p>
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        onClick={handleGenerarToken}
+                                        disabled={tokenBusy}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
+                                            ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
+                                            : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                                            }`}
+                                    >
+                                        <KeyRound size={16} />
+                                        {config.balanza.con_token ? "Regenerar token" : "Generar token"}
+                                    </button>
+                                    {config.balanza.modo_conexion === "agente" && (
+                                        <button
+                                            onClick={handleModoDirecto}
+                                            disabled={tokenBusy}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
+                                                ? 'border-slate-600 text-slate-300 hover:bg-slate-700/50'
+                                                : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                                                }`}
+                                        >
+                                            <Unplug size={16} />
+                                            Pasar a modo directo
+                                        </button>
+                                    )}
+                                </div>
+
+                                {tokenNuevo && (
+                                    <div className={`mt-4 p-4 rounded-xl border text-sm ${isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                                        <p className="font-bold mb-2">Copiá el token ahora: no se vuelve a mostrar.</p>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <code className="flex-1 break-all font-mono text-xs">{tokenNuevo}</code>
+                                            <button onClick={() => copiar(tokenNuevo)} title="Copiar token" className="p-2 rounded-lg hover:bg-black/10">
+                                                <Copy size={16} />
+                                            </button>
+                                        </div>
+                                        <p className="font-semibold mb-1">Archivo del agente (sitios/&lt;sitio&gt;.json):</p>
+                                        <div className="flex items-start gap-2">
+                                            <pre className="flex-1 overflow-x-auto font-mono text-xs whitespace-pre">{jsonSitio}</pre>
+                                            <button onClick={() => copiar(jsonSitio)} title="Copiar JSON" className="p-2 rounded-lg hover:bg-black/10">
+                                                <Copy size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* GRABADORA CARD */}

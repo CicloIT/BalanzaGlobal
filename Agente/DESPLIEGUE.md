@@ -65,7 +65,8 @@ server {
 
 ### Alta de cada balanza
 En *Configuración de Dispositivos*, crear la balanza en su localidad (IP/puerto del conversor
-en la LAN del sitio: es lo que el central le manda al agente en el `WELCOME`). Después:
+en la LAN del sitio: es lo que el central le manda al agente en el `WELCOME`) y apretar
+**Generar token** (solo admin de la localidad o admin global). Por consola:
 
 ```bash
 cd Backend
@@ -74,7 +75,7 @@ node scripts/agente_token.mjs <idBalanza>       # pasa a modo agente e imprime e
 ```
 
 - Guardar el token: no se puede volver a ver. Si se pierde, se genera otro (invalida el anterior).
-- Para volver a lectura directa: `node scripts/agente_token.mjs <id> --directo` y reiniciar el backend.
+- Para volver a lectura directa: *Pasar a modo directo* en la vista (o `node scripts/agente_token.mjs <id> --directo` y reiniciar el backend).
 
 ## 2. Conversor RS232→TCP (en cada sitio)
 
@@ -116,13 +117,13 @@ copy sitios\ejemplo.json sitios\<sitio>.json     # Linux: cp
   "central": "wss://balanza.empresa.com/agent",
   "headers": {},
   "balanzas": [
-    { "nombre": "Balanza camiones", "token": "<token>", "ip": "192.168.52.103", "puerto": 6000 }
+    { "nombre": "Balanza camiones", "token": "<token>" }
   ]
 }
 ```
 - Varias balanzas en el mismo sitio → varias entradas en `balanzas`, cada una con su token.
-- `ip`/`puerto` en el archivo tienen prioridad sobre lo cargado en el central. Si se omiten, usa
-  lo que manda el central.
+- La `ip`/`puerto` del conversor no van en el archivo: se cargan en *Configuración de Dispositivos*
+  de la localidad y el central se las manda al agente (si se editan, el agente reconecta solo).
 - `headers`: solo si hace falta pasar un proxy (p. ej. `x-daytona-preview-token` en un sandbox privado).
 
 ```bash
@@ -146,7 +147,7 @@ anterior (cierre `4409`).
 | `sin tramas de la balanza hace 5 s` | Conectado pero no llegan tramas válidas | Balanza apagada, cable, baud, flow control |
 | Llegan solo bytes `0x00` | Baud/flow control distinto o mala señal (GND) | Igualar 115200 8N1 sin flow control; revisar cable |
 | `respondió HTTP 4xx al abrir el WebSocket` | URL o proxy | Revisar `central`, `/agent`, headers del proxy, WebSockets en nginx/Cloudflare |
-| cierre `4401` | Token inválido o balanza no está en modo agente | Regenerar con `agente_token.mjs <id>` |
+| cierre `4401` | Token inválido o balanza no está en modo agente | Regenerar token en la vista (o `agente_token.mjs <id>`) |
 | cierre `4403` | Balanza no habilitada en ese servidor | Revisar que la balanza esté activa |
 | cierre `4409` | Otro agente usa el mismo token | Dejar un solo agente por token |
 
@@ -193,7 +194,7 @@ en cada PC de sitio, cambiar las contraseñas de los usuarios del seed (`123456`
 ## 6. Checklist por sitio nuevo
 
 1. [ ] Balanza creada en *Configuración de Dispositivos* con su localidad.
-2. [ ] Token generado (`agente_token.mjs <id>`) y guardado.
+2. [ ] IP/puerto del conversor cargados y token generado en la vista (o `agente_token.mjs <id>`), guardado.
 3. [ ] Conversor con IP fija, TCP Server :6000, parámetros serie de la balanza.
 4. [ ] PC del sitio con Node 18+, `npm ci`, `sitios/<sitio>.json` completo.
 5. [ ] Agente corriendo como servicio.

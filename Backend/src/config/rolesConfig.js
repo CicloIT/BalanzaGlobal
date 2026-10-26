@@ -82,6 +82,9 @@ export const PERMISSIONS = {
 
   // Respaldos (Backup)
   BACKUP_MANAGE: 'backup:manage',
+
+  // Dispositivos (ip/puerto, tokens de agente) — solo admin y superadmin
+  DISPOSITIVOS_MANAGE: 'dispositivos:manage',
 };
 
 // Definición de roles y sus permisos
@@ -232,7 +235,7 @@ export const MODULE_PERMISSIONS = {
   [MODULES.PROVINCIAS]: [PERMISSIONS.PROVINCIAS_VIEW],
   [MODULES.LOCALIDADES]: [PERMISSIONS.LOCALIDADES_VIEW],
   [MODULES.REPORTES]: [PERMISSIONS.REPORTES_VIEW],
-  [MODULES.CONFIGURACION]: [PERMISSIONS.BACKUP_MANAGE],
+  [MODULES.CONFIGURACION]: [PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE],
 };
 
 // Helper para verificar si un rol tiene un permiso

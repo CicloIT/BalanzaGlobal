@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Database, Download, Play, Calendar, CheckCircle2, AlertCircle, RefreshCw, FileArchive, ShieldCheck, Clock } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
 import DispositivosConfig from './DispositivosConfig';
+import { usePermissions } from '../hooks/usePermissions';
+import { PERMISSIONS } from '../config/rolesConfig';
 const API_BASE_URL = '';
 const STORAGE_KEY = 'balanza_user';
 
@@ -21,6 +23,7 @@ const getAuthHeaders = (contentType = 'application/json') => {
 
 export default function Configuracion() {
   const { isDark } = useThemeContext();
+  const { hasPermission } = usePermissions();
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -108,12 +111,14 @@ export default function Configuracion() {
   return (
     <div className="space-y-8 animate-fadeIn">
 
-      <div>
-        <h2 className={`text-xl font-black mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          Configuración de Dispositivos
-        </h2>
-        <DispositivosConfig />
-      </div>
+      {hasPermission(PERMISSIONS.DISPOSITIVOS_MANAGE) && (
+        <div>
+          <h2 className={`text-xl font-black mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            Configuración de Dispositivos
+          </h2>
+          <DispositivosConfig />
+        </div>
+      )}
 
       {/* Header Section */}
       <div className={`backdrop-blur-xl rounded-3xl p-8 border transition-all shadow-2xl ${isDark ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white/80 border-slate-200'

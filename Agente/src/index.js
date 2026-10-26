@@ -25,7 +25,8 @@ const errores = [];
 if (!/^wss?:\/\//.test(config.central || '')) errores.push('"central" debe ser una URL ws:// o wss:// (…/agent)');
 if (!Array.isArray(config.balanzas) || !config.balanzas.length) errores.push('"balanzas" debe tener al menos una balanza');
 (config.balanzas || []).forEach((b, i) => {
-    if (!b.token) errores.push(`balanzas[${i}] sin "token" (generarlo con Backend/scripts/agente_token.mjs)`);
+    if (!b.token) errores.push(`balanzas[${i}] sin "token" (generarlo en Configuración de Dispositivos o con Backend/scripts/agente_token.mjs)`);
+    if (b.ip || b.puerto) console.warn(`⚠️  balanzas[${i}]: "ip"/"puerto" se ignoran; se configuran en Configuración de Dispositivos (central)`);
 });
 if (errores.length) {
     errores.forEach(e => console.error('❌', e));
@@ -36,7 +37,7 @@ const sitio = config.sitio || path.basename(rutaConfig, '.json');
 console.log(`Agente de balanzas v${VERSION} · sitio ${sitio} · ${config.balanzas.length} balanza(s) → ${config.central}`);
 
 const agentes = config.balanzas.map((b, i) => new AgenteBalanza(
-    { nombre: b.nombre || `balanza ${i + 1}`, token: b.token, ip: b.ip, puerto: b.puerto },
+    { nombre: b.nombre || `balanza ${i + 1}`, token: b.token },
     { sitio, central: config.central, headers: config.headers, version: VERSION },
 ));
 agentes.forEach(a => a.start());

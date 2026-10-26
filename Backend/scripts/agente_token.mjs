@@ -5,9 +5,8 @@
 // Usa la DB del .env del Backend (correrlo en el servidor central).
 // Si el backend está corriendo, el cambio se aplica cuando el agente se conecta;
 // para volver a modo directo reiniciar el backend o guardar la config de la balanza.
-import crypto from 'crypto';
 import pool from '../src/config/database.js';
-import { hashToken } from '../src/services/agenteGateway.js';
+import { hashToken, generarTokenAgente } from '../src/services/agenteGateway.js';
 
 const [arg, flag] = process.argv.slice(2);
 
@@ -43,7 +42,7 @@ const main = async () => {
     return;
   }
 
-  const token = crypto.randomBytes(32).toString('base64url');
+  const token = generarTokenAgente();
   const r = await pool.query(`
     UPDATE configuracion_dispositivos
     SET modo_conexion = 'agente', agente_token_hash = $2
