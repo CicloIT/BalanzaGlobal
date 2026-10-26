@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_BASE_URL, STORAGE_KEY, getStoredUser } from '../lib/api';
 
 const AuthContext = createContext();
@@ -7,6 +7,25 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [verificando, setVerificando] = useState(() => !!getStoredUser());
+
+  // Al cargar, confirmar que la cookie de sesión sigue siendo válida (y refrescar datos del usuario)
+  useEffect(() => {
+    if (!getStoredUser()) return;
+    fetch(`${API_BASE_URL}/api/usuarios/me`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (data?.success) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+          setUser(data.user);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          setUser(null);
+        }
+      })
+      .catch(() => { /* sin red: se mantiene el estado y fallarán los requests */ })
+      .finally(() => setVerificando(false));
+  }, []);
 
   const login = async (username, password) => {
     setLoading(true);
@@ -35,6 +54,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    fetch(`${API_BASE_URL}/api/usuarios/logout`, { method: 'POST' }).catch(() => {});
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
     setError('');
@@ -42,6 +62,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    verificando,
     login,
     logout,
     loading,

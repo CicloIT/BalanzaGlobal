@@ -22,13 +22,15 @@ const login = async (username) => {
   });
   const d = await r.json();
   if (!d.success) throw new Error(`login ${username}: ${d.error}`);
-  return d.user;
+  // La sesión viene en la cookie httpOnly: se guarda para mandarla en cada request
+  const cookie = r.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
+  return { ...d.user, cookie };
 };
 
 const api = async (user, method, path, body) => {
   const r = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id) },
+    headers: { 'Content-Type': 'application/json', Cookie: user.cookie },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: r.status, data: await r.json().catch(() => ({})) };
@@ -53,7 +55,7 @@ const agenteFalso = (token, peso) => new Promise((resolve) => {
 
 // Cliente navegador: junta mensajes durante `ms`
 const clienteWs = (user, ms = 2500, alAbrir) => new Promise((resolve) => {
-  const ws = new WebSocket(`${WS_BASE}/ws?userId=${user.id}`);
+  const ws = new WebSocket(`${WS_BASE}/ws`, { headers: { Cookie: user.cookie } });
   const msgs = [];
   ws.on('open', () => alAbrir && setTimeout(alAbrir, 500));
   ws.on('message', (m) => msgs.push(JSON.parse(m)));

@@ -18,13 +18,15 @@ const login = async (username) => {
   });
   const d = await r.json();
   if (!d.success) throw new Error(`login ${username}: ${d.error}`);
-  return d.user;
+  // La sesión viene en la cookie httpOnly: se guarda para mandarla en cada request
+  const cookie = r.headers.getSetCookie().map(c => c.split(';')[0]).join('; ');
+  return { ...d.user, cookie };
 };
 
 const api = async (user, method, path, body) => {
   const r = await fetch(`${BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json', 'x-user-id': String(user.id) },
+    headers: { 'Content-Type': 'application/json', Cookie: user.cookie },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: r.status, data: await r.json().catch(() => ({})) };
@@ -33,8 +35,8 @@ const api = async (user, method, path, body) => {
 // Abre el WS, junta mensajes durante `ms` y cierra
 const wsMensajes = (user, dispositivoId, ms = 2500) => new Promise((resolve) => {
   const wsBase = BASE.replace(/^http/, 'ws');
-  const qs = `userId=${user.id}${dispositivoId ? `&dispositivoId=${dispositivoId}` : ''}`;
-  const ws = new WebSocket(`${wsBase}/ws?${qs}`);
+  const qs = dispositivoId ? `?dispositivoId=${dispositivoId}` : '';
+  const ws = new WebSocket(`${wsBase}/ws${qs}`, { headers: user?.cookie ? { Cookie: user.cookie } : {} });
   const msgs = [];
   ws.on('message', (m) => msgs.push(JSON.parse(m)));
   ws.on('close', (code) => msgs.push({ type: 'CLOSE', code }));
@@ -75,9 +77,9 @@ const main = async () => {
   // ── Usuarios ──
   const usuariosAdmin1 = await api(admin1, 'GET', '/api/usuarios');
   check(usuariosAdmin1.data.data.every(u => u.localidad_id === admin1.localidad_id), 'admin local solo ve usuarios de su localidad');
-  const nuevo = await api(admin1, 'POST', '/api/usuarios', { username: `u_${patente}`, password_hash: 'x', rol: 'balancero', localidad_id: 2 });
+  const nuevo = await api(admin1, 'POST', '/api/usuarios', { username: `u_${patente}`, password: 'clave123', rol: 'balancero', localidad_id: 2 });
   check(nuevo.status === 201 && nuevo.data.data.localidad_id === admin1.localidad_id, 'admin local: localidad ajena forzada a la suya');
-  const escalar = await api(admin1, 'POST', '/api/usuarios', { username: `l_${patente}`, password_hash: 'x', rol: 'logistica' });
+  const escalar = await api(admin1, 'POST', '/api/usuarios', { username: `l_${patente}`, password: 'clave123', rol: 'logistica' });
   check(escalar.status === 403, 'admin local no puede crear rol global');
   const usuariosSuper = await api(superadmin, 'GET', '/api/usuarios');
   check(usuariosSuper.data.data.some(u => u.rol === 'superadmin'), 'superadmin ve usuarios de plataforma');
@@ -120,6 +122,29 @@ const main = async () => {
   });
   check(pesadaOk.status === 400, 'pesada rechaza chofer de otra localidad');
   void p;
+
+  // ── Sesión y contraseñas ──
+  const falso = await fetch(`${BASE}/api/choferes`, { headers: { 'x-user-id': String(admin.id) } });
+  check(falso.status === 401, 'header x-user-id ya no autentica (401)');
+  const cookieTrucha = await fetch(`${BASE}/api/choferes`, { headers: { Cookie: 'balanza_sesion=eyJ1aWQiOjF9.firma' } });
+  check(cookieTrucha.status === 401, 'cookie de sesión con firma inválida → 401');
+  const malPass = await fetch(`${BASE}/api/usuarios/login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'incorrecta' }),
+  });
+  check(malPass.status === 401, 'login con contraseña incorrecta → 401');
+  const me = await api(admin, 'GET', '/api/usuarios/me');
+  check(me.status === 200 && me.data.user?.id === admin.id && !('password_hash' in me.data.user), '/me devuelve la sesión sin password');
+  const docAnon = await fetch(`${BASE}/documentos/no-existe.pdf`);
+  check(docAnon.status === 401, '/documentos sin sesión → 401');
+  const capAnon = await fetch(`${BASE}/capturas/x.jpg`);
+  check(capAnon.status === 401, '/capturas sin sesión → 401');
+
+  // ── Respaldos: solo admin global ──
+  const subalancero1 = await login('subalancero_elmirador');
+  check((await api(subalancero1, 'GET', '/api/backup/list')).status === 403, 'subalancero no accede a respaldos');
+  check((await api(admin1, 'GET', '/api/backup/list')).status === 403, 'admin local no accede a respaldos');
+  check((await api(admin, 'GET', '/api/backup/list')).status === 200, 'admin global lista respaldos');
 
   console.log(fallos ? `\n${fallos} fallo(s)` : '\nTodo OK');
   process.exit(fallos ? 1 : 0);

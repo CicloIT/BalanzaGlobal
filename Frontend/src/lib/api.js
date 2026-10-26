@@ -10,14 +10,10 @@ export const getStoredUser = () => {
   }
 };
 
-// Headers con el usuario logueado. contentType = null para GET o multipart (FormData)
+// Headers de los requests a la API. contentType = null para GET o multipart (FormData).
+// La sesión viaja sola en la cookie httpOnly que pone el login (mismo origen).
 export const getAuthHeaders = (contentType = 'application/json') => {
   const headers = {};
   if (contentType) headers['Content-Type'] = contentType;
-
-  const user = getStoredUser();
-  if (user?.id) headers['x-user-id'] = user.id.toString();
-  if (user?.username) headers['x-username'] = user.username;
-
   return headers;
 };

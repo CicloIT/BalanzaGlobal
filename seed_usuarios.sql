@@ -1,3 +1,5 @@
+-- Las contraseñas quedan en texto plano: después correr  node Backend/scripts/hashear_passwords.mjs
+-- (igual se hashean solas en el primer login de cada usuario).
 -- Admin global
 INSERT INTO usuario (username, password_hash, rol, localidad_id) VALUES
   ('admin', '123456', 'admin', NULL);

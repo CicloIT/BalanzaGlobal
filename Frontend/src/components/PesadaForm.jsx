@@ -4,7 +4,7 @@ import { useThemeContext } from '../context/ThemeContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from '../context/AuthContext';
 import SearchableSelect from './SearchableSelect';
-import { API_BASE_URL, getStoredUser, getAuthHeaders } from '../lib/api';
+import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 const getFriendlyError = (msg = '') => {
   const m = msg.toLowerCase();
@@ -73,13 +73,11 @@ const ErrorModal = ({ message, onClose, isDark }) => {
   );
 };
 
-// El backend identifica al usuario y solo envía el peso de la balanza pedida (si está en su alcance)
+// El backend identifica al usuario por la cookie de sesión y solo envía el peso de la balanza pedida (si está en su alcance)
 const getWsUrl = (dispositivoId) => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host;
   const params = new URLSearchParams();
-  const user = getStoredUser();
-  if (user?.id) params.set('userId', user.id);
   if (dispositivoId) params.set('dispositivoId', dispositivoId);
   return `${protocol}//${host}/ws?${params}`;
 };

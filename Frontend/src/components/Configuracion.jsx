@@ -3,12 +3,16 @@ import { Database, Download, Play, Calendar, CheckCircle2, AlertCircle, RefreshC
 import { useThemeContext } from '../context/ThemeContext';
 import DispositivosConfig from './DispositivosConfig';
 import { usePermissions } from '../hooks/usePermissions';
+import { useAuth } from '../context/AuthContext';
 import { PERMISSIONS } from '../config/rolesConfig';
 import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 export default function Configuracion() {
   const { isDark } = useThemeContext();
   const { hasPermission } = usePermissions();
+  const { isGlobal } = useAuth();
+  // Respaldo = base completa: solo admin global / superadmin
+  const puedeRespaldar = hasPermission(PERMISSIONS.BACKUP_MANAGE) && isGlobal;
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -33,8 +37,8 @@ export default function Configuracion() {
   };
 
   useEffect(() => {
-    fetchBackups();
-  }, []);
+    if (puedeRespaldar) fetchBackups();
+  }, [puedeRespaldar]);
 
   const handleCreateBackup = async () => {
     if (!window.confirm('¿Desea iniciar un respaldo completo ahora? Esto puede demorar unos segundos.')) return;
@@ -105,6 +109,7 @@ export default function Configuracion() {
         </div>
       )}
 
+      {puedeRespaldar && (<>
       {/* Header Section */}
       <div className={`backdrop-blur-xl rounded-3xl p-8 border transition-all shadow-2xl ${isDark ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white/80 border-slate-200'
         }`}>
@@ -211,6 +216,7 @@ export default function Configuracion() {
           </div>
         </div>
       </div>
+      </>)}
     </div>
   );
 }

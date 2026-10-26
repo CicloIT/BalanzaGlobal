@@ -4,7 +4,6 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import archiver from 'archiver';
 import pool from '../config/database.js';
-import { slugLocalidadPorId } from '../utils/scope.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,11 +37,9 @@ const getPgDumpCommand = () =>
 
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-// localidadId: número o null (global)
-export const createBackup = async (localidadId = null) => {
-  const localidadNombre = await slugLocalidadPorId(localidadId);
-  const backupSubDir = localidadNombre ? path.join(BACKUP_DIR, localidadNombre) : BACKUP_DIR;
-  if (!fs.existsSync(backupSubDir)) fs.mkdirSync(backupSubDir, { recursive: true });
+// Respaldo completo: base entera + capturas + documentos. Solo para administradores globales.
+export const createBackup = async () => {
+  const backupSubDir = BACKUP_DIR;
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0]
     + '_' + new Date().getHours() + '-' + new Date().getMinutes();
@@ -50,7 +47,7 @@ export const createBackup = async (localidadId = null) => {
   const zipPath = path.join(backupSubDir, `${backupName}.zip`);
   const dumpFile = path.join(backupSubDir, `temp_db_${timestamp}.sql`);
 
-  console.log(`🚀 Iniciando respaldo [${localidadNombre ?? 'global'}]: ${backupName}...`);
+  console.log(`🚀 Iniciando respaldo: ${backupName}...`);
 
   return new Promise((resolve, reject) => {
     const dbPass = process.env.DB_PASSWORD || '123';
@@ -92,12 +89,8 @@ export const createBackup = async (localidadId = null) => {
       archive.pipe(output);
       archive.file(dumpFile, { name: 'database.sql' });
 
-      // Solo incluir capturas de esta localidad
-      const capturasLocalidad = localidadNombre
-        ? path.join(CAPTURAS_DIR, localidadNombre)
-        : CAPTURAS_DIR;
-      if (fs.existsSync(capturasLocalidad)) {
-        archive.directory(capturasLocalidad, 'capturas');
+      if (fs.existsSync(CAPTURAS_DIR)) {
+        archive.directory(CAPTURAS_DIR, 'capturas');
       }
 
       if (fs.existsSync(DOCUMENTOS_DIR)) {
@@ -111,8 +104,7 @@ export const createBackup = async (localidadId = null) => {
 
 export const handleManualBackup = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
-    const result = await createBackup(localidadId);
+    const result = await createBackup();
     res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -121,9 +113,7 @@ export const handleManualBackup = async (req, res) => {
 
 export const listBackups = async (req, res) => {
   try {
-    const localidadId = req.user?.localidad_id ?? null;
-    const localidadNombre = await slugLocalidadPorId(localidadId);
-    const dir = localidadNombre ? path.join(BACKUP_DIR, localidadNombre) : BACKUP_DIR;
+    const dir = BACKUP_DIR;
 
     if (!fs.existsSync(dir)) {
       return res.json({ success: true, backups: [] });
@@ -151,10 +141,7 @@ export const downloadBackup = async (req, res) => {
       return res.status(400).json({ error: 'Nombre de archivo inválido' });
     }
 
-    const localidadId = req.user?.localidad_id ?? null;
-    const localidadNombre = await slugLocalidadPorId(localidadId);
-    const dir = localidadNombre ? path.join(BACKUP_DIR, localidadNombre) : BACKUP_DIR;
-    const filePath = path.join(dir, filename);
+    const filePath = path.join(BACKUP_DIR, filename);
 
     if (fs.existsSync(filePath)) {
       res.download(filePath);

@@ -9,7 +9,7 @@ import { WebSocketServer } from 'ws';
 import { fileURLToPath } from "url";
 import { inicializarBalanzas, getEstadoBalanza, getEstadosBalanzas } from './services/balanzaService.js';
 import { crearAgenteGateway } from './services/agenteGateway.js';
-import { loadUser } from './middleware/authMiddleware.js';
+import { userFromRequest, requireAuth } from './middleware/authMiddleware.js';
 import { scopeSql } from './utils/scope.js';
 
 // Importar rutas
@@ -38,7 +38,7 @@ const PORT = process.env.PORT || 3000;
 
 // Crear servidor HTTP y WebSocket
 const server = http.createServer(app);
-const wss = new WebSocketServer({ noServer: true });      // navegadores: /ws?userId=&dispositivoId=
+const wss = new WebSocketServer({ noServer: true });      // navegadores: /ws?dispositivoId= (usuario por cookie de sesión)
 const agenteWss = crearAgenteGateway();                    // agentes locales: /agent (token por balanza)
 
 server.on('upgrade', (req, socket, head) => {
@@ -72,11 +72,11 @@ const resolverBalanzaWs = async (user, requestedId) => {
   return result.rows[0]?.id ?? null;
 };
 
-// Manejar conexiones WebSocket entrantes: ws://host/ws?userId=X&dispositivoId=Y
+// Manejar conexiones WebSocket entrantes: ws://host/ws?dispositivoId=Y (el usuario sale de la cookie de sesión)
 wss.on('connection', async (ws, req) => {
   try {
     const params = new URL(req.url, 'http://localhost').searchParams;
-    const user = await loadUser({ userId: params.get('userId'), username: params.get('username') });
+    const user = await userFromRequest(req);
     if (!user) {
       ws.close(4401, 'No autorizado');
       return;
@@ -126,13 +126,13 @@ const CAPTURAS_DIR = path.join(__dirname, "../capturas");
 if (!fs.existsSync(CAPTURAS_DIR)) {
   fs.mkdirSync(CAPTURAS_DIR, { recursive: true });
 }
-app.use("/capturas", express.static(CAPTURAS_DIR));
+app.use("/capturas", requireAuth, express.static(CAPTURAS_DIR));
 
 const DOCUMENTOS_DIR = path.join(__dirname, "documentos");
 if (!fs.existsSync(DOCUMENTOS_DIR)) {
   fs.mkdirSync(DOCUMENTOS_DIR, { recursive: true });
 }
-app.use("/documentos", express.static(DOCUMENTOS_DIR));
+app.use("/documentos", requireAuth, express.static(DOCUMENTOS_DIR));
 
 // Servir el frontend build
 const FRONTEND_DIR = path.join(__dirname, "../../Frontend/dist");
@@ -196,8 +196,7 @@ server.listen(PORT, '0.0.0.0', () => {
     if (ahora.getDay() === 0 && ahora.getHours() === 3) {
       console.log('⏰ Iniciando backup automático semanal...');
       try {
-        const localidadId = process.env.LOCALIDAD_ID ? parseInt(process.env.LOCALIDAD_ID) : null;
-        await createBackup(localidadId);
+        await createBackup();
       } catch (err) {
         console.error('❌ Falló el backup automático:', err.message);
       }

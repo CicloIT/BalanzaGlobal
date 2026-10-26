@@ -4,7 +4,8 @@ import { AuthProvider, useAuth } from "./context/AuthContext"
 import LoginPage from "./components/LoginPage"
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, verificando } = useAuth();
+  if (verificando) return null; // validando la sesión guardada contra el backend
   return user ? <GestionApp /> : <LoginPage />;
 }
 

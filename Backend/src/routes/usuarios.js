@@ -6,14 +6,22 @@ import {
   updateUsuario,
   deleteUsuario,
   authLogin,
+  authLogout,
+  getSesion,
+  cambiarPasswordPropia,
 } from '../controllers/usuariosController.js';
 import { requireAuth, requirePermission, optionalAuth } from '../middleware/authMiddleware.js';
 import { PERMISSIONS } from '../config/rolesConfig.js';
 
 const router = express.Router();
 
-// Login es público
+// Login y logout son públicos
 router.post('/login', authLogin);
+router.post('/logout', authLogout);
+
+// Sesión actual (antes de /:id)
+router.get('/me', requireAuth, getSesion);
+router.put('/me/password', requireAuth, cambiarPasswordPropia);
 
 // Rutas protegidas
 router.get('/', optionalAuth, requirePermission(PERMISSIONS.USUARIOS_VIEW), getUsuarios);

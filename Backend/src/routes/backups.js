@@ -1,13 +1,14 @@
 import express from 'express';
 import { handleManualBackup, listBackups, downloadBackup } from '../controllers/backupController.js';
-import { requireAuth, requirePermission } from '../middleware/authMiddleware.js';
+import { requireAuth, requirePermission, requireGlobal } from '../middleware/authMiddleware.js';
 import { PERMISSIONS } from '../config/rolesConfig.js';
 
 const router = express.Router();
 
-// Rutas protegidas (Solo Admin)
-router.get('/list', requireAuth, requirePermission(PERMISSIONS.BACKUP_MANAGE), listBackups);
-router.get('/download/:filename', requireAuth, requirePermission(PERMISSIONS.BACKUP_MANAGE), downloadBackup);
-router.post('/trigger', requireAuth, requirePermission(PERMISSIONS.BACKUP_MANAGE), handleManualBackup);
+// Respaldo completo de la base: solo admin global y superadmin
+const soloAdminGlobal = [requireAuth, requirePermission(PERMISSIONS.BACKUP_MANAGE), requireGlobal];
+router.get('/list', soloAdminGlobal, listBackups);
+router.get('/download/:filename', soloAdminGlobal, downloadBackup);
+router.post('/trigger', soloAdminGlobal, handleManualBackup);
 
 export default router;
