@@ -1,6 +1,7 @@
 import pool from "../config/database.js";
 import { reconectarBalanza, getEstadoBalanza, expulsarAgente, modoBalanzaDeLocalidad, getAgenteDeLocalidad } from "../services/balanzaService.js";
 import { invalidarCacheCanales, CANAL_MAX } from "./camarasController.js";
+import { moduloCamarasHabilitado, assertModuloCamaras } from "../utils/modulos.js";
 import { hashToken, generarTokenAgente } from "../services/agenteGateway.js";
 import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError, ScopeError } from "../utils/scope.js";
 
@@ -59,6 +60,7 @@ export const getConfiguracion = async (req, res) => {
         }
         // La grabadora sigue el modo de la balanza de su localidad (misma LAN)
         const modoCaptura = modoBalanzaDeLocalidad(user.localidad_id) === 'agente' ? 'agente' : 'directo';
+        config.modulos = { camaras: await moduloCamarasHabilitado(user.localidad_id) };
         config.grabadora_estado = {
             modo_captura: modoCaptura,
             agente_online: modoCaptura === 'agente' && Boolean(getAgenteDeLocalidad(user.localidad_id)),
@@ -86,6 +88,7 @@ export const updateConfiguracion = async (req, res) => {
 
         // La grabadora puede no existir todavía para la localidad: se crea al guardar
         if (tipo === 'grabadora') {
+            await assertModuloCamaras(localidadId);
             if (!ip?.trim()) throw new ScopeError("La IP de la grabadora es obligatoria", 400);
             const canales = parsearCanales(canalesBody);
             const { rows } = await pool.query(`

@@ -69,6 +69,26 @@ export const updateLocalidad = async (req, res) => {
     }
 };
 
+// PUT /api/localidades/:id/modulos — { camaras: bool }. Los módulos van por plan: solo superadmin.
+export const updateModulos = async (req, res) => {
+    try {
+        if (!getScope(req.user).isSuperadmin) {
+            throw new ScopeError('Solo el superadmin puede habilitar módulos', 403);
+        }
+        const { camaras } = req.body;
+        if (typeof camaras !== 'boolean') throw new ScopeError('Debe indicar camaras: true o false', 400);
+        const result = await pool.query(
+            `UPDATE localidad SET modulo_camaras = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 RETURNING id, nombre, modulo_camaras`,
+            [camaras, req.params.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Localidad no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        sendScopeError(res, error);
+    }
+};
+
 export const deleteLocalidad = async (req, res) => {
     try {
         assertGestionLocalidades(req.user);

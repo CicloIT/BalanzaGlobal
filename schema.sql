@@ -311,7 +311,8 @@ CREATE TABLE public.localidad (
     provincia_id integer NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    empresa_id integer NOT NULL
+    empresa_id integer NOT NULL,
+    modulo_camaras boolean DEFAULT false NOT NULL
 );
 
 

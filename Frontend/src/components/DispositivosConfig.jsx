@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug, Camera } from "lucide-react";
+import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug, Camera, Lock } from "lucide-react";
 import { useThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL, getAuthHeaders } from "../lib/api";
@@ -8,12 +8,14 @@ const CONFIG_VACIA = {
     balanza: { ip: "", puerto: "" },
     // canales: texto "1,2,5-8"; vacío = detección automática
     grabadora: { ip: "", puerto: "", usuario: "", contraseña: "", marca: "hikvision", canales: "" },
-    grabadora_estado: { modo_captura: "directo", agente_online: false }
+    grabadora_estado: { modo_captura: "directo", agente_online: false },
+    // Módulos por plan de la localidad; los habilita solo el superadmin
+    modulos: { camaras: false }
 };
 
 export default function DispositivosConfig() {
     const { isDark } = useThemeContext();
-    const { isGlobal, user } = useAuth();
+    const { isGlobal, isSuperadmin, user } = useAuth();
     // Usuario global: elige qué localidad configura
     const [localidades, setLocalidades] = useState([]);
     const [localidadSel, setLocalidadSel] = useState(null);
@@ -194,6 +196,30 @@ export default function DispositivosConfig() {
         } catch (err) {
             setMsgType("error");
             setMsg(err.message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleModuloCamaras = async (habilitar) => {
+        const idLocalidad = localidadId ?? user?.localidad_id;
+        if (!habilitar && !window.confirm(
+            "Se deshabilita el módulo de cámaras: la localidad deja de sacar fotos en las pesadas. ¿Continuar?"
+        )) return;
+        try {
+            setSaving(true);
+            const res = await fetch(`${API_BASE_URL}/api/localidades/${idLocalidad}/modulos`, {
+                method: "PUT",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ camaras: habilitar })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) throw new Error(data.error || "No se pudo cambiar el módulo");
+            mostrarMensaje("success", habilitar ? "✓ Módulo de cámaras habilitado" : "✓ Módulo de cámaras deshabilitado");
+            setPruebaCamaras(null);
+            fetchConfig();
+        } catch (err) {
+            mostrarMensaje("error", err.message);
         } finally {
             setSaving(false);
         }
@@ -558,6 +584,30 @@ export default function DispositivosConfig() {
                             <div className={`h-3 w-3 rounded-full ${isDark ? 'bg-amber-500/50' : 'bg-amber-400'}`} />
                         </div>
 
+                        {!config.modulos.camaras && (
+                            <div className={`flex items-start gap-2 mb-4 px-4 py-3 rounded-xl text-sm font-medium ${isDark
+                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}>
+                                <Lock size={16} className="mt-0.5 shrink-0" />
+                                <span>Módulo de cámaras no incluido en el plan de esta localidad. Consultá para habilitarlo.</span>
+                            </div>
+                        )}
+                        {isSuperadmin && (
+                            <button
+                                onClick={() => handleModuloCamaras(!config.modulos.camaras)}
+                                disabled={saving}
+                                className={`mb-4 flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
+                                    ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
+                                    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                                    }`}
+                            >
+                                <Lock size={16} />
+                                {config.modulos.camaras ? "Deshabilitar módulo de cámaras" : "Habilitar módulo de cámaras"}
+                            </button>
+                        )}
+
+                        <fieldset disabled={!config.modulos.camaras} className={config.modulos.camaras ? '' : 'opacity-50 cursor-not-allowed'}>
                         <div className={`mb-4 text-sm font-semibold space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
                             <p>
                                 Capturas:{" "}
@@ -706,6 +756,7 @@ export default function DispositivosConfig() {
                                 )}
                             </div>
                         )}
+                        </fieldset>
                     </div>
                 </div>
             </div>

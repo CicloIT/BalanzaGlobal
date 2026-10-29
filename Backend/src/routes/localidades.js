@@ -3,6 +3,7 @@ import {
     getLocalidades,
     createLocalidad,
     updateLocalidad,
+    updateModulos,
     deleteLocalidad
 } from '../controllers/localidadesController.js';
 import { requireAuth, requirePermission, optionalAuth } from '../middleware/authMiddleware.js';
@@ -13,6 +14,7 @@ const router = express.Router();
 router.get('/', optionalAuth, requirePermission(PERMISSIONS.LOCALIDADES_VIEW), getLocalidades);
 router.post('/', requireAuth, requirePermission(PERMISSIONS.LOCALIDADES_CREATE), createLocalidad);
 router.put('/:id', requireAuth, requirePermission(PERMISSIONS.LOCALIDADES_UPDATE), updateLocalidad);
+router.put('/:id/modulos', requireAuth, updateModulos);
 router.delete('/:id', requireAuth, requirePermission(PERMISSIONS.LOCALIDADES_DELETE), deleteLocalidad);
 
 export default router;

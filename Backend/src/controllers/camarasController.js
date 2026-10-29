@@ -6,6 +6,7 @@ import { scopeSql, userForRead, slugLocalidadPorId } from "../utils/scope.js";
 import pool from "../config/database.js";
 import { modoBalanzaDeLocalidad, getAgenteDeLocalidad } from "../services/balanzaService.js";
 import { pedirSnapshotsAgente } from "../services/agenteGateway.js";
+import { assertModuloCamaras, MODULO_CAMARAS_DESHABILITADO } from "../utils/modulos.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,8 +34,10 @@ const buildSnapshotUrl = ({ ip, puerto, marca }, canal) => {
     return `http://${host}/cgi-bin/snapshot.cgi?channel=${canal}`;
 };
 
-// `user` es el usuario efectivo (userForRead): restringe la grabadora a su empresa/localidad
+// `user` es el usuario efectivo (userForRead): restringe la grabadora a su empresa/localidad.
+// Exige el módulo de cámaras habilitado en esa localidad (va por plan).
 const obtenerConfigGrabadora = async (user) => {
+    if (user?.localidad_id) await assertModuloCamaras(user.localidad_id);
     const scope = scopeSql('localidad_id', user, 1);
     const result = await pool.query(`
         SELECT ip, puerto, usuario, contraseña AS password, marca, localidad_id, canales
@@ -46,6 +49,7 @@ const obtenerConfigGrabadora = async (user) => {
     `, scope.params);
     const nvr = result.rows[0];
     if (!nvr) throw new Error("No hay configuración de grabadora");
+    await assertModuloCamaras(nvr.localidad_id);
     if (!nvr.ip) throw new Error("La grabadora no tiene IP configurada");
     return nvr;
 };
@@ -149,6 +153,9 @@ export const getConfig = async (req, res) => {
         }
         res.json(respuesta);
     } catch (e) {
+        if (e.code === MODULO_CAMARAS_DESHABILITADO) {
+            return res.status(403).json({ success: false, error: e.message, code: e.code });
+        }
         res.status(500).json({ success: false, error: e.message });
     }
 };
@@ -168,6 +175,9 @@ export const capturarTodo = async (req, res) => {
         }
         resultados = await obtenerSnapshots(nvr, canales, CAPTURA);
     } catch (error) {
+        if (error.code === MODULO_CAMARAS_DESHABILITADO) {
+            return res.json({ status: "modulo_deshabilitado", archivos: [], message: error.message });
+        }
         console.error("No se pudo capturar del NVR:", error.message);
         return res.json({ status: "sin_camaras", archivos: [], message: error.message });
     }

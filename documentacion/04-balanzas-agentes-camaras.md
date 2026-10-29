@@ -68,6 +68,13 @@ responde **409** ("Vuelva a capturar el peso o cárguelo como manual"). Se desac
 
 ## Grabadora (NVR / cámaras)
 
+> **Módulo por plan.** Las cámaras se habilitan por localidad (`localidad.modulo_camaras`,
+> `migration_modulo_camaras.sql`, apagado por defecto). Solo el **superadmin** lo prende o apaga
+> desde *Configuración de Dispositivos → Grabadora* (`PUT /api/localidades/:id/modulos`
+> `{ camaras: true|false }`). Apagado: la tarjeta Grabadora y el panel de cámaras de la pesada se
+> ven bloqueados, `/api/camaras/*` responde `MODULO_CAMARAS_DESHABILITADO` y la pesada se registra
+> sin fotos.
+
 Una grabadora por localidad, en la **misma LAN que su balanza**. Se configura en
 *Configuración de Dispositivos → Grabadora*: IP, puerto HTTP (vacío = 80), usuario, contraseña y
 marca. Si la localidad todavía no tenía grabadora, se crea al guardar.

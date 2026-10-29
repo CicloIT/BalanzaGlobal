@@ -215,6 +215,8 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
   const [camImages, setCamImages] = useState([]);
   const [camStatus, setCamStatus] = useState(null);
   const [activeChannels, setActiveChannels] = useState([1, 2, 3]);
+  // Módulo de cámaras fuera del plan de la localidad: el panel se muestra bloqueado y no se piden fotos
+  const [camBloqueado, setCamBloqueado] = useState(false);
 
   const [formData, setFormData] = useState({
     vehiculo_patente: '',
@@ -332,6 +334,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       try {
         const res = await fetch(withLocalidad(`${API_BASE_URL}/api/camaras/config`), { headers: getAuthHeaders(null) });
         const data = await res.json();
+        setCamBloqueado(data.code === 'MODULO_CAMARAS_DESHABILITADO');
         if (data.success && data.canales) setActiveChannels(data.canales);
       } catch { /* ignore */ }
     })();
@@ -369,6 +372,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
   }, []);
 
   const capturarFotos = async (patente) => {
+    if (camBloqueado) return [];
     try {
       setCamLoading(true);
       setCamStatus('capturing');
@@ -380,6 +384,10 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
         setCamImages(data.archivos || []);
         setCamStatus('success');
         return data.archivos || [];
+      } else if (data.status === 'modulo_deshabilitado') {
+        setCamBloqueado(true);
+        setCamStatus(null);
+        return [];
       } else {
         setCamStatus('sin_camaras');
         return [];
@@ -788,15 +796,28 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
             <div className="flex items-center gap-3">
               <Camera className="text-blue-500" size={24} />
               <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>Cámaras de Seguridad</h3>
-              {camStatus === 'sin_camaras' && (
+              {camBloqueado && (
+                <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${isDark ? 'bg-slate-700 text-slate-300 border border-slate-600' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                  <Lock size={12} /> Módulo no incluido en el plan
+                </span>
+              )}
+              {!camBloqueado && camStatus === 'sin_camaras' && (
                 <span className={`text-xs font-bold px-2 py-1 rounded-lg ${isDark ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`}>
                   Sin cámaras — pesada registrada igual
                 </span>
               )}
             </div>
-            <button onClick={() => capturarFotos(formData.vehiculo_patente)} disabled={camLoading} className={`p-2 rounded-lg transition-all ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-100 hover:bg-slate-200'}`}><RefreshCw size={20} className={camLoading ? 'animate-spin' : ''} /></button>
+            <button onClick={() => capturarFotos(formData.vehiculo_patente)} disabled={camLoading || camBloqueado} className={`p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-100 hover:bg-slate-200'}`}><RefreshCw size={20} className={camLoading ? 'animate-spin' : ''} /></button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="relative">
+          {camBloqueado && (
+            <div className={`absolute inset-0 z-10 rounded-2xl flex flex-col items-center justify-center gap-2 text-center px-6 backdrop-blur-sm ${isDark ? 'bg-slate-900/70 text-slate-300' : 'bg-white/70 text-slate-600'}`}>
+              <Lock size={32} />
+              <p className="font-bold">Módulo de cámaras bloqueado</p>
+              <p className="text-sm">No está incluido en el plan de esta localidad. Consultá para habilitarlo.</p>
+            </div>
+          )}
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 ${camBloqueado ? 'pointer-events-none select-none' : ''}`}>
             {activeChannels.map(ch => {
               const img = camImages.find(i => i.canal === ch);
               const imgSrc = img ? (img.ruta.startsWith('/capturas/') ? img.ruta : `/capturas/${img.ruta}`) : null;
@@ -807,6 +828,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       </div>
