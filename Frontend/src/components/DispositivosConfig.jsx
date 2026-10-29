@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug, Camera, Lock } from "lucide-react";
-import { useThemeContext } from "../context/ThemeContext";
+import { Save, Server, Cpu, KeyRound, Copy, Unplug, Camera, Lock, Unlock, Wifi, WifiOff, MapPin, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useConfirm, useToast } from "../context/feedback";
 import { API_BASE_URL, getAuthHeaders } from "../lib/api";
+import { Card, CardHeader, CardBody } from "./ui/Card";
+import Button from "./ui/Button";
+import Badge from "./ui/Badge";
+import Alert from "./ui/Alert";
+import { Field, Input, Select } from "./ui/Field";
+import { LoadingState } from "./ui/Spinner";
 
 const CONFIG_VACIA = {
     balanza: { ip: "", puerto: "" },
-    // canales: texto "1,2,5-8"; vacío = detección automática
+    // canales: texto "1,2,5-8"; vacío = detección automática.
+    // contraseña: solo la nueva que se escribe (el backend nunca devuelve la guardada)
     grabadora: { ip: "", puerto: "", usuario: "", contraseña: "", marca: "hikvision", canales: "" },
     grabadora_estado: { modo_captura: "directo", agente_online: false },
     // Módulos por plan de la localidad; los habilita solo el superadmin
@@ -14,24 +21,22 @@ const CONFIG_VACIA = {
 };
 
 export default function DispositivosConfig() {
-    const { isDark } = useThemeContext();
     const { isGlobal, isSuperadmin, user } = useAuth();
+    const confirm = useConfirm();
+    const toast = useToast();
     // Usuario global: elige qué localidad configura
     const [localidades, setLocalidades] = useState([]);
     const [localidadSel, setLocalidadSel] = useState(null);
 
     const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
+    const [saving, setSaving] = useState(null);   // 'balanza' | 'grabadora' | 'modulo' mientras guarda
     const [config, setConfig] = useState(CONFIG_VACIA);
     // Token del agente recién generado: se muestra una sola vez
     const [tokenNuevo, setTokenNuevo] = useState(null);
     const [tokenBusy, setTokenBusy] = useState(false);
-    // Resultado de "Probar cámaras": { ok, texto }
+    // Resultado de "Probar cámaras": { ok, texto, conImagen? }
     const [pruebaCamaras, setPruebaCamaras] = useState(null);
     const [probando, setProbando] = useState(false);
-
-    const [msg, setMsg] = useState(null);
-    const [msgType, setMsgType] = useState("success");
 
     const fetchConfig = async () => {
         try {
@@ -48,9 +53,11 @@ export default function DispositivosConfig() {
                 setConfig({
                     ...CONFIG_VACIA,
                     ...resto,
+                    balanza: { ...CONFIG_VACIA.balanza, ...resto.balanza, puerto: resto.balanza?.puerto ?? "" },
                     grabadora: {
                         ...CONFIG_VACIA.grabadora,
                         ...grabadora,
+                        contraseña: "",
                         puerto: grabadora?.puerto ?? "",
                         canales: grabadora?.canales?.join(",") ?? ""
                     }
@@ -83,18 +90,13 @@ export default function DispositivosConfig() {
         setTokenNuevo(null);
         setPruebaCamaras(null);
         fetchConfig();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [localidadSel]);
 
     const localidadId = config.balanza?.localidad_id ?? localidadSel ?? null;
     const localidadNombre = isGlobal
         ? localidades.find(l => l.id === localidadSel)?.nombre
         : user?.localidad_nombre;
-
-    const mostrarMensaje = (tipo, texto) => {
-        setMsgType(tipo);
-        setMsg(texto);
-        if (tipo === "success") setTimeout(() => setMsg(null), 3000);
-    };
 
     const llamarToken = async (method) => {
         const res = await fetch(`${API_BASE_URL}/api/config/balanza/token`, {
@@ -108,36 +110,40 @@ export default function DispositivosConfig() {
     };
 
     const handleGenerarToken = async () => {
-        if (config.balanza.con_token && !window.confirm(
-            "Se va a generar un token nuevo. El agente que usa el token actual se desconecta hasta que se le cargue el nuevo. ¿Continuar?"
-        )) return;
+        if (config.balanza.con_token && !(await confirm({
+            title: "Regenerar token del agente",
+            message: "Se genera un token nuevo. El agente que usa el token actual se desconecta hasta que se le cargue el nuevo.",
+            confirmLabel: "Regenerar",
+            tone: "danger",
+        }))) return;
         try {
             setTokenBusy(true);
-            setMsg(null);
             const { token } = await llamarToken("POST");
             setTokenNuevo(token);
-            mostrarMensaje("success", "✓ Token generado: copialo ahora, no se vuelve a mostrar");
+            toast.success("Token generado: copialo ahora, no se vuelve a mostrar");
             fetchConfig();
         } catch (err) {
-            mostrarMensaje("error", err.message);
+            toast.error(err.message);
         } finally {
             setTokenBusy(false);
         }
     };
 
     const handleModoDirecto = async () => {
-        if (!window.confirm(
-            "La balanza pasa a lectura directa desde el servidor y se revoca el token del agente. ¿Continuar?"
-        )) return;
+        if (!(await confirm({
+            title: "Pasar a modo directo",
+            message: "La balanza pasa a lectura directa desde el servidor y se revoca el token del agente.",
+            confirmLabel: "Pasar a modo directo",
+            tone: "danger",
+        }))) return;
         try {
             setTokenBusy(true);
-            setMsg(null);
             await llamarToken("DELETE");
             setTokenNuevo(null);
-            mostrarMensaje("success", "✓ Balanza en modo directo; token revocado");
+            toast.success("Balanza en modo directo; token revocado");
             fetchConfig();
         } catch (err) {
-            mostrarMensaje("error", err.message);
+            toast.error(err.message);
         } finally {
             setTokenBusy(false);
         }
@@ -154,21 +160,22 @@ export default function DispositivosConfig() {
     const copiar = async (texto) => {
         try {
             await navigator.clipboard.writeText(texto);
-            mostrarMensaje("success", "✓ Copiado al portapapeles");
+            toast.success("Copiado al portapapeles");
         } catch {
-            mostrarMensaje("error", "No se pudo copiar; seleccioná el texto a mano");
+            toast.error("No se pudo copiar; seleccioná el texto a mano");
         }
     };
 
     const handleSave = async (tipo) => {
         try {
-            setSaving(true);
-            setMsg(null);
+            setSaving(tipo);
 
             const body = {
                 ...config[tipo],
                 puerto: config[tipo].puerto ? Number(config[tipo].puerto) : null,
                 marca: config[tipo]?.marca || null,
+                // Contraseña vacía = no cambiarla
+                contraseña: config[tipo]?.contraseña || undefined,
                 localidad_id: config[tipo]?.localidad_id ?? localidadSel ?? null
             };
 
@@ -185,29 +192,29 @@ export default function DispositivosConfig() {
             }
 
             if (data.success) {
-                setMsgType("success");
-                setMsg(`✓ ${tipo.charAt(0).toUpperCase() + tipo.slice(1)} actualizada`);
+                toast.success(tipo === "balanza" ? "Balanza actualizada" : "Grabadora actualizada");
                 fetchConfig();
-                setTimeout(() => setMsg(null), 3000);
             } else {
                 throw new Error(data.message);
             }
 
         } catch (err) {
-            setMsgType("error");
-            setMsg(err.message);
+            toast.error(err.message);
         } finally {
-            setSaving(false);
+            setSaving(null);
         }
     };
 
     const handleModuloCamaras = async (habilitar) => {
         const idLocalidad = localidadId ?? user?.localidad_id;
-        if (!habilitar && !window.confirm(
-            "Se deshabilita el módulo de cámaras: la localidad deja de sacar fotos en las pesadas. ¿Continuar?"
-        )) return;
+        if (!habilitar && !(await confirm({
+            title: "Deshabilitar módulo de cámaras",
+            message: "La localidad deja de sacar fotos en las pesadas. La configuración de la grabadora se conserva.",
+            confirmLabel: "Deshabilitar",
+            tone: "danger",
+        }))) return;
         try {
-            setSaving(true);
+            setSaving("modulo");
             const res = await fetch(`${API_BASE_URL}/api/localidades/${idLocalidad}/modulos`, {
                 method: "PUT",
                 headers: getAuthHeaders(),
@@ -215,13 +222,13 @@ export default function DispositivosConfig() {
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.success) throw new Error(data.error || "No se pudo cambiar el módulo");
-            mostrarMensaje("success", habilitar ? "✓ Módulo de cámaras habilitado" : "✓ Módulo de cámaras deshabilitado");
+            toast.success(habilitar ? "Módulo de cámaras habilitado" : "Módulo de cámaras deshabilitado");
             setPruebaCamaras(null);
             fetchConfig();
         } catch (err) {
-            mostrarMensaje("error", err.message);
+            toast.error(err.message);
         } finally {
-            setSaving(false);
+            setSaving(null);
         }
     };
 
@@ -259,507 +266,247 @@ export default function DispositivosConfig() {
         }));
     };
 
-    const styles = `
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap');
-        
-        * {
-            font-family: 'Outfit', sans-serif;
-        }
-
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulse-glow {
-            0%, 100% {
-                box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
-            }
-            50% {
-                box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
-            }
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: -1000px 0;
-            }
-            100% {
-                background-position: 1000px 0;
-            }
-        }
-
-        .device-card {
-            animation: slideInUp 0.6s ease-out;
-        }
-
-        .device-card:nth-child(2) {
-            animation-delay: 0.1s;
-        }
-
-        .device-card:nth-child(3) {
-            animation-delay: 0.2s;
-        }
-
-        .input-field {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .input-field input:focus {
-            animation: none;
-        }
-
-        .save-button:hover:not(:disabled) {
-            transform: translateY(-2px);
-        }
-
-        .icon-pulse {
-            animation: pulse-glow 2s infinite;
-        }
-
-        .loading-spinner {
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-    `;
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <style>{styles}</style>
-                <div className="text-center">
-                    <div className="mb-4">
-                        <RefreshCw size={48} className="loading-spinner mx-auto text-indigo-500" />
-                    </div>
-                    <p className={`text-lg font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                        Cargando configuración...
-                    </p>
-                </div>
-            </div>
-        );
-    }
+    const camarasOn = config.modulos.camaras;
+    const esAgente = config.balanza.modo_conexion === "agente";
+    const capturaPorAgente = config.grabadora_estado.modo_captura === "agente";
 
     return (
-        <div className={`min-h-screen ${isDark ? 'bg-slate-950' : 'bg-gradient-to-br from-slate-50 via-white to-indigo-50'} transition-colors duration-300`}>
-            <style>{styles}</style>
-
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                {/* HEADER SECTION */}
-                <div className="mb-12">
-                    <div className="inline-block mb-4">
-                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${isDark ? 'bg-indigo-500/20' : 'bg-indigo-100'}`}>
-                            <div className="text-indigo-500 font-black">⚙</div>
-                        </div>
-                    </div>
-                    <h1 className={`text-4xl md:text-5xl font-black mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        Configuración de Dispositivos
-                    </h1>
-                    <p className={`text-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                        Gestiona la conexión de tu balanza y cámara de seguridad
-                    </p>
+        <div className="space-y-6">
+            {isGlobal && localidades.length > 0 && (
+                <div className="flex flex-wrap items-end gap-3">
+                    <Field label="Localidad a configurar" className="w-full sm:w-72">
+                        <Select value={localidadSel ?? ""} onChange={(e) => setLocalidadSel(Number(e.target.value))}>
+                            {localidades.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+                        </Select>
+                    </Field>
+                    <p className="pb-2.5 text-sm text-fg-subtle">Cada localidad tiene su balanza y su grabadora.</p>
                 </div>
+            )}
 
-                {/* ALERT MESSAGE */}
-                {msg && (
-                    <div className={`mb-8 p-4 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300 ${msgType === "success"
-                        ? isDark
-                            ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400'
-                            : 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                        : isDark
-                            ? 'bg-red-500/10 border border-red-500/30 text-red-400'
-                            : 'bg-red-50 border border-red-200 text-red-700'
-                        }`}>
-                        {msgType === "success" ? (
-                            <CheckCircle2 size={20} className="flex-shrink-0" />
-                        ) : (
-                            <AlertCircle size={20} className="flex-shrink-0" />
-                        )}
-                        <span className="font-semibold">{msg}</span>
-                    </div>
-                )}
-
-                {isGlobal && localidades.length > 0 && (
-                    <label className={`mb-6 flex items-center gap-3 font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                        Localidad
-                        <select
-                            value={localidadSel ?? ""}
-                            onChange={(e) => setLocalidadSel(Number(e.target.value))}
-                            className={`px-4 py-2 rounded-xl border font-medium ${isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'}`}
-                        >
-                            {localidades.map(l => (
-                                <option key={l.id} value={l.id}>{l.nombre}</option>
-                            ))}
-                        </select>
-                    </label>
-                )}
-
-                {/* DEVICE CARDS GRID */}
-                <div className="grid md:grid-cols-2 gap-8 lg:gap-6">
-                    {/* BALANZA CARD */}
-                    <div className={`device-card group rounded-3xl border-2 transition-all duration-300 p-8 ${isDark
-                        ? 'bg-slate-800/50 border-slate-700/50 hover:border-indigo-500/50 hover:bg-slate-800/80'
-                        : 'bg-white border-slate-200/50 hover:border-indigo-300 hover:bg-indigo-50/30 hover:shadow-xl'
-                        }`}>
-                        <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-3 rounded-2xl transition-all duration-300 ${isDark ? 'bg-indigo-500/20' : 'bg-indigo-100'
-                                    } group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-indigo-500/20`}>
-                                    <Cpu size={28} className="text-indigo-500" />
-                                </div>
-                                <div>
-                                    <h3 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                        Balanza
-                                    </h3>
-                                    <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        Dispositivo de pesaje
-                                    </p>
-                                </div>
-                            </div>
-                            <div className={`h-3 w-3 rounded-full ${isDark ? 'bg-emerald-500/50' : 'bg-emerald-400'}`} />
-                        </div>
-
-                        <div className={`mb-4 text-sm font-semibold space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                            <p>
-                                Modo:{" "}
-                                <span className={config.balanza.modo_conexion === "agente" ? "text-indigo-500" : ""}>
-                                    {config.balanza.modo_conexion === "agente" ? "agente local del sitio" : "directo desde el servidor"}
-                                </span>
-                            </p>
-                            {config.balanza.modo_conexion === "agente" && (
-                                <>
-                                    <p>
-                                        Agente:{" "}
-                                        <span className={config.balanza.agente_online ? "text-emerald-500" : "text-red-500"}>
-                                            {config.balanza.agente_online ? "conectado" : "desconectado"}
-                                        </span>
-                                        {" · "}última conexión:{" "}
-                                        {config.balanza.agente_ultima_conexion
-                                            ? new Date(config.balanza.agente_ultima_conexion).toLocaleString()
-                                            : "nunca"}
-                                        {config.balanza.agente_info?.hostname && ` (${config.balanza.agente_info.hostname})`}
-                                    </p>
-                                    <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        IP y puerto del conversor en la red del sitio: los usa el agente local.
-                                    </p>
-                                </>
-                            )}
-                        </div>
-
-                        <div className="space-y-4 mb-6">
-                            <div className="input-field">
-                                <input
-                                    placeholder="Dirección IP"
-                                    value={config.balanza.ip}
-                                    onChange={(e) => handleChange("balanza", "ip", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100'
-                                        }`}
-                                />
-                            </div>
-                            <div className="input-field">
-                                <input
-                                    placeholder="Puerto"
-                                    value={config.balanza.puerto}
-                                    onChange={(e) => handleChange("balanza", "puerto", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100'
-                                        }`}
-                                />
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => handleSave("balanza")}
-                            disabled={saving}
-                            className={`save-button w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all duration-200 ${saving
-                                ? isDark
-                                    ? 'bg-indigo-600/50 text-indigo-200 cursor-not-allowed'
-                                    : 'bg-indigo-300 text-indigo-50 cursor-not-allowed'
-                                : isDark
-                                    ? 'bg-indigo-600 text-white hover:bg-indigo-500 active:scale-95'
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 shadow-lg shadow-indigo-600/30'
-                                }`}
-                        >
-                            {saving ? (
-                                <>
-                                    <RefreshCw size={18} className="animate-spin" />
-                                    Guardando...
-                                </>
-                            ) : (
-                                <>
-                                    <Save size={18} />
-                                    Guardar
-                                </>
-                            )}
-                        </button>
-
-                        {/* TOKEN DEL AGENTE */}
-                        {config.balanza.id && (
-                            <div className={`mt-6 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                                <p className={`mb-3 text-sm font-semibold ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                    Token del agente: {config.balanza.con_token ? "generado" : "sin token"}
-                                </p>
-                                <div className="flex flex-wrap gap-3">
-                                    <button
-                                        onClick={handleGenerarToken}
-                                        disabled={tokenBusy}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
-                                            ? 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
-                                            : 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-                                            }`}
-                                    >
-                                        <KeyRound size={16} />
-                                        {config.balanza.con_token ? "Regenerar token" : "Generar token"}
-                                    </button>
-                                    {config.balanza.modo_conexion === "agente" && (
-                                        <button
-                                            onClick={handleModoDirecto}
-                                            disabled={tokenBusy}
-                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
-                                                ? 'border-slate-600 text-slate-300 hover:bg-slate-700/50'
-                                                : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-                                                }`}
-                                        >
-                                            <Unplug size={16} />
-                                            Pasar a modo directo
-                                        </button>
-                                    )}
-                                </div>
-
-                                {tokenNuevo && (
-                                    <div className={`mt-4 p-4 rounded-xl border text-sm ${isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
-                                        <p className="font-bold mb-2">Copiá el token ahora: no se vuelve a mostrar.</p>
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <code className="flex-1 break-all font-mono text-xs">{tokenNuevo}</code>
-                                            <button onClick={() => copiar(tokenNuevo)} title="Copiar token" className="p-2 rounded-lg hover:bg-black/10">
-                                                <Copy size={16} />
-                                            </button>
-                                        </div>
-                                        <p className="font-semibold mb-1">Archivo del agente (sitios/&lt;sitio&gt;.json):</p>
-                                        <div className="flex items-start gap-2">
-                                            <pre className="flex-1 overflow-x-auto font-mono text-xs whitespace-pre">{jsonSitio}</pre>
-                                            <button onClick={() => copiar(jsonSitio)} title="Copiar JSON" className="p-2 rounded-lg hover:bg-black/10">
-                                                <Copy size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* GRABADORA CARD */}
-                    <div className={`device-card group rounded-3xl border-2 transition-all duration-300 p-8 ${isDark
-                        ? 'bg-slate-800/50 border-slate-700/50 hover:border-purple-500/50 hover:bg-slate-800/80'
-                        : 'bg-white border-slate-200/50 hover:border-purple-300 hover:bg-purple-50/30 hover:shadow-xl'
-                        }`}>
-                        <div className="flex items-start justify-between mb-6">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-3 rounded-2xl transition-all duration-300 ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'
-                                    } group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-purple-500/20`}>
-                                    <Server size={28} className="text-purple-500" />
-                                </div>
-                                <div>
-                                    <h3 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                        Grabadora
-                                    </h3>
-                                    <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        Sistema NVR / DVR
-                                    </p>
-                                </div>
-                            </div>
-                            <div className={`h-3 w-3 rounded-full ${isDark ? 'bg-amber-500/50' : 'bg-amber-400'}`} />
-                        </div>
-
-                        {!config.modulos.camaras && (
-                            <div className={`flex items-start gap-2 mb-4 px-4 py-3 rounded-xl text-sm font-medium ${isDark
-                                ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
-                                : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                }`}>
-                                <Lock size={16} className="mt-0.5 shrink-0" />
-                                <span>Módulo de cámaras no incluido en el plan de esta localidad. Consultá para habilitarlo.</span>
-                            </div>
-                        )}
-                        {isSuperadmin && (
-                            <button
-                                onClick={() => handleModuloCamaras(!config.modulos.camaras)}
-                                disabled={saving}
-                                className={`mb-4 flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
-                                    ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
-                                    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
-                                    }`}
-                            >
-                                <Lock size={16} />
-                                {config.modulos.camaras ? "Deshabilitar módulo de cámaras" : "Habilitar módulo de cámaras"}
-                            </button>
-                        )}
-
-                        <fieldset disabled={!config.modulos.camaras} className={config.modulos.camaras ? '' : 'opacity-50 cursor-not-allowed'}>
-                        <div className={`mb-4 text-sm font-semibold space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                            <p>
-                                Capturas:{" "}
-                                <span className={config.grabadora_estado.modo_captura === "agente" ? "text-purple-500" : ""}>
-                                    {config.grabadora_estado.modo_captura === "agente" ? "vía agente local del sitio" : "directo desde el servidor"}
-                                </span>
-                                {config.grabadora_estado.modo_captura === "agente" && (
+            {loading ? (
+                <LoadingState texto="Cargando configuración..." />
+            ) : (
+                <div className="grid gap-6 lg:grid-cols-2 items-start">
+                    {/* ─── Balanza ─── */}
+                    <Card>
+                        <CardHeader
+                            icon={Cpu}
+                            title="Balanza"
+                            description={localidadNombre ? `Conversor de ${localidadNombre}` : "Conversor RS232 → TCP"}
+                        />
+                        <CardBody className="space-y-5">
+                            <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+                                <dt className="text-fg-subtle">Conexión</dt>
+                                <dd>
+                                    <Badge tone={esAgente ? "brand" : "neutral"}>
+                                        {esAgente ? "Agente local del sitio" : "Directa desde el servidor"}
+                                    </Badge>
+                                </dd>
+                                {esAgente && (
                                     <>
-                                        {" · "}agente{" "}
-                                        <span className={config.grabadora_estado.agente_online ? "text-emerald-500" : "text-red-500"}>
-                                            {config.grabadora_estado.agente_online ? "conectado" : "desconectado"}
-                                        </span>
+                                        <dt className="text-fg-subtle">Agente</dt>
+                                        <dd className="flex flex-wrap items-center gap-2">
+                                            <Badge tone={config.balanza.agente_online ? "success" : "danger"} icon={config.balanza.agente_online ? Wifi : WifiOff}>
+                                                {config.balanza.agente_online ? "Conectado" : "Desconectado"}
+                                            </Badge>
+                                            {config.balanza.agente_info?.hostname && (
+                                                <span className="text-xs text-fg-subtle">{config.balanza.agente_info.hostname}</span>
+                                            )}
+                                        </dd>
+                                        <dt className="text-fg-subtle">Última conexión</dt>
+                                        <dd className="text-fg tabular">
+                                            {config.balanza.agente_ultima_conexion
+                                                ? new Date(config.balanza.agente_ultima_conexion).toLocaleString("es-AR")
+                                                : "Nunca"}
+                                        </dd>
                                     </>
                                 )}
-                            </p>
-                            <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                Sigue el modo de la balanza: el NVR tiene que estar en la misma red que el agente.
-                            </p>
-                        </div>
+                            </dl>
 
-                        <div className="space-y-4 mb-6">
-                            <div className="input-field">
-                                <input
-                                    placeholder="Dirección IP"
-                                    value={config.grabadora.ip}
-                                    onChange={(e) => handleChange("grabadora", "ip", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
-                                        }`}
-                                />
-                            </div>
-                            <div className="input-field">
-                                <input
-                                    placeholder="Puerto HTTP (vacío = 80)"
-                                    value={config.grabadora.puerto}
-                                    onChange={(e) => handleChange("grabadora", "puerto", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
-                                        }`}
-                                />
-                            </div>
-                            <div className="input-field">
-                                <input
-                                    placeholder="Usuario"
-                                    value={config.grabadora.usuario}
-                                    onChange={(e) => handleChange("grabadora", "usuario", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
-                                        }`}
-                                />
-                            </div>
-                            <div className="input-field">
-                                <input
-                                    placeholder="Contraseña"
-                                    type="password"
-                                    value={config.grabadora.contraseña}
-                                    onChange={(e) => handleChange("grabadora", "contraseña", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
-                                        }`}
-                                />
-                            </div>
-                            <div className="input-field">
-                                <select
-                                    value={config.grabadora.marca || "hikvision"}
-                                    onChange={(e) => handleChange("grabadora", "marca", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
-                                        }`}
-                                >
-                                    <option value="hikvision">Hikvision</option>
-                                    <option value="dahua">Dahua</option>
-                                </select>
-                            </div>
-                            <div className="input-field">
-                                <input
-                                    placeholder="Canales para fotos, ej: 1,2,5-8 (vacío = automático)"
-                                    value={config.grabadora.canales}
-                                    onChange={(e) => handleChange("grabadora", "canales", e.target.value)}
-                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
-                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
-                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
-                                        }`}
-                                />
-                                <p className={`mt-1 text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                    Se saca una foto por canal en cada pesada. Vacío: los que respondan entre el 1 y el 16.
-                                </p>
-                            </div>
-                        </div>
+                            <form
+                                onSubmit={(e) => { e.preventDefault(); handleSave("balanza"); }}
+                                className="space-y-4"
+                            >
+                                <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+                                    <Field label="Dirección IP" hint={esAgente ? "IP del conversor en la red del sitio (la usa el agente)." : undefined}>
+                                        <Input value={config.balanza.ip ?? ""} onChange={(e) => handleChange("balanza", "ip", e.target.value)} placeholder="192.168.1.50" inputMode="decimal" className="font-mono" />
+                                    </Field>
+                                    <Field label="Puerto">
+                                        <Input value={config.balanza.puerto} onChange={(e) => handleChange("balanza", "puerto", e.target.value)} placeholder="6000" inputMode="numeric" className="font-mono" />
+                                    </Field>
+                                </div>
+                                <Button type="submit" variant="primary" icon={Save} loading={saving === "balanza"} disabled={Boolean(saving)}>
+                                    Guardar balanza
+                                </Button>
+                            </form>
 
-                        <button
-                            onClick={() => handleSave("grabadora")}
-                            disabled={saving}
-                            className={`save-button w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all duration-200 ${saving
-                                ? isDark
-                                    ? 'bg-purple-600/50 text-purple-200 cursor-not-allowed'
-                                    : 'bg-purple-300 text-purple-50 cursor-not-allowed'
-                                : isDark
-                                    ? 'bg-purple-600 text-white hover:bg-purple-500 active:scale-95'
-                                    : 'bg-purple-600 text-white hover:bg-purple-700 active:scale-95 shadow-lg shadow-purple-600/30'
-                                }`}
-                        >
-                            {saving ? (
-                                <>
-                                    <RefreshCw size={18} className="animate-spin" />
-                                    Guardando...
-                                </>
-                            ) : (
-                                <>
-                                    <Save size={18} />
-                                    Guardar
-                                </>
+                            {/* Token del agente */}
+                            {config.balanza.id && (
+                                <div className="border-t border-line pt-5 space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-sm font-medium text-fg">Token del agente</p>
+                                        <Badge tone={config.balanza.con_token ? "success" : "neutral"}>
+                                            {config.balanza.con_token ? "Generado" : "Sin token"}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button size="sm" variant="soft" icon={KeyRound} onClick={handleGenerarToken} loading={tokenBusy} disabled={tokenBusy}>
+                                            {config.balanza.con_token ? "Regenerar token" : "Generar token"}
+                                        </Button>
+                                        {esAgente && (
+                                            <Button size="sm" icon={Unplug} onClick={handleModoDirecto} disabled={tokenBusy}>
+                                                Pasar a modo directo
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {tokenNuevo && (
+                                        <Alert tone="warning" title="Copiá el token ahora: no se vuelve a mostrar">
+                                            <div className="mt-2 space-y-3">
+                                                <div className="flex items-center gap-2">
+                                                    <code className="flex-1 break-all rounded-md bg-surface px-2 py-1.5 font-mono text-xs text-fg border border-line">{tokenNuevo}</code>
+                                                    <Button size="icon-sm" variant="ghost" icon={Copy} onClick={() => copiar(tokenNuevo)} aria-label="Copiar token" title="Copiar token" />
+                                                </div>
+                                                <div>
+                                                    <p className="mb-1 text-xs font-medium text-fg">Archivo del agente (sitios/&lt;sitio&gt;.json)</p>
+                                                    <div className="flex items-start gap-2">
+                                                        <pre className="flex-1 relative overflow-x-auto rounded-md bg-surface px-2 py-1.5 font-mono text-xs text-fg border border-line">{jsonSitio}</pre>
+                                                        <Button size="icon-sm" variant="ghost" icon={Copy} onClick={() => copiar(jsonSitio)} aria-label="Copiar JSON" title="Copiar JSON" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Alert>
+                                    )}
+                                </div>
                             )}
-                        </button>
+                        </CardBody>
+                    </Card>
 
-                        {config.grabadora.id && (
-                            <div className={`mt-6 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
-                                <button
-                                    onClick={handleProbarCamaras}
-                                    disabled={probando}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
-                                        ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
-                                        : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
-                                        }`}
-                                >
-                                    {probando ? <RefreshCw size={16} className="animate-spin" /> : <Camera size={16} />}
-                                    {probando ? "Probando..." : "Probar cámaras"}
-                                </button>
-                                {pruebaCamaras && (
-                                    <p className={`mt-3 text-sm font-semibold ${pruebaCamaras.ok ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        {pruebaCamaras.texto}
-                                    </p>
-                                )}
-                                {pruebaCamaras?.conImagen?.length > 0 && (
-                                    <button
-                                        onClick={() => handleChange("grabadora", "canales", pruebaCamaras.conImagen.join(","))}
-                                        className={`mt-2 text-sm font-bold underline ${isDark ? 'text-purple-300' : 'text-purple-700'}`}
+                    {/* ─── Grabadora ─── */}
+                    <Card>
+                        <CardHeader
+                            icon={Server}
+                            title="Grabadora y cámaras"
+                            description="NVR / DVR del sitio"
+                            tone={camarasOn ? "brand" : "neutral"}
+                            actions={!camarasOn && <Badge icon={Lock}>Bloqueado</Badge>}
+                        />
+                        <CardBody className="space-y-5">
+                            {!camarasOn && (
+                                <Alert tone="warning" icon={Lock} title="Módulo no incluido en el plan">
+                                    Las cámaras no están habilitadas para esta localidad. Consultá para habilitarlo.
+                                </Alert>
+                            )}
+                            {isSuperadmin && (
+                                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-line-strong px-4 py-3">
+                                    <div className="text-sm">
+                                        <p className="font-medium text-fg">Módulo de cámaras</p>
+                                        <p className="text-xs text-fg-subtle">Solo superadmin · según el plan de la localidad</p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant={camarasOn ? "secondary" : "primary"}
+                                        icon={camarasOn ? Lock : Unlock}
+                                        onClick={() => handleModuloCamaras(!camarasOn)}
+                                        loading={saving === "modulo"}
+                                        disabled={Boolean(saving)}
                                     >
-                                        Usar estos canales (después Guardar)
-                                    </button>
+                                        {camarasOn ? "Deshabilitar" : "Habilitar"}
+                                    </Button>
+                                </div>
+                            )}
+
+                            <fieldset disabled={!camarasOn} className={camarasOn ? "space-y-5" : "space-y-5 opacity-60"}>
+                                <legend className="sr-only">Datos de la grabadora</legend>
+                                <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[auto_1fr]">
+                                    <dt className="text-fg-subtle">Capturas</dt>
+                                    <dd className="flex flex-wrap items-center gap-2">
+                                        <Badge tone={capturaPorAgente ? "brand" : "neutral"}>
+                                            {capturaPorAgente ? "Vía agente local" : "Directo desde el servidor"}
+                                        </Badge>
+                                        {capturaPorAgente && (
+                                            <Badge tone={config.grabadora_estado.agente_online ? "success" : "danger"} icon={config.grabadora_estado.agente_online ? Wifi : WifiOff}>
+                                                Agente {config.grabadora_estado.agente_online ? "conectado" : "desconectado"}
+                                            </Badge>
+                                        )}
+                                    </dd>
+                                </dl>
+                                <p className="-mt-2 text-xs text-fg-subtle">
+                                    Sigue el modo de la balanza: el NVR tiene que estar en la misma red que el agente.
+                                </p>
+
+                                <form onSubmit={(e) => { e.preventDefault(); handleSave("grabadora"); }} className="space-y-4">
+                                    <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+                                        <Field label="Dirección IP" required>
+                                            <Input value={config.grabadora.ip ?? ""} onChange={(e) => handleChange("grabadora", "ip", e.target.value)} placeholder="192.168.1.200" inputMode="decimal" className="font-mono" />
+                                        </Field>
+                                        <Field label="Puerto HTTP" hint="Vacío = 80">
+                                            <Input value={config.grabadora.puerto} onChange={(e) => handleChange("grabadora", "puerto", e.target.value)} placeholder="80" inputMode="numeric" className="font-mono" />
+                                        </Field>
+                                    </div>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <Field label="Usuario">
+                                            <Input value={config.grabadora.usuario ?? ""} onChange={(e) => handleChange("grabadora", "usuario", e.target.value)} autoComplete="off" />
+                                        </Field>
+                                        <Field label="Contraseña" hint={config.grabadora.con_password ? "Guardada. Escribí una nueva solo para cambiarla." : undefined}>
+                                            <Input
+                                                type="password"
+                                                value={config.grabadora.contraseña}
+                                                onChange={(e) => handleChange("grabadora", "contraseña", e.target.value)}
+                                                placeholder={config.grabadora.con_password ? "•••••••• (sin cambios)" : ""}
+                                                autoComplete="new-password"
+                                            />
+                                        </Field>
+                                    </div>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <Field label="Marca">
+                                            <Select value={config.grabadora.marca || "hikvision"} onChange={(e) => handleChange("grabadora", "marca", e.target.value)}>
+                                                <option value="hikvision">Hikvision</option>
+                                                <option value="dahua">Dahua</option>
+                                            </Select>
+                                        </Field>
+                                        <Field label="Canales para fotos" hint="Ej: 1,2,5-8. Vacío: los que respondan del 1 al 16.">
+                                            <Input value={config.grabadora.canales} onChange={(e) => handleChange("grabadora", "canales", e.target.value)} placeholder="Automático" className="font-mono" />
+                                        </Field>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button type="submit" variant="primary" icon={Save} loading={saving === "grabadora"} disabled={Boolean(saving)}>
+                                            Guardar grabadora
+                                        </Button>
+                                        {config.grabadora.id && (
+                                            <Button icon={Camera} onClick={handleProbarCamaras} loading={probando} disabled={probando}>
+                                                {probando ? "Probando (puede tardar)..." : "Probar cámaras"}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </form>
+
+                                {pruebaCamaras && (
+                                    <Alert tone={pruebaCamaras.ok ? "success" : "danger"} icon={pruebaCamaras.ok ? CheckCircle2 : AlertTriangle} onClose={() => setPruebaCamaras(null)}>
+                                        <p className="text-fg">{pruebaCamaras.texto}</p>
+                                        {pruebaCamaras.conImagen?.length > 0 && (
+                                            <Button
+                                                size="sm"
+                                                variant="soft"
+                                                className="mt-2"
+                                                onClick={() => handleChange("grabadora", "canales", pruebaCamaras.conImagen.join(","))}
+                                            >
+                                                Usar estos canales (después Guardar)
+                                            </Button>
+                                        )}
+                                    </Alert>
                                 )}
-                            </div>
-                        )}
-                        </fieldset>
-                    </div>
+                            </fieldset>
+                        </CardBody>
+                    </Card>
                 </div>
-            </div>
+            )}
+
+            {!isGlobal && localidadNombre && (
+                <p className="flex items-center gap-1.5 text-xs text-fg-subtle">
+                    <MapPin size={13} aria-hidden="true" /> Configuración de {localidadNombre}
+                </p>
+            )}
         </div>
     );
 }

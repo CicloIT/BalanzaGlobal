@@ -41,7 +41,9 @@ export const getConfiguracion = async (req, res) => {
         if (!user?.localidad_id) throw new ScopeError("Debe indicar localidad_id", 400);
         const scope = scopeSql('localidad_id', user, 1);
         const result = await pool.query(`
-            SELECT id, tipo_dispositivo, ip, puerto, usuario, contraseña, activo, localidad_id, marca, canales,
+            -- La contraseña (del NVR) nunca sale al navegador: solo si hay una cargada
+            SELECT id, tipo_dispositivo, ip, puerto, usuario, COALESCE(contraseña, '') <> '' AS con_password,
+                   activo, localidad_id, marca, canales,
                    modo_conexion, agente_ultima_conexion, agente_info,
                    agente_token_hash IS NOT NULL AS con_token
             FROM configuracion_dispositivos
@@ -106,10 +108,10 @@ export const updateConfiguracion = async (req, res) => {
                     canales = CASE WHEN $9 THEN EXCLUDED.canales ELSE configuracion_dispositivos.canales END,
                     fecha_actualizacion = NOW()
                 RETURNING *
-            `, [ip.trim(), puerto ?? null, usuario, contraseña, activo, marca || null, localidadId,
+            `, [ip.trim(), puerto ?? null, usuario, contraseña || null, activo, marca || null, localidadId,
                 canales ?? null, canales !== undefined]);
             invalidarCacheCanales(localidadId);
-            const { agente_token_hash, ...data } = rows[0];
+            const { agente_token_hash, contraseña: _omitida, ...data } = rows[0];
             return res.json({ success: true, data });
         }
 
@@ -142,7 +144,7 @@ export const updateConfiguracion = async (req, res) => {
             );
         }
 
-        const { agente_token_hash, ...data } = result.rows[0];
+        const { agente_token_hash, contraseña: _omitida, ...data } = result.rows[0];
         res.json({
             success: true,
             data

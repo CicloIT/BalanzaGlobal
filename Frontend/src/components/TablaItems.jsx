@@ -1,223 +1,187 @@
 import React, { useState, useRef } from 'react';
-import { Edit2, Trash2, Eye, EyeOff, FileText, CheckSquare, Square, Upload, Package } from 'lucide-react';
-import { useThemeContext } from '../context/ThemeContext';
+import { Pencil, Trash2, Eye, FileText, Upload, Package, Power, PowerOff, FileBarChart, ArrowDown, ArrowUp, Clock, CheckCircle2 } from 'lucide-react';
 import Guard from './Guard';
+import Badge from './ui/Badge';
+import Button from './ui/Button';
+import Spinner from './ui/Spinner';
 import { formatFecha } from '../lib/format';
+import { cx } from '../lib/cx';
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
-function RenderCelda({ item, keyName, isDark }) {
+const COLUMNAS_PESO = ['bruto', 'tara', 'neto'];
+const kg = (v) => `${Number(v).toLocaleString('es-AR', { maximumFractionDigits: 0 })} kg`;
+const estaActivo = (item) => item.activo ?? (item.estado === 'activo');
+
+function RenderCelda({ item, keyName }) {
   const value = item[keyName];
 
-  if (value === null || value === undefined) {
-    if (['bruto', 'tara', 'neto'].includes(keyName))
-      return <span className="text-slate-400 italic text-xs">Pendiente</span>;
-    return <span className="text-slate-400">-</span>;
+  if (value === null || value === undefined || value === '') {
+    if (COLUMNAS_PESO.includes(keyName)) return <span className="text-xs italic text-fg-subtle">Pendiente</span>;
+    return <span className="text-fg-subtle">—</span>;
   }
 
-  if (keyName === 'codigo') return (
-    <span className={`px-2 py-0.5 rounded-lg font-mono font-bold text-xs ${isDark ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
-      {value}
-    </span>
-  );
+  if (keyName === 'codigo') return <span className="font-mono text-xs font-semibold text-fg">{value}</span>;
 
   if (keyName === 'precio') return (
-    <span className={`font-bold ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
+    <span className="tabular font-semibold">
       ${Number(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
     </span>
   );
 
-  if (keyName === 'estado') {
-    const isActivo = value === 'activo' || value === true || value === 'true';
-    return (
-      <span className={`px-2 py-0.5 rounded-lg font-semibold text-xs ${isActivo
-        ? isDark ? 'bg-green-500/30 text-green-300' : 'bg-green-100 text-green-700'
-        : isDark ? 'bg-red-500/30 text-red-300' : 'bg-red-100 text-red-700'
-        }`}>
-        {isActivo ? 'Activo' : 'Inactivo'}
-      </span>
-    );
+  if (keyName === 'estado' || keyName === 'activo') {
+    const activo = value === 'activo' || value === true || value === 'true';
+    return <Badge tone={activo ? 'success' : 'neutral'} dot>{activo ? 'Activo' : 'Inactivo'}</Badge>;
   }
 
   if (keyName === 'sentido') {
-    const isIngreso = value === 'INGRESO';
-    return (
-      <span className={`px-2 py-0.5 rounded-lg font-semibold text-xs ${isIngreso
-        ? isDark ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-100 text-blue-700'
-        : isDark ? 'bg-orange-500/30 text-orange-300' : 'bg-orange-100 text-orange-700'
-        }`}>
-        {isIngreso ? '↓ INGRESO' : '↑ SALIDA'}
-      </span>
-    );
+    const ingreso = value === 'INGRESO';
+    return <Badge tone={ingreso ? 'ingreso' : 'salida'} icon={ingreso ? ArrowDown : ArrowUp}>{ingreso ? 'Ingreso' : 'Salida'}</Badge>;
   }
 
-  if (keyName === 'abierta') return (
-    <span className={`px-2 py-0.5 rounded-lg font-semibold text-xs ${value
-      ? isDark ? 'bg-yellow-500/30 text-yellow-300' : 'bg-yellow-100 text-yellow-700'
-      : isDark ? 'bg-green-500/30 text-green-300' : 'bg-green-100 text-green-700'
-      }`}>
-      {value ? 'En Proceso' : 'Completada'}
-    </span>
-  );
+  if (keyName === 'abierta') return value
+    ? <Badge tone="warning" icon={Clock}>En proceso</Badge>
+    : <Badge tone="success" icon={CheckCircle2}>Completada</Badge>;
 
-  if (keyName === 'bruto') return (
-    <span className={`font-bold ${isDark ? 'text-green-300' : 'text-green-700'}`}>
-      {Number(value).toLocaleString('es-AR', { maximumFractionDigits: 0 })} kg
-    </span>
-  );
+  if (keyName === 'vehiculo_patente' || keyName === 'patente' || keyName === 'patente_acoplado') {
+    return <span className="font-mono font-semibold text-fg tracking-wide">{value}</span>;
+  }
 
-  if (keyName === 'tara') return (
-    <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-      {Number(value).toLocaleString('es-AR', { maximumFractionDigits: 0 })} kg
-    </span>
-  );
+  if (keyName === 'operacion_id') return <span className="tabular text-fg-muted">#{value}</span>;
 
+  if (keyName === 'bruto') return <span className="tabular font-medium text-fg">{kg(value)}</span>;
+  if (keyName === 'tara') return <span className="tabular text-fg-muted">{kg(value)}</span>;
   if (keyName === 'neto') {
     const numero = Number(value);
-    const esNegativo = numero < 0;
-
-    return (
-      <span
-        className={`font-bold text-base ${esNegativo
-          ? isDark
-            ? 'text-red-400'
-            : 'text-red-600'
-          : isDark
-            ? 'text-cyan-300'
-            : 'text-cyan-700'
-          }`}
-      >
-        {numero.toLocaleString('es-AR', { maximumFractionDigits: 0 })} kg
-      </span>
-    );
+    return <span className={cx('tabular font-semibold', numero < 0 ? 'text-danger' : 'text-fg')}>{kg(numero)}</span>;
   }
 
   if (keyName.includes('fecha') || ['created_at', 'updated_at'].includes(keyName))
-    return <span className="font-mono text-xs whitespace-nowrap">{formatFecha(value)}</span>;
+    return <span className="tabular text-xs whitespace-nowrap text-fg-muted">{formatFecha(value)}</span>;
+
+  if (keyName === 'tipo_vehiculo') return <span>{String(value).replace(/_/g, ' ')}</span>;
 
   return <span className="break-words">{String(value)}</span>;
 }
 
-/* ─── Action buttons (reused in table row & card) ───────────────────────── */
-function AccionesPesada({ item, isDark, onSubirPDF, onVerDetalles, onContenedor }) {
+/* ─── Acciones de una pesada (fila y tarjeta) ───────────────────────────── */
+function AccionesPesada({ item, onSubirPDF, onVerDetalles, onContenedor }) {
+  const tam = 'sm';
   return (
     <>
-      <button
-        onClick={() => onVerDetalles?.(item)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:scale-105 ${isDark
-          ? 'bg-slate-700/50 border-white/10 text-slate-300 hover:bg-slate-700'
-          : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-          }`}
-        title="Ver detalles completos"
-      >
-        <Eye size={14} /> Detalles
-      </button>
+      <Button size={tam} variant="ghost" icon={Eye} onClick={() => onVerDetalles?.(item)}>
+        Detalles
+      </Button>
       {item.ruta ? (
-        <a
+        <Button
+          as="a"
+          size={tam}
+          variant="soft"
+          icon={FileText}
           href={item.ruta.startsWith('documentos/') ? `/${item.ruta}` : `/documentos/${item.ruta}`}
-          target="_blank" rel="noopener noreferrer"
+          target="_blank"
+          rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:scale-105 ${isDark
-            ? 'bg-blue-500/20 border-blue-500/50 text-blue-300 hover:bg-blue-500/40'
-            : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
-            }`}
+          title="Abrir carta de porte (PDF)"
         >
-          <FileText size={14} /> Carta Porte
-        </a>
+          Carta de porte
+        </Button>
       ) : (
         <Guard permissions="pesaje:update">
-          <label
-            onClick={e => e.stopPropagation()}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all hover:scale-105 ${isDark
-              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/40'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-              }`}
-          >
-            <Upload size={14} /> Subir PDF
-            <input type="file" className="hidden" accept="application/pdf"
-              onChange={e => onSubirPDF?.(e, item.id)} />
-          </label>
+          <Button as="label" size={tam} variant="secondary" icon={Upload} onClick={e => e.stopPropagation()} title="Adjuntar carta de porte (PDF)">
+            Subir PDF
+            <input type="file" className="sr-only" accept="application/pdf" onChange={e => onSubirPDF?.(e, item.id)} />
+          </Button>
         </Guard>
       )}
       {item.es_contenedor && (
         <Guard permissions="pesaje:update">
-          <button
-            onClick={e => { e.stopPropagation(); onContenedor?.(item); }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:scale-105 ${isDark
-              ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 hover:bg-cyan-500/40'
-              : 'bg-cyan-50 border-cyan-200 text-cyan-700 hover:bg-cyan-100'
-              }`}
-            title="Completar datos de contenedor"
-          >
-            <Package size={14} /> Contenedor
-          </button>
+          <Button size={tam} variant="secondary" icon={Package} onClick={e => { e.stopPropagation(); onContenedor?.(item); }} title="Completar datos de contenedor">
+            Contenedor
+          </Button>
         </Guard>
       )}
     </>
   );
 }
 
-/* ─── Desktop table row ─────────────────────────────────────────────────── */
+/* ─── Acciones de un registro de catálogo ───────────────────────────────── */
+function AccionesCatalogo({ item, resourcePrefix, onToggleEstado, onEditar, onEliminar, conTexto }) {
+  const activo = estaActivo(item);
+  return (
+    <>
+      <Guard permissions={`${resourcePrefix}:update`}>
+        <Button
+          size={conTexto ? 'sm' : 'icon-sm'}
+          variant="ghost"
+          icon={activo ? PowerOff : Power}
+          onClick={() => onToggleEstado(item.id)}
+          title={activo ? 'Desactivar' : 'Activar'}
+          aria-label={activo ? 'Desactivar' : 'Activar'}
+        >
+          {conTexto && (activo ? 'Desactivar' : 'Activar')}
+        </Button>
+      </Guard>
+      <Guard permissions={`${resourcePrefix}:update`}>
+        <Button size={conTexto ? 'sm' : 'icon-sm'} variant="ghost" icon={Pencil} onClick={() => onEditar(item)} title="Editar" aria-label="Editar">
+          {conTexto && 'Editar'}
+        </Button>
+      </Guard>
+      <Guard permissions={`${resourcePrefix}:delete`}>
+        <Button
+          size={conTexto ? 'sm' : 'icon-sm'}
+          variant="ghost"
+          icon={Trash2}
+          onClick={() => onEliminar(item.id)}
+          title="Eliminar"
+          aria-label="Eliminar"
+          className="hover:!text-danger hover:!bg-danger-soft"
+        >
+          {conTexto && 'Eliminar'}
+        </Button>
+      </Guard>
+    </>
+  );
+}
+
+/* ─── Fila de tabla (escritorio) ────────────────────────────────────────── */
 const FilaTabla = React.memo(({
-  item, idx, isDark, tipo, selected, columnasKeys,
+  item, tipo, selected, columnasKeys,
   onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
   soloLectura, mostrarColumnaAcciones,
 }) => {
   const resourcePrefix = tipo === 'pesadas' ? 'pesaje' : tipo;
   return (
-    <tr className={`transition-all duration-150 ${selected
-      ? isDark ? 'bg-indigo-500/10 border-b border-indigo-500/20' : 'bg-indigo-50 border-b border-indigo-100'
-      : isDark ? 'border-b border-white/5 hover:bg-white/10' : 'border-b border-slate-100 hover:bg-slate-50'
-      }`} style={{ animation: idx < 80 ? `fadeInRow 0.25s ease-out ${idx * 0.04}s both` : 'none' }}>
-
+    <tr className={cx('group border-b border-line last:border-b-0 transition-colors', selected ? 'bg-brand-soft' : 'hover:bg-surface-2')}>
       {tipo === 'pesadas' && (
-        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-          <button onClick={e => onToggleSeleccion(e, item.id)}>
-            {selected
-              ? <CheckSquare size={16} className="text-indigo-500" />
-              : <Square size={16} className={isDark ? 'text-slate-500' : 'text-slate-400'} />}
-          </button>
+        <td className="w-10 pl-4 pr-1 py-2.5">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={e => onToggleSeleccion(e, item.id)}
+            aria-label={`Seleccionar operación ${item.operacion_id ?? item.id}`}
+            className="h-4 w-4 accent-[var(--brand-solid)] cursor-pointer"
+          />
         </td>
       )}
 
       {columnasKeys.map(key => (
-        <td key={key} className={`px-4 py-3 text-sm ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-          <RenderCelda item={item} keyName={key} isDark={isDark} />
+        <td key={key} className={cx('px-4 py-2.5 text-sm text-fg', COLUMNAS_PESO.includes(key) && 'text-right whitespace-nowrap')}>
+          <RenderCelda item={item} keyName={key} />
         </td>
       ))}
 
       {mostrarColumnaAcciones && (
-        <td className="px-4 py-3">
-          <div className="flex gap-1.5 flex-wrap">
+        <td className={cx(
+          'sticky right-0 px-4 py-2 text-right shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.15)]',
+          selected ? 'bg-brand-soft' : 'bg-surface group-hover:bg-surface-2'
+        )}>
+          <div className="flex justify-end gap-1">
             {!soloLectura && (
-              <>
-                <Guard permissions={`${resourcePrefix}:update`}>
-                  <button onClick={() => onToggleEstado(item.id)}
-                    className={`p-1.5 rounded-lg transition-all hover:scale-110 ${item.estado === 'activo'
-                      ? isDark ? 'bg-green-500/30 text-green-400 hover:bg-green-500/50' : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : isDark ? 'bg-red-500/30 text-red-400 hover:bg-red-500/50' : 'bg-red-100 text-red-700 hover:bg-red-200'
-                      }`} title={item.estado === 'activo' ? 'Desactivar' : 'Activar'}>
-                    {item.estado === 'activo' ? <Eye size={15} /> : <EyeOff size={15} />}
-                  </button>
-                </Guard>
-                <Guard permissions={`${resourcePrefix}:update`}>
-                  <button onClick={() => onEditar(item)}
-                    className={`p-1.5 rounded-lg transition-all hover:scale-110 ${isDark ? 'bg-blue-500/30 text-blue-400 hover:bg-blue-500/50' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                    title="Editar">
-                    <Edit2 size={15} />
-                  </button>
-                </Guard>
-                <Guard permissions={`${resourcePrefix}:delete`}>
-                  <button onClick={() => onEliminar(item.id)}
-                    className={`p-1.5 rounded-lg transition-all hover:scale-110 ${isDark ? 'bg-red-500/30 text-red-400 hover:bg-red-500/50' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                    title="Eliminar">
-                    <Trash2 size={15} />
-                  </button>
-                </Guard>
-              </>
+              <AccionesCatalogo item={item} resourcePrefix={resourcePrefix} onToggleEstado={onToggleEstado} onEditar={onEditar} onEliminar={onEliminar} />
             )}
             {tipo === 'pesadas' && (
-              <AccionesPesada item={item} isDark={isDark} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} />
+              <AccionesPesada item={item} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} />
             )}
           </div>
         </td>
@@ -226,102 +190,60 @@ const FilaTabla = React.memo(({
   );
 });
 
-/* ─── Mobile card ───────────────────────────────────────────────────────── */
+/* ─── Tarjeta (móvil) ───────────────────────────────────────────────────── */
 const CardItem = React.memo(({
-  item, idx, isDark, tipo, selected, columnasKeys, columnasLabels,
+  item, tipo, selected, columnasKeys, columnasLabels,
   onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
   soloLectura, mostrarColumnaAcciones,
 }) => {
   const resourcePrefix = tipo === 'pesadas' ? 'pesaje' : tipo;
+  const resto = columnasKeys.slice(2);
   return (
-    <div
-      className={`rounded-xl border p-4 transition-all duration-200 ${selected
-        ? isDark ? 'bg-indigo-500/10 border-indigo-500/30' : 'bg-indigo-50 border-indigo-200'
-        : isDark ? 'bg-white/5 border-white/8 hover:bg-white/10' : 'bg-white border-slate-200 hover:bg-slate-50'
-        }`}
-      style={{ animation: idx < 40 ? `fadeInRow 0.25s ease-out ${idx * 0.05}s both` : 'none' }}
-    >
-      {/* Card header: checkbox + first 2 key values */}
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className={cx('rounded-lg border p-4 transition-colors', selected ? 'border-brand-solid bg-brand-soft/60' : 'border-line bg-surface')}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
           {tipo === 'pesadas' && (
-            <button onClick={e => onToggleSeleccion(e, item.id)} className="flex-shrink-0">
-              {selected
-                ? <CheckSquare size={16} className="text-indigo-500" />
-                : <Square size={16} className={isDark ? 'text-slate-500' : 'text-slate-400'} />}
-            </button>
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={e => onToggleSeleccion(e, item.id)}
+              aria-label={`Seleccionar operación ${item.operacion_id ?? item.id}`}
+              className="mt-1 h-5 w-5 accent-[var(--brand-solid)] shrink-0"
+            />
           )}
-          {/* Primary identifier — first column */}
           {columnasKeys[0] && (
             <div className="min-w-0">
-              <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                {columnasLabels[0]}
-              </p>
-              <div className={`text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                <RenderCelda item={item} keyName={columnasKeys[0]} isDark={isDark} />
-              </div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">{columnasLabels[0]}</p>
+              <div className="text-sm font-semibold text-fg"><RenderCelda item={item} keyName={columnasKeys[0]} /></div>
             </div>
           )}
         </div>
-        {/* Secondary identifier — second column if exists */}
         {columnasKeys[1] && (
-          <div className="text-right flex-shrink-0">
-            <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-              {columnasLabels[1]}
-            </p>
-            <div className={`text-sm ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
-              <RenderCelda item={item} keyName={columnasKeys[1]} isDark={isDark} />
-            </div>
+          <div className="text-right shrink-0">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">{columnasLabels[1]}</p>
+            <div className="text-sm text-fg"><RenderCelda item={item} keyName={columnasKeys[1]} /></div>
           </div>
         )}
       </div>
 
-      {/* Remaining fields as label: value pairs */}
-      {columnasKeys.slice(2).length > 0 && (
-        <div className={`grid grid-cols-2 gap-x-3 gap-y-2 pt-3 border-t text-xs ${isDark ? 'border-white/8' : 'border-slate-100'}`}>
-          {columnasKeys.slice(2).map((key, i) => (
-            <div key={key} className={i === columnasKeys.slice(2).length - 1 && columnasKeys.slice(2).length % 2 !== 0 ? 'col-span-2' : ''}>
-              <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                {columnasLabels[i + 2]}
-              </p>
-              <div className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                <RenderCelda item={item} keyName={key} isDark={isDark} />
-              </div>
+      {resto.length > 0 && (
+        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2.5 border-t border-line pt-3 text-sm">
+          {resto.map((key, i) => (
+            <div key={key} className={i === resto.length - 1 && resto.length % 2 !== 0 ? 'col-span-2' : ''}>
+              <dt className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">{columnasLabels[i + 2]}</dt>
+              <dd className="text-fg"><RenderCelda item={item} keyName={key} /></dd>
             </div>
           ))}
-        </div>
+        </dl>
       )}
 
-      {/* Actions */}
       {mostrarColumnaAcciones && (
-        <div className={`flex gap-2 flex-wrap mt-3 pt-3 border-t ${isDark ? 'border-white/8' : 'border-slate-100'}`}>
+        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
           {!soloLectura && (
-            <>
-              <Guard permissions={`${resourcePrefix}:update`}>
-                <button onClick={() => onToggleEstado(item.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all hover:scale-105 ${item.estado === 'activo'
-                    ? isDark ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-green-100 text-green-700 border border-green-200'
-                    : isDark ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-100 text-red-700 border border-red-200'
-                    }`}>
-                  {item.estado === 'activo' ? <><Eye size={13} /> Activo</> : <><EyeOff size={13} /> Inactivo</>}
-                </button>
-              </Guard>
-              <Guard permissions={`${resourcePrefix}:update`}>
-                <button onClick={() => onEditar(item)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all hover:scale-105 ${isDark ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
-                  <Edit2 size={13} /> Editar
-                </button>
-              </Guard>
-              <Guard permissions={`${resourcePrefix}:delete`}>
-                <button onClick={() => onEliminar(item.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all hover:scale-105 ${isDark ? 'bg-red-500/20 border-red-500/30 text-red-300' : 'bg-red-50 border-red-200 text-red-700'}`}>
-                  <Trash2 size={13} /> Eliminar 
-                </button>
-              </Guard>
-            </>
+            <AccionesCatalogo item={item} resourcePrefix={resourcePrefix} onToggleEstado={onToggleEstado} onEditar={onEditar} onEliminar={onEliminar} conTexto />
           )}
           {tipo === 'pesadas' && (
-            <AccionesPesada item={item} isDark={isDark} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} />
+            <AccionesPesada item={item} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} />
           )}
         </div>
       )}
@@ -329,15 +251,15 @@ const CardItem = React.memo(({
   );
 });
 
-/* ─── Main component ────────────────────────────────────────────────────── */
+/* ─── Componente principal ──────────────────────────────────────────────── */
 const TablaItems = React.memo(({
   items, tipo, columnasKeys, columnasLabels,
   onEditar, onEliminar, onToggleEstado, onSubirPDF, onVerDetalles, onContenedor,
   onGenerarReporte, onEliminarMultiples, soloLectura = false,
   hasMore, loadMore, loadingMore
 }) => {
-  const { isDark } = useThemeContext();
   const [seleccionadas, setSeleccionadas] = useState(new Set());
+  const [generando, setGenerando] = useState(false);
   const reporteEnProceso = useRef(false);
 
   const handleToggleSeleccion = React.useCallback((e, id) => {
@@ -360,6 +282,7 @@ const TablaItems = React.memo(({
   const handleGenerarReporte = async () => {
     if (reporteEnProceso.current) return;
     reporteEnProceso.current = true;
+    setGenerando(true);
     try {
       const sel = items.filter(i => seleccionadas.has(i.id));
       if (!sel.length) return;
@@ -369,23 +292,17 @@ const TablaItems = React.memo(({
       console.error('Error al generar reporte:', err);
     } finally {
       reporteEnProceso.current = false;
+      setGenerando(false);
     }
   };
 
+  // La confirmación la pide GestionApp (una sola vez)
   const handleEliminarSeleccionadas = async () => {
     if (!seleccionadas.size) return;
-
-    const confirmacion = confirm(`¿Eliminar ${seleccionadas.size} operaciones?`);
-    if (!confirmacion) return;
-
     try {
-      const ids = items
-        .filter(i => seleccionadas.has(i.id))
-        .map(i => i.id);
-
-      await onEliminarMultiples?.(ids);
-
-      setSeleccionadas(new Set());
+      const ids = items.filter(i => seleccionadas.has(i.id)).map(i => i.id);
+      const eliminadas = await onEliminarMultiples?.(ids);
+      if (eliminadas !== false) setSeleccionadas(new Set());
     } catch (err) {
       console.error('Error eliminando:', err);
     }
@@ -396,17 +313,18 @@ const TablaItems = React.memo(({
   const mostrarColumnaAcciones = !soloLectura || tipo === 'pesadas';
 
   const sharedRowProps = {
-    isDark, tipo, columnasKeys, columnasLabels,
+    tipo, columnasKeys, columnasLabels,
     onToggleSeleccion: handleToggleSeleccion,
     onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
     soloLectura, mostrarColumnaAcciones,
   };
 
-  // --- INFINITE SCROLL LOGIC ---
+  // --- Carga progresiva al llegar al final ---
   const observerTarget = useRef(null);
 
   React.useEffect(() => {
     if (!hasMore || !loadMore || (tipo !== 'pesadas' && tipo !== 'vehiculos')) return;
+    const target = observerTarget.current;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -417,130 +335,111 @@ const TablaItems = React.memo(({
       { threshold: 0.1 }
     );
 
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => {
-      if (observerTarget.current) observer.disconnect();
-    };
+    if (target) observer.observe(target);
+    return () => observer.disconnect();
   }, [hasMore, loadMore, loadingMore, tipo]);
-
-  const sharedRowPropsFull = {
-    ...sharedRowProps,
-    hasMore, loadMore, loadingMore
-  };
 
   return (
     <div>
-      {/* Selection / report bar — pesadas only */}
+      {/* Barra de selección / reporte — solo pesadas */}
       {tipo === 'pesadas' && (
-        <div className={`flex items-center justify-between gap-3 px-4 py-3 border-b flex-wrap ${isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'}`}>
-          <button
-            onClick={toggleTodas}
-            className={`flex items-center gap-2 text-sm font-medium transition-all ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            {todasSeleccionadas
-              ? <CheckSquare size={16} className="text-indigo-500" />
-              : <Square size={16} />}
-            <span className="hidden xs:inline">{todasSeleccionadas ? 'Deseleccionar todo' : 'Seleccionar todo'}</span>
-            {algunaSeleccionada && (
-              <span className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {seleccionadas.size} selec.
-              </span>
-            )}
-          </button>
+        <div className={cx(
+          'flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b border-line',
+          algunaSeleccionada ? 'bg-brand-soft/60' : 'bg-surface-2'
+        )}>
+          <label className="flex items-center gap-2.5 text-sm text-fg-muted cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={todasSeleccionadas}
+              ref={el => { if (el) el.indeterminate = algunaSeleccionada && !todasSeleccionadas; }}
+              onChange={toggleTodas}
+              className="h-4 w-4 accent-[var(--brand-solid)]"
+            />
+            {algunaSeleccionada
+              ? <span><strong className="text-fg">{seleccionadas.size}</strong> seleccionada{seleccionadas.size !== 1 ? 's' : ''}</span>
+              : 'Seleccionar todas las cargadas'}
+          </label>
 
-          <button
-            onClick={handleGenerarReporte}
-            disabled={!algunaSeleccionada || reporteEnProceso.current}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-sm border transition-all active:scale-95 ${algunaSeleccionada && !reporteEnProceso.current
-              ? isDark
-                ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 hover:bg-indigo-500/40 cursor-pointer'
-                : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 cursor-pointer'
-              : 'opacity-30 cursor-not-allowed ' + (isDark ? 'bg-slate-700 border-slate-600 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400')
-              }`}
-          >
-            <FileText size={14} />
-            {reporteEnProceso.current ? 'Generando…' : 'Reporte'}
-          </button>
-
-          <button
-            onClick={handleEliminarSeleccionadas}
-            disabled={!algunaSeleccionada}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-sm border transition-all active:scale-95 ${algunaSeleccionada
-                ? isDark
-                  ? 'bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/40 cursor-pointer'
-                  : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100 cursor-pointer'
-                : 'opacity-30 cursor-not-allowed ' + (isDark
-                  ? 'bg-slate-700 border-slate-600 text-slate-500'
-                  : 'bg-slate-100 border-slate-200 text-slate-400')
-              }`}
-          >
-            <Trash2 size={14} />
-            Eliminar
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={algunaSeleccionada ? 'primary' : 'secondary'}
+              icon={FileBarChart}
+              onClick={handleGenerarReporte}
+              disabled={!algunaSeleccionada || generando}
+              loading={generando}
+              title={algunaSeleccionada ? 'Generar reporte con las operaciones seleccionadas' : 'Seleccioná operaciones para generar un reporte'}
+            >
+              {generando ? 'Generando…' : 'Generar reporte'}
+            </Button>
+            <Guard permissions="pesaje:delete">
+              <Button
+                size="sm"
+                variant="danger-soft"
+                icon={Trash2}
+                onClick={handleEliminarSeleccionadas}
+                disabled={!algunaSeleccionada}
+              >
+                Eliminar
+              </Button>
+            </Guard>
+          </div>
         </div>
       )}
 
-      {/* ── MOBILE: card list (< md) ── */}
-      <div className="md:hidden space-y-3 p-4">
-        {items.map((item, idx) => (
-          <CardItem key={item.id} item={item} idx={idx} selected={seleccionadas.has(item.id)} {...sharedRowPropsFull} />
+      {/* Móvil: tarjetas */}
+      <div className="md:hidden space-y-3 p-3">
+        {items.map(item => (
+          <CardItem key={item.id} item={item} selected={seleccionadas.has(item.id)} {...sharedRowProps} />
         ))}
       </div>
 
-      {/* ── DESKTOP: table (md+) ── */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full min-max">
-          <thead>
-            <tr className={`${isDark ? 'border-b border-white/10 bg-white/5' : 'border-b border-slate-200 bg-slate-50'}`}>
-              {tipo === 'pesadas' && <th className="px-3 py-3 w-8" />}
-              {columnasLabels.map(label => (
-                <th key={label} className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider whitespace-nowrap ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+      {/* Escritorio: tabla */}
+      <div className="hidden md:block relative overflow-x-auto">
+        <table className="w-full">
+          <thead className="sticky top-0 z-[1] bg-surface-2">
+            <tr className="border-b border-line">
+              {tipo === 'pesadas' && <th className="w-10 pl-4 pr-1"><span className="sr-only">Selección</span></th>}
+              {columnasLabels.map((label, i) => (
+                <th
+                  key={label}
+                  scope="col"
+                  className={cx(
+                    'px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle whitespace-nowrap',
+                    COLUMNAS_PESO.includes(columnasKeys[i]) ? 'text-right' : 'text-left'
+                  )}
+                >
                   {label}
                 </th>
               ))}
               {mostrarColumnaAcciones && (
-                <th className={`px-4 py-3 text-left text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                <th scope="col" className="sticky right-0 bg-surface-2 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-fg-subtle">
                   Acciones
                 </th>
               )}
             </tr>
           </thead>
           <tbody>
-            {items.map((item, idx) => (
-              <FilaTabla key={item.id} item={item} idx={idx} selected={seleccionadas.has(item.id)} {...sharedRowPropsFull} />
+            {items.map(item => (
+              <FilaTabla key={item.id} item={item} selected={seleccionadas.has(item.id)} {...sharedRowProps} />
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Sentinel and Loading Indicators */}
+      {/* Centinela de carga progresiva */}
       {(tipo === 'pesadas' || tipo === 'vehiculos') && (
-        <div ref={observerTarget} className="py-8 flex flex-col items-center justify-center gap-3">
-          {loadingMore && (
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                Cargando más {tipo === 'pesadas' ? 'pesadas' : 'vehículos'}...
-              </span>
-            </div>
-          )}
-          {!hasMore && items.length > 0 && (
-            <span className={`text-xs font-bold uppercase tracking-widest ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-              No hay más registros
+        <div ref={observerTarget} className="py-6 flex items-center justify-center border-t border-line">
+          {loadingMore ? (
+            <span role="status" className="flex items-center gap-2 text-sm text-fg-muted">
+              <Spinner className="text-brand" />
+              Cargando más {tipo === 'pesadas' ? 'pesadas' : 'vehículos'}...
             </span>
-          )}
+          ) : !hasMore && items.length > 0 ? (
+            <span className="text-xs text-fg-subtle">No hay más registros</span>
+          ) : null}
         </div>
       )}
-
-      <style>{`
-        @keyframes fadeInRow {
-          from { opacity: 0; transform: translateY(-8px); }
-          to   { opacity: 1; transform: translateY(0);    }
-        }
-      `}</style>
     </div>
   );
 });

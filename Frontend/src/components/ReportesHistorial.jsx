@@ -1,24 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Printer, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
-import { useThemeContext } from '../context/ThemeContext';
+import { FileBarChart, Printer, RefreshCw, Trash2, X } from 'lucide-react';
 import { ReportePreview } from './ReportePesadas';
 import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 import { formatFecha } from '../lib/format';
+import { useConfirm, useToast } from '../context/feedback';
+import Guard from './Guard';
+import PageHeader from './ui/PageHeader';
+import { Card } from './ui/Card';
+import Button from './ui/Button';
+import Alert from './ui/Alert';
+import Badge from './ui/Badge';
+import Segmented from './ui/Segmented';
+import EmptyState from './ui/EmptyState';
+import { LoadingState } from './ui/Spinner';
+import { controlClass } from './ui/controlClass';
+import { cx } from '../lib/cx';
+
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 export default function ReportesHistorial() {
-    const { isDark } = useThemeContext();
+    const confirm = useConfirm();
+    const toast = useToast();
 
     const [reportes, setReportes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [reporteAbierto, setReporteAbierto] = useState(null);
+    const [abriendo, setAbriendo] = useState(null);
     const [fechaFiltro, setFechaFiltro] = useState(null);
     const [mesFiltro, setMesFiltro] = useState(null);
     const [anioFiltro, setAnioFiltro] = useState(null);
     const [seleccionados, setSeleccionados] = useState(new Set());
     const anioActual = new Date().getFullYear();
     const aniosDisponibles = Array.from({ length: anioActual - 2019 }, (_, i) => anioActual - i);
-    const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
     useEffect(() => {
         cargarReportes();
@@ -43,6 +57,7 @@ export default function ReportesHistorial() {
 
     const abrirReporte = async (id) => {
         try {
+            setAbriendo(id);
             const res = await fetch(`${API_BASE_URL}/api/reportes/${id}`, {
                 headers: getAuthHeaders(null)
             });
@@ -51,6 +66,8 @@ export default function ReportesHistorial() {
             setReporteAbierto(data.data);
         } catch (e) {
             setError(e.message);
+        } finally {
+            setAbriendo(null);
         }
     };
 
@@ -65,8 +82,13 @@ export default function ReportesHistorial() {
     const eliminarReportes = async (ids) => {
         if (!ids.length) return;
 
-        const confirmacion = window.confirm(`¿Eliminar ${ids.length} reporte(s)?`);
-        if (!confirmacion) return;
+        const ok = await confirm({
+            title: 'Eliminar reportes',
+            message: `Se eliminan ${ids.length} reporte${ids.length !== 1 ? 's' : ''} del historial. Las pesadas no se modifican.`,
+            confirmLabel: 'Eliminar',
+            tone: 'danger',
+        });
+        if (!ok) return;
 
         try {
             const res = await fetch(`${API_BASE_URL}/api/reportes/delete-masivo`, {
@@ -78,10 +100,10 @@ export default function ReportesHistorial() {
             const data = await res.json();
             if (!data.success) throw new Error(data.error);
 
-            // 🔥 actualizar UI sin recargar
+            // Actualizar la UI sin recargar
             setReportes(prev => prev.filter(r => !ids.includes(r.id)));
             setSeleccionados(new Set());
-
+            toast.success(`${ids.length} reporte${ids.length !== 1 ? 's' : ''} eliminado${ids.length !== 1 ? 's' : ''}`);
         } catch (e) {
             setError(e.message);
         }
@@ -90,9 +112,6 @@ export default function ReportesHistorial() {
     const formatKg = (v) => v != null
         ? Number(v).toLocaleString('es-AR', { minimumFractionDigits: 0 }) + ' kg'
         : '—';
-
-    const cardClass = `rounded-2xl border shadow-xl transition-all duration-300 ${isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-white/80 border-slate-200'
-        }`;
 
     const now = new Date();
     const reportesFiltrados = reportes.filter(r => {
@@ -107,175 +126,141 @@ export default function ReportesHistorial() {
         return true;
     });
 
+    const visiblesIds = reportesFiltrados.map(r => r.id);
+    const todosVisibles = visiblesIds.length > 0 && visiblesIds.every(id => seleccionados.has(id));
+    const toggleTodos = () => setSeleccionados(todosVisibles ? new Set() : new Set(visiblesIds));
+    const hayFiltros = Boolean(fechaFiltro || mesFiltro || anioFiltro);
+
     return (
-        <div className="space-y-6">
-
-            {/* Header */}
-            <div className={`${cardClass} p-6`}>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20">
-                            <FileText className="text-white" size={24} />
-                        </div>
-                        <div>
-                            <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                Historial de Reportes
-                            </h3>
-                            <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {reportesFiltrados.length}{reportesFiltrados.length !== reportes.length ? ` de ${reportes.length}` : ''} reporte{reportesFiltrados.length !== 1 ? 's' : ''}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {/* Filtros de fecha */}
-                        <div className="flex flex-wrap items-center gap-2">
-                            {[
-                                { value: null, label: 'Todos' },
-                                { value: 'hoy', label: 'Hoy' },
-                                { value: 'mes', label: 'Este mes' },
-                                { value: 'anio', label: 'Este año' },
-                            ].map(f => (
-                                <button
-                                    key={f.value ?? 'todos'}
-                                    onClick={() => { setFechaFiltro(f.value); setMesFiltro(null); setAnioFiltro(null); }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${fechaFiltro === f.value && !anioFiltro
-                                        ? 'bg-indigo-600 text-white'
-                                        : isDark ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                >{f.label}</button>
-                            ))}
-                            <div className={`w-px h-4 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-                            <select value={mesFiltro ?? ''} onChange={e => { setMesFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
-                                className={`px-2 py-1 rounded-lg text-xs font-bold border outline-none ${isDark ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'} ${mesFiltro ? 'border-indigo-500' : ''}`}>
-                                <option value="">Mes</option>
-                                {mesesNombres.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                            </select>
-                            <select value={anioFiltro ?? ''} onChange={e => { setAnioFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
-                                className={`px-2 py-1 rounded-lg text-xs font-bold border outline-none ${isDark ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'} ${anioFiltro ? 'border-indigo-500' : ''}`}>
-                                <option value="">Año</option>
-                                {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
-                            </select>
-                            {(mesFiltro || anioFiltro) && (
-                                <button onClick={() => { setMesFiltro(null); setAnioFiltro(null); }}
-                                    className={`px-2 py-1 rounded-lg text-xs font-bold ${isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-50 text-red-600'}`}>✕</button>
-                            )}
-                        </div>
-
-                        {seleccionados.size > 0 && (
-                            <button
-                                onClick={() => eliminarReportes(Array.from(seleccionados))}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${isDark
-                                    ? 'bg-red-500/20 border-red-500/50 text-red-300 hover:bg-red-500/40'
-                                    : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
-                                    }`}
-                            >
-                                Eliminar ({seleccionados.size})
-                            </button>
-                        )}
-
-                        <button
-                            onClick={cargarReportes}
-                            className={`p-2 rounded-xl transition-all hover:scale-110 ${isDark ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}
-                            title="Recargar"
-                        >
-                            <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-                <div className={`rounded-xl p-4 flex items-center gap-3 border ${isDark ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-red-50 border-red-200 text-red-700'
-                    }`}>
-                    <AlertCircle size={18} />
-                    <span className="text-sm font-medium">{error}</span>
-                </div>
-            )}
-
-            {/* Tabla */}
-            <div className={`${cardClass} overflow-hidden`}>
-                {loading ? (
-                    <div className="flex items-center justify-center py-16 gap-3">
-                        <Loader2 className="animate-spin text-indigo-500" size={24} />
-                        <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>Cargando reportes...</span>
-                    </div>
-                ) : reportesFiltrados.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-2 opacity-40">
-                        <FileText size={40} />
-                        <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                            No hay reportes generados todavía
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className={isDark ? 'bg-white/5 border-b border-white/10' : 'bg-slate-50 border-b border-slate-200'}>
-                                    {['N° Reporte', 'Fecha', 'Pesadas', 'Total Bruto', 'Total Tara', 'Total Neto', 'Acciones'].map(h => (
-                                        <th key={h} className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-400' : 'text-slate-600'
-                                            }`}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reportesFiltrados.map((r, idx) => (
-                                    <tr
-                                        key={r.id}
-                                        className={`transition-all duration-200 border-b ${isDark ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'
-                                            }`}
-                                        style={{ animation: `fadeInRow 0.2s ease-out ${idx * 0.03}s both` }}
-                                    >
-
-                                        <td className="px-4 py-4">
-                                            <input
-                                                type="checkbox"
-                                                checked={seleccionados.has(r.id)}
-                                                onChange={() => toggleSeleccion(r.id)}
-                                            />
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-lg font-mono font-bold text-sm ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-700'
-                                                }`}>
-                                                {String(r.numero_reporte).padStart(6, '0')}
-                                            </span>
-                                        </td>
-                                        <td className={`px-6 py-4 font-mono text-xs ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-                                            {formatFecha(r.created_at)}
-                                        </td>
-                                        <td className={`px-6 py-4 font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
-                                            {r.cantidad_pesadas}
-                                        </td>
-                                        <td className={`px-6 py-4 font-bold ${isDark ? 'text-green-400' : 'text-green-700'}`}>
-                                            {formatKg(r.total_bruto)}
-                                        </td>
-                                        <td className={`px-6 py-4 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
-                                            {formatKg(r.total_tara)}
-                                        </td>
-                                        <td className={`px-6 py-4 font-bold text-base ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                                            {formatKg(r.total_neto)}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => abrirReporte(r.id)}
-                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all hover:scale-105 ${isDark
-                                                    ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300 hover:bg-indigo-500/40'
-                                                    : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-                                                    }`}
-                                            >
-                                                <Printer size={14} />
-                                                Reimprimir
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+        <div>
+            <PageHeader
+                title="Reportes"
+                description="Reportes de pesadas generados desde el historial. Se pueden reimprimir."
+                meta={!loading && (
+                    <Badge>
+                        {reportesFiltrados.length}{reportesFiltrados.length !== reportes.length ? ` de ${reportes.length}` : ''} reporte{reportesFiltrados.length !== 1 ? 's' : ''}
+                    </Badge>
                 )}
-            </div>
+                actions={(
+                    <Button icon={RefreshCw} onClick={cargarReportes} loading={loading}>Actualizar</Button>
+                )}
+            />
 
-            {/* Preview al reimprimir */}
+            {error && <Alert tone="danger" className="mb-4" onClose={() => setError(null)}>{error}</Alert>}
+
+            <Card className="overflow-hidden">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 border-b border-line">
+                    <Segmented
+                        label="Fecha"
+                        value={anioFiltro ? '__especifico' : fechaFiltro}
+                        onChange={(v) => { setFechaFiltro(v); setMesFiltro(null); setAnioFiltro(null); }}
+                        options={[
+                            { value: null, label: 'Todos' },
+                            { value: 'hoy', label: 'Hoy' },
+                            { value: 'mes', label: 'Este mes' },
+                            { value: 'anio', label: 'Este año' },
+                        ]}
+                    />
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-fg-subtle">Período</span>
+                        <select value={mesFiltro ?? ''} aria-label="Mes"
+                            onChange={e => { setMesFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
+                            className={cx(controlClass, 'h-8 w-auto text-xs', mesFiltro && 'border-brand-solid')}>
+                            <option value="">Mes</option>
+                            {MESES.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                        </select>
+                        <select value={anioFiltro ?? ''} aria-label="Año"
+                            onChange={e => { setAnioFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
+                            className={cx(controlClass, 'h-8 w-auto text-xs', anioFiltro && 'border-brand-solid')}>
+                            <option value="">Año</option>
+                            {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                        {(mesFiltro || anioFiltro) && (
+                            <Button size="sm" variant="ghost" icon={X} onClick={() => { setMesFiltro(null); setAnioFiltro(null); }}>Quitar</Button>
+                        )}
+                    </div>
+                    {mesFiltro && !anioFiltro && (
+                        <p className="w-full text-xs text-fg-subtle">Elegí también el año para filtrar por mes.</p>
+                    )}
+                    {seleccionados.size > 0 && (
+                        <Guard permissions="reportes:delete">
+                            <Button size="sm" variant="danger-soft" icon={Trash2} className="ml-auto" onClick={() => eliminarReportes(Array.from(seleccionados))}>
+                                Eliminar ({seleccionados.size})
+                            </Button>
+                        </Guard>
+                    )}
+                </div>
+
+                {loading ? (
+                    <LoadingState texto="Cargando reportes..." />
+                ) : reportesFiltrados.length === 0 ? (
+                    <EmptyState
+                        icon={FileBarChart}
+                        title={hayFiltros && reportes.length ? 'No hay reportes en este período' : 'Todavía no hay reportes'}
+                        description={hayFiltros && reportes.length
+                            ? 'Cambiá el filtro de fecha para ver otros reportes.'
+                            : 'Se generan desde el historial de pesadas: seleccioná operaciones y tocá "Generar reporte".'}
+                    />
+                ) : (
+                    <>
+                        {/* Móvil */}
+                        <ul className="md:hidden divide-y divide-line">
+                            {reportesFiltrados.map(r => (
+                                <li key={r.id} className="flex items-start gap-3 px-4 py-3">
+                                    <input type="checkbox" checked={seleccionados.has(r.id)} onChange={() => toggleSeleccion(r.id)}
+                                        aria-label={`Seleccionar reporte ${r.numero_reporte}`} className="mt-1 h-5 w-5 accent-[var(--brand-solid)]" />
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-mono text-sm font-semibold text-fg">N° {String(r.numero_reporte).padStart(6, '0')}</p>
+                                        <p className="text-xs text-fg-subtle tabular">{formatFecha(r.created_at)} · {r.cantidad_pesadas} pesadas</p>
+                                        <p className="mt-1 text-sm text-fg tabular">Neto <strong>{formatKg(r.total_neto)}</strong></p>
+                                    </div>
+                                    <Button size="sm" icon={Printer} onClick={() => abrirReporte(r.id)} loading={abriendo === r.id}>Ver</Button>
+                                </li>
+                            ))}
+                        </ul>
+
+                        {/* Escritorio */}
+                        <div className="hidden md:block relative overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-surface-2">
+                                    <tr className="border-b border-line">
+                                        <th className="w-10 pl-4 pr-1">
+                                            <input type="checkbox" checked={todosVisibles} onChange={toggleTodos}
+                                                aria-label="Seleccionar todos los reportes visibles" className="h-4 w-4 accent-[var(--brand-solid)]" />
+                                        </th>
+                                        {[['N° reporte'], ['Fecha'], ['Pesadas', true], ['Total bruto', true], ['Total tara', true], ['Total neto', true], ['Acciones', true]].map(([h, der]) => (
+                                            <th key={h} scope="col" className={cx('px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle whitespace-nowrap', der ? 'text-right' : 'text-left')}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {reportesFiltrados.map(r => (
+                                        <tr key={r.id} className={cx('border-b border-line last:border-b-0', seleccionados.has(r.id) ? 'bg-brand-soft/60' : 'hover:bg-surface-2')}>
+                                            <td className="pl-4 pr-1 py-2.5">
+                                                <input type="checkbox" checked={seleccionados.has(r.id)} onChange={() => toggleSeleccion(r.id)}
+                                                    aria-label={`Seleccionar reporte ${r.numero_reporte}`} className="h-4 w-4 accent-[var(--brand-solid)]" />
+                                            </td>
+                                            <td className="px-4 py-2.5 font-mono font-semibold text-fg">{String(r.numero_reporte).padStart(6, '0')}</td>
+                                            <td className="px-4 py-2.5 text-xs text-fg-muted tabular whitespace-nowrap">{formatFecha(r.created_at)}</td>
+                                            <td className="px-4 py-2.5 text-right tabular text-fg">{r.cantidad_pesadas}</td>
+                                            <td className="px-4 py-2.5 text-right tabular text-fg">{formatKg(r.total_bruto)}</td>
+                                            <td className="px-4 py-2.5 text-right tabular text-fg-muted">{formatKg(r.total_tara)}</td>
+                                            <td className="px-4 py-2.5 text-right tabular font-semibold text-fg">{formatKg(r.total_neto)}</td>
+                                            <td className="px-4 py-2 text-right">
+                                                <Button size="sm" variant="ghost" icon={Printer} onClick={() => abrirReporte(r.id)} loading={abriendo === r.id}>
+                                                    Ver / reimprimir
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+            </Card>
+
+            {/* Vista previa al reimprimir */}
             {reporteAbierto && (
                 <ReportePreview
                     pesadas={reporteAbierto.pesadas_data}
@@ -286,13 +271,6 @@ export default function ReportesHistorial() {
                     onClose={() => setReporteAbierto(null)}
                 />
             )}
-
-            <style>{`
-        @keyframes fadeInRow {
-          from { opacity: 0; transform: translateY(-6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
         </div>
     );
 }

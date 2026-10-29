@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Database, Download, Play, Calendar, CheckCircle2, AlertCircle, RefreshCw, FileArchive, ShieldCheck, Clock } from 'lucide-react';
-import { useThemeContext } from '../context/ThemeContext';
+import { Database, Download, Play, CalendarClock, FileArchive, Cpu, HardDrive } from 'lucide-react';
 import DispositivosConfig from './DispositivosConfig';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm, useToast } from '../context/feedback';
 import { PERMISSIONS } from '../config/rolesConfig';
 import { API_BASE_URL, getAuthHeaders } from '../lib/api';
+import PageHeader from './ui/PageHeader';
+import { Card, CardHeader, CardBody } from './ui/Card';
+import Button from './ui/Button';
+import Alert from './ui/Alert';
+import EmptyState from './ui/EmptyState';
+import { LoadingState } from './ui/Spinner';
+import { cx } from '../lib/cx';
 
-export default function Configuracion() {
-  const { isDark } = useThemeContext();
-  const { hasPermission } = usePermissions();
-  const { isGlobal } = useAuth();
-  // Respaldo = base completa: solo admin global / superadmin
-  const puedeRespaldar = hasPermission(PERMISSIONS.BACKUP_MANAGE) && isGlobal;
+function Respaldos() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [backups, setBackups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [descargando, setDescargando] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -37,11 +42,16 @@ export default function Configuracion() {
   };
 
   useEffect(() => {
-    if (puedeRespaldar) fetchBackups();
-  }, [puedeRespaldar]);
+    fetchBackups();
+  }, []);
 
   const handleCreateBackup = async () => {
-    if (!window.confirm('¿Desea iniciar un respaldo completo ahora? Esto puede demorar unos segundos.')) return;
+    const ok = await confirm({
+      title: 'Crear respaldo',
+      message: 'Se genera un respaldo completo de la base de datos y los archivos. Puede demorar unos segundos.',
+      confirmLabel: 'Respaldar ahora',
+    });
+    if (!ok) return;
 
     try {
       setCreating(true);
@@ -55,7 +65,7 @@ export default function Configuracion() {
       const data = await res.json();
 
       if (data.success) {
-        setSuccess(`Respaldo creado exitosamente: ${data.filename}`);
+        setSuccess(`Respaldo creado: ${data.filename}`);
         fetchBackups();
       } else {
         throw new Error(data.error || 'Error al crear respaldo');
@@ -69,6 +79,7 @@ export default function Configuracion() {
 
   const handleDownload = async (filename) => {
     try {
+      setDescargando(filename);
       const headers = getAuthHeaders(null);
       const res = await fetch(`${API_BASE_URL}/api/backup/download/${filename}`, {
         headers
@@ -83,9 +94,12 @@ export default function Configuracion() {
       a.download = filename;
       document.body.appendChild(a);
       a.click();
+      a.remove();
       window.URL.revokeObjectURL(url);
     } catch (e) {
-      alert(e.message);
+      toast.error(e.message);
+    } finally {
+      setDescargando(null);
     }
   };
 
@@ -98,125 +112,104 @@ export default function Configuracion() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="grid gap-6 lg:grid-cols-3 items-start">
+      <div className="space-y-6">
+        <Card>
+          <CardHeader icon={Database} title="Respaldo manual" description="Base de datos y archivos completos" />
+          <CardBody className="space-y-4">
+            <Button variant="primary" icon={Play} onClick={handleCreateBackup} loading={creating} className="w-full justify-center">
+              {creating ? 'Generando respaldo...' : 'Respaldar ahora'}
+            </Button>
+            {error && <Alert tone="danger" onClose={() => setError(null)}>{error}</Alert>}
+            {success && <Alert tone="success" onClose={() => setSuccess(null)}>{success}</Alert>}
+          </CardBody>
+        </Card>
+        <Card>
+          <CardHeader icon={CalendarClock} title="Programación" tone="neutral" />
+          <CardBody className="space-y-2 text-sm text-fg-muted">
+            <p>El sistema hace un respaldo automático completo todos los <strong className="text-fg">domingos a las 03:00</strong>.</p>
+            <p>Los archivos quedan en el servidor, en la carpeta <code className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-xs text-fg">/backups</code>.</p>
+          </CardBody>
+        </Card>
+      </div>
 
-      {hasPermission(PERMISSIONS.DISPOSITIVOS_MANAGE) && (
-        <div>
-          <h2 className={`text-xl font-black mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            Configuración de Dispositivos
-          </h2>
-          <DispositivosConfig />
+      <Card className="lg:col-span-2 overflow-hidden">
+        <CardHeader icon={FileArchive} title="Archivos de respaldo" description={backups.length ? `${backups.length} archivo${backups.length !== 1 ? 's' : ''}` : undefined} />
+        {loading ? (
+          <LoadingState texto="Cargando respaldos..." />
+        ) : backups.length === 0 ? (
+          <EmptyState icon={FileArchive} title="No hay respaldos generados aún" description="Creá uno manual o esperá al respaldo automático del domingo." />
+        ) : (
+          <ul className="divide-y divide-line max-h-[520px] overflow-y-auto">
+            {backups.map((b, idx) => (
+              <li key={idx} className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <HardDrive size={18} className="text-fg-subtle shrink-0" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-sm text-fg">{b.filename}</p>
+                    <p className="text-xs text-fg-subtle tabular">{new Date(b.date).toLocaleString('es-AR')} · {formatSize(b.size)}</p>
+                  </div>
+                </div>
+                <Button size="sm" icon={Download} onClick={() => handleDownload(b.filename)} loading={descargando === b.filename}>
+                  Descargar
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export default function Configuracion() {
+  const { hasPermission } = usePermissions();
+  const { isGlobal } = useAuth();
+  // Respaldo = base completa: solo admin global / superadmin
+  const puedeRespaldar = hasPermission(PERMISSIONS.BACKUP_MANAGE) && isGlobal;
+  const puedeDispositivos = hasPermission(PERMISSIONS.DISPOSITIVOS_MANAGE);
+
+  const secciones = [
+    puedeDispositivos && { id: 'dispositivos', label: 'Dispositivos', icon: Cpu, description: 'Balanza, agente local y grabadora de cámaras de cada localidad.' },
+    puedeRespaldar && { id: 'respaldos', label: 'Respaldos', icon: Database, description: 'Copias de seguridad de la base de datos y los archivos.' },
+  ].filter(Boolean);
+
+  const [seccion, setSeccion] = useState(secciones[0]?.id);
+  const actual = secciones.find(s => s.id === seccion) ?? secciones[0];
+
+  if (!actual) {
+    return <EmptyState title="No hay opciones de configuración disponibles para tu usuario" />;
+  }
+
+  return (
+    <div>
+      <PageHeader title="Configuración" description={actual.description} />
+
+      {secciones.length > 1 && (
+        <div role="tablist" aria-label="Secciones de configuración" className="mb-6 flex gap-1 border-b border-line">
+          {secciones.map(({ id, label, icon: Icon }) => {
+            const activa = actual.id === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activa}
+                onClick={() => setSeccion(id)}
+                className={cx(
+                  '-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+                  activa ? 'border-brand-solid text-brand' : 'border-transparent text-fg-muted hover:text-fg hover:border-line-strong'
+                )}
+              >
+                <Icon size={16} aria-hidden="true" /> {label}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {puedeRespaldar && (<>
-      {/* Header Section */}
-      <div className={`backdrop-blur-xl rounded-3xl p-8 border transition-all shadow-2xl ${isDark ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white/80 border-slate-200'
-        }`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className={`p-4 rounded-2xl shadow-xl ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-500 text-white shadow-indigo-500/20'}`}>
-              <Database size={32} />
-            </div>
-            <div>
-              <h2 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Gestión de Respaldos</h2>
-              <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Seguridad total para tus datos y archivos</p>
-            </div>
-          </div>
-          <button
-            onClick={handleCreateBackup}
-            disabled={creating}
-            className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg transition-all shadow-xl hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:scale-100 ${isDark ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/30'
-              }`}
-          >
-            {creating ? <RefreshCw className="animate-spin" size={24} /> : <Play size={24} />}
-            {creating ? 'PROCESANDO...' : 'RESPALDAR AHORA'}
-          </button>
-        </div>
-
-        {error && (
-          <div className="mt-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 text-red-500 font-bold">
-            <AlertCircle size={20} /> {error}
-          </div>
-        )}
-        {success && (
-          <div className="mt-8 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 text-emerald-500 font-bold">
-            <CheckCircle2 size={20} /> {success}
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Info Cards */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className={`p-6 rounded-3xl border ${isDark ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-200 shadow-xl'}`}>
-            <div className="flex items-center gap-3 mb-4 text-indigo-500">
-              <Calendar size={24} />
-              <h4 className="font-black text-lg">Programación</h4>
-            </div>
-            <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              El sistema realiza un respaldo automático completo todos los <span className="font-bold text-indigo-500">Domingos a las 03:00 AM</span>.
-            </p>
-            <div className={`mt-6 p-4 rounded-2xl border ${isDark ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-indigo-50 border-indigo-100'}`}>
-              <div className="flex items-center gap-2 text-xs font-bold text-indigo-500 uppercase tracking-wider">
-                <ShieldCheck size={14} /> Sistema Protegido
-              </div>
-            </div>
-          </div>
-
-          <div className={`p-6 rounded-3xl border ${isDark ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-200 shadow-xl'}`}>
-            <div className="flex items-center gap-3 mb-4 text-blue-500">
-              <Clock size={24} />
-              <h4 className="font-black text-lg">Historial</h4>
-            </div>
-            <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-              Se mantienen los archivos en el servidor bajo la carpeta <code className="px-2 py-0.5 rounded bg-black/20 font-mono text-xs">/backups</code>.
-            </p>
-          </div>
-        </div>
-
-        {/* Backup List */}
-        <div className="lg:col-span-2">
-          <div className={`rounded-3xl border overflow-hidden ${isDark ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-200 shadow-xl'}`}>
-            <div className="p-6 border-b border-inherit">
-              <h3 className={`text-xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Archivos de Respaldo</h3>
-            </div>
-            <div className="divide-y divide-inherit max-h-[500px] overflow-y-auto">
-              {loading ? (
-                <div className="p-12 flex justify-center"><RefreshCw className="animate-spin text-indigo-500" size={32} /></div>
-              ) : backups.length === 0 ? (
-                <div className="p-12 text-center opacity-40 font-bold">No hay respaldos generados aún</div>
-              ) : (
-                backups.map((b, idx) => (
-                  <div key={idx} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:bg-indigo-500/5 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${isDark ? 'bg-slate-700 group-hover:bg-indigo-500/20' : 'bg-slate-100 group-hover:bg-indigo-50'}`}>
-                        <FileArchive size={24} className="text-indigo-500" />
-                      </div>
-                      <div>
-                        <div className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{b.filename}</div>
-                        <div className="flex items-center gap-3 text-xs opacity-50 font-medium">
-                          <span>{new Date(b.date).toLocaleString()}</span>
-                          <span className="w-1 h-1 rounded-full bg-current"></span>
-                          <span>{formatSize(b.size)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDownload(b.filename)}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${isDark ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white' : 'border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white'
-                        }`}
-                    >
-                      <Download size={16} /> Descargar
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      </>)}
+      {actual.id === 'dispositivos' && <DispositivosConfig />}
+      {actual.id === 'respaldos' && <Respaldos />}
     </div>
   );
 }

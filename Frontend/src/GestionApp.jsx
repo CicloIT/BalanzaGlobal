@@ -1,15 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
-import Header from './components/Header';
-import ActionBar from './components/ActionBar';
+import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
+import { Search, X, Plus, Inbox, SearchX, ChevronsDown } from 'lucide-react';
+import AppShell from './components/layout/AppShell';
 import TablaItems from './components/TablaItems';
 import ModalForm from './components/ModalForm';
-import EmptyState from './components/EmptyState';
 import PesadaForm from './components/PesadaForm';
 import { useGestionAPI } from './hooks/useGestionAPI';
 import { usePesadasInfinite } from './hooks/usePesadasInfinite';
 import { useVehiculosInfinite } from './hooks/useVehiculosInfinite';
-import { useThemeContext } from './context/ThemeContext';
 import { usePermissions } from './hooks/usePermissions';
 import { choferesConfig } from './config/choferesConfig';
 import { productoresConfig } from './config/productoresConfig';
@@ -20,20 +17,38 @@ import { localidadesConfig } from './config/localidadesConfig';
 import { vehiculosConfig } from './config/vehiculosConfig';
 import { pesadasConfig } from './config/pesadasConfig';
 import { empresasConfig } from './config/empresasConfig';
+import { NAV_ITEMS } from './config/navigation';
 import { useAuth } from './context/AuthContext';
-import Dashboard from './components/Dashboard';
+import { useToast, useConfirm } from './context/feedback';
 import ReportePesadas from './components/ReportePesadas';
 import ReportesHistorial from './components/ReportesHistorial';
 import ProtectedRoute from './components/ProtectedRoute';
 import DetallePesadaModal from './components/DetallePesadaModal';
 import ContenedorModal from './components/ContenedorModal';
 import Configuracion from './components/Configuracion';
+import Guard from './components/Guard';
+import PageHeader from './components/ui/PageHeader';
+import Button from './components/ui/Button';
+import Alert from './components/ui/Alert';
+import Badge from './components/ui/Badge';
+import EmptyState from './components/ui/EmptyState';
+import Segmented from './components/ui/Segmented';
+import { Card } from './components/ui/Card';
+import { LoadingState } from './components/ui/Spinner';
+import { controlClass } from './components/ui/controlClass';
+import { cx } from './lib/cx';
 import { API_BASE_URL, getAuthHeaders } from './lib/api';
 
+// El Dashboard trae recharts: se descarga solo si el usuario lo abre
+const Dashboard = lazy(() => import('./components/Dashboard'));
+
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 export default function GestionApp() {
-  const { isDark } = useThemeContext();
   const { hasModuleAccess, canEditModule, PERMISSIONS, MODULES } = usePermissions();
   const { isGlobal, isSuperadmin } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const configs = {
     choferes: choferesConfig,
@@ -77,7 +92,7 @@ export default function GestionApp() {
   // Usuarios globales necesitan las localidades para elegir dónde crear cada catálogo
   const localidades = useGestionAPI(localidadesConfig, canEditModule(MODULES.LOCALIDADES) || isGlobal);
   const empresas = useGestionAPI(empresasConfig, isSuperadmin);
-const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const vehiculos = useVehiculosInfinite(vehiculosConfig, hasModuleAccess(MODULES.VEHICULOS) && activeTab === MODULES.VEHICULOS, activeTab === MODULES.VEHICULOS ? searchTerm : '');
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -90,7 +105,6 @@ const [searchTerm, setSearchTerm] = useState('');
 
   const anioActual = new Date().getFullYear();
   const aniosDisponibles = Array.from({ length: anioActual - 2019 }, (_, i) => anioActual - i);
-  const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
   const [pesadaDetalle, setPesadaDetalle] = useState(null);
   const [pesadasReporte, setPesadasReporte] = useState(null);
@@ -99,34 +113,44 @@ const [searchTerm, setSearchTerm] = useState('');
   useEffect(() => { setSearchTerm(''); }, [activeTab]);
 
   const handleEliminarIndividual = async (id) => {
-  try {
-    const confirmacion = window.confirm('¿Eliminar este registro?');
-    if (!confirmacion) return;
+    const ok = await confirm({
+      title: 'Eliminar registro',
+      message: activeTab === 'pesadas'
+        ? 'Se elimina la operación de pesaje y sus pesadas. Esta acción no se puede deshacer.'
+        : `Se elimina este ${currentConfig.singular}. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      const endpoint = activeTab === 'pesadas'
+        ? `/api/pesadas/operacion/${id}`
+        : `${currentConfig.endpoint}/${id}`;
 
-    const endpoint = activeTab === 'pesadas'
-      ? `/api/pesadas/operacion/${id}`
-      : `${currentConfig.endpoint}/${id}`;
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'DELETE', headers: getAuthHeaders(null) });
+      if (!response.ok) throw new Error('Error eliminando');
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'DELETE', headers: getAuthHeaders(null) });
-    if (!response.ok) throw new Error('Error eliminando');
-
-    if (activeTab === 'pesadas') {
-      setRefreshTrigger(Date.now());
-    } else {
-      currentGestion.fetchItems?.();
+      if (activeTab === 'pesadas') {
+        setRefreshTrigger(Date.now());
+      } else {
+        currentGestion.fetchItems?.();
+      }
+      toast.success('Registro eliminado');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo eliminar el registro');
     }
-
-  } catch (err) {
-    console.error(err);
-    alert('Error eliminando registro');
-  }
-};
+  };
 
   const handleEliminarMultiples = async (ids) => {
+    const ok = await confirm({
+      title: 'Eliminar operaciones',
+      message: `Se eliminan ${ids.length} operaciones de pesaje. Esta acción no se puede deshacer.`,
+      confirmLabel: `Eliminar ${ids.length}`,
+      tone: 'danger',
+    });
+    if (!ok) return false;
     try {
-      const confirmacion = window.confirm(`¿Eliminar ${ids.length} operaciones de pesaje?`);
-      if (!confirmacion) return;
-
       const response = await fetch(`${API_BASE_URL}/api/pesadas/operaciones/delete-masivo`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -135,21 +159,29 @@ const [searchTerm, setSearchTerm] = useState('');
 
       if (!response.ok) throw new Error('Error eliminando');
 
-      // 🔥 refrescar lista SIN recargar toda la página
+      // Refrescar la lista sin recargar la página
       setRefreshTrigger(Date.now());
-
+      toast.success(`${ids.length} operaciones eliminadas`);
+      return true;
     } catch (err) {
       console.error(err);
-      alert('Error eliminando operaciones');
+      toast.error('No se pudieron eliminar las operaciones');
+      return false;
     }
   };
 
   const handleSubirPDF = async (e, id) => {
-    const file = e.target.files[0];
+    const input = e.target;
+    const file = input.files[0];
     if (!file) return;
 
-    if (!window.confirm(`¿Subir Carta de Porte para la operación de pesaje?`)) {
-      e.target.value = '';
+    const ok = await confirm({
+      title: 'Subir carta de porte',
+      message: `Se adjunta "${file.name}" a la operación de pesaje.`,
+      confirmLabel: 'Subir PDF',
+    });
+    if (!ok) {
+      input.value = '';
       return;
     }
 
@@ -165,10 +197,13 @@ const [searchTerm, setSearchTerm] = useState('');
 
       if (!response.ok) throw new Error('Error al subir el archivo');
 
-      window.location.reload();
+      setRefreshTrigger(Date.now());
+      toast.success('Carta de porte adjuntada');
     } catch (err) {
       console.error(err);
-      alert('Error subiendo el PDF');
+      toast.error('No se pudo subir el PDF');
+    } finally {
+      input.value = '';
     }
   };
 
@@ -199,7 +234,7 @@ const [searchTerm, setSearchTerm] = useState('');
   })();
 
   const SEARCHABLE_TABS = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES, MODULES.VEHICULOS];
-  const CLIENT_FILTER_TABS = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES, MODULES.VEHICULOS];
+  const CLIENT_FILTER_TABS = SEARCHABLE_TABS;
 
   const filteredItems = useMemo(() => {
     const items = currentGestion?.items || [];
@@ -210,285 +245,223 @@ const [searchTerm, setSearchTerm] = useState('');
         String(item[key] ?? '').toLowerCase().includes(term)
       )
     );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentGestion?.items, searchTerm, currentConfig?.columnasKeys, activeTab]);
 
-  // Tabs filtrados según permisos del usuario
-  const tabs = useMemo(() => {
-    const allTabs = [
-      { id: MODULES.DASHBOARD, label: 'Dashboard', count: null },
-      { id: MODULES.CHOFERES, label: choferesConfig.label, count: choferes.items.length },
-      { id: MODULES.PRODUCTORES, label: productoresConfig.label, count: productores.items.length },
-      { id: MODULES.PRODUCTOS, label: productosConfig.label, count: productos.items.length },
-      { id: MODULES.TRANSPORTES, label: transportesConfig.label, count: transportes.items.length },
-      { id: MODULES.PROVINCIAS, label: provinciasConfig.label, count: provincias.items.length },
-      { id: MODULES.LOCALIDADES, label: localidadesConfig.label, count: localidades.items.length },
-      { id: MODULES.EMPRESAS, label: empresasConfig.label, count: empresas.items.length },
-{ id: MODULES.VEHICULOS, label: vehiculosConfig.label, count: vehiculos.items.length },
-      { id: MODULES.PESADA, label: 'Nueva Pesada', count: null },
-      { id: MODULES.PESADAS, label: pesadasConfig.label, count: pesadas.items.length },
-      { id: MODULES.REPORTES, label: 'Reportes', count: null },
-      { id: MODULES.CONFIGURACION, label: 'Configuración', count: null },
-    ];
+  // Secciones visibles según permisos: los módulos especiales por acceso, los maestros
+  // solo si el usuario puede escribir en ellos ("solo ver lo que puedo hacer")
+  const visibles = useMemo(() => {
+    const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION];
+    const maestros = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES,
+      MODULES.PROVINCIAS, MODULES.LOCALIDADES, MODULES.EMPRESAS, MODULES.VEHICULOS];
+    return new Set([
+      ...especiales.filter(id => hasModuleAccess(id)),
+      ...maestros.filter(id => canEditModule(id)),
+    ]);
+  }, [hasModuleAccess, canEditModule, MODULES]);
 
-    return allTabs.filter(tab => {
-      // Mostrar módulos especiales si hay acceso: Dashboard, Nueva Pesada, Pesadas, Reportes, Configuración
-      if ([MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION].includes(tab.id)) {
-        return hasModuleAccess(tab.id);
-      }
-
-      // Para los demás (Maestros), solo mostrar si tiene permiso de escritura/edición
-      // así cumplimos con "solo ver lo que puedo hacer"
-      return canEditModule(tab.id);
-    });
-  }, [
-    choferes.items.length,
-    productores.items.length,
-    productos.items.length,
-    transportes.items.length,
-    provincias.items.length,
-    localidades.items.length,
-    empresas.items.length,
-    vehiculos.items.length,
-    pesadas.items.length,
-    hasModuleAccess,
-    canEditModule,
-    MODULES
-  ]);
-
-  // Verificar si el usuario puede editar el módulo actual
   // Tabs que no usan el layout genérico de tabla
   const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION];
+  const esLista = !tabsEspeciales.includes(activeTab) && currentConfig;
+  const esPesadas = activeTab === 'pesadas';
+  const nav = NAV_ITEMS[activeTab];
+  const recurso = esPesadas ? 'pesaje' : activeTab;
 
-  const AlertBox = ({ type, message }) => {
-    if (!message) return null;
-    const bgColor = type === 'success'
-      ? isDark ? 'bg-green-500/30 border-green-500/50 text-green-300' : 'bg-green-50 border-green-200 text-green-800'
-      : isDark ? 'bg-red-500/30 border-red-500/50 text-red-300' : 'bg-red-50 border-red-200 text-red-800';
-    return (
-      <div className={`border rounded-lg p-4 mb-4 animate-fadeIn ${bgColor}`}>
-        {message}
-      </div>
-    );
-  };
+  // Pesadas y vehículos se cargan por páginas: el total real viene del backend
+  const totalRegistros = (esPesadas || activeTab === MODULES.VEHICULOS) && currentGestion?.total
+    ? currentGestion.total
+    : currentGestion?.items.length ?? 0;
+  const filtrosFechaActivos = Boolean(fechaFiltro || mesFiltro || anioFiltro || sentidoFiltro);
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDark
-      ? 'bg-linear-to-br from-slate-900 via-slate-800 to-slate-900'
-      : 'bg-linear-to-br from-blue-50 via-white to-cyan-50'
-      }`}>
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {isDark ? (
-          <>
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-          </>
-        ) : (
-          <>
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200/40 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-200/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-          </>
-        )}
-      </div>
+    <AppShell visibles={visibles} activo={activeTab} onSelect={setActiveTab}>
+      {/* Tabs especiales */}
+      {activeTab === MODULES.PESADA && (
+        <ProtectedRoute permissions={PERMISSIONS.PESAJE_CREATE}>
+          <PesadaForm
+            transportes={transportes.items}
+            choferes={choferes.items}
+            productos={productos.items}
+            productores={productores.items}
+            onPesadaCreated={() => setRefreshTrigger(Date.now())}
+          />
+        </ProtectedRoute>
+      )}
 
-      <div className="relative z-50">
-        <Header activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-
-        {!tabsEspeciales.includes(activeTab) && (
-          <>
-            <AlertBox type="error" message={currentGestion?.error} />
-            <AlertBox type="success" message={currentGestion?.success} />
-          </>
-        )}
-
-        {/* Tabs especiales */}
-        {activeTab === MODULES.PESADA && (
-          <ProtectedRoute permissions={PERMISSIONS.PESAJE_CREATE}>
-            <PesadaForm
-              transportes={transportes.items}
-              choferes={choferes.items}
-              productos={productos.items}
-              productores={productores.items}
-              onPesadaCreated={() => setRefreshTrigger(Date.now())}
-            />
-          </ProtectedRoute>
-        )}
-
-        {activeTab === MODULES.DASHBOARD && (
-          <ProtectedRoute permissions={PERMISSIONS.DASHBOARD_VIEW}>
+      {activeTab === MODULES.DASHBOARD && (
+        <ProtectedRoute permissions={PERMISSIONS.DASHBOARD_VIEW}>
+          <Suspense fallback={<LoadingState texto="Cargando dashboard..." />}>
             <Dashboard />
-          </ProtectedRoute>
-        )}
+          </Suspense>
+        </ProtectedRoute>
+      )}
 
-        {activeTab === MODULES.REPORTES && (
-          <ProtectedRoute permissions={PERMISSIONS.REPORTES_VIEW}>
-            <ReportesHistorial />
-          </ProtectedRoute>
-        )}
+      {activeTab === MODULES.REPORTES && (
+        <ProtectedRoute permissions={PERMISSIONS.REPORTES_VIEW}>
+          <ReportesHistorial />
+        </ProtectedRoute>
+      )}
 
-        {activeTab === MODULES.CONFIGURACION && (
-          <ProtectedRoute permissions={[PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE]}>
-            <Configuracion />
-          </ProtectedRoute>
-        )}
+      {activeTab === MODULES.CONFIGURACION && (
+        <ProtectedRoute permissions={[PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE]}>
+          <Configuracion />
+        </ProtectedRoute>
+      )}
 
-        {/* Tabs con tabla genérica */}
-        {!tabsEspeciales.includes(activeTab) && currentConfig && (
-          <ProtectedRoute permissions={`${activeTab === 'pesadas' ? 'pesaje' : activeTab}:view`}>
-            <div className={`backdrop-blur-xl transition-colors duration-300 rounded-2xl shadow-2xl overflow-hidden ${isDark
-              ? 'bg-white/10 border border-white/20'
-              : 'bg-white/70 border border-slate-200'
-              }`}>
-              <div className="h-1 bg-linear-to-r from-blue-500 via-cyan-500 to-blue-500"></div>
+      {/* Listados con tabla genérica */}
+      {esLista && (
+        <ProtectedRoute permissions={`${recurso}:view`}>
+          <PageHeader
+            title={nav?.label ?? currentConfig.plural}
+            description={nav?.description}
+            meta={!currentGestion.loading && (
+              <Badge tone="neutral">
+                {totalRegistros.toLocaleString('es-AR')} {totalRegistros === 1 ? currentConfig.singular : currentConfig.plural}
+                {esPesadas && filtrosFechaActivos ? ' con los filtros' : ''}
+              </Badge>
+            )}
+            actions={!esPesadas && (
+              <Guard permissions={`${recurso}:create`}>
+                <Button variant="primary" icon={Plus} onClick={() => currentGestion.abrirModal()} disabled={currentGestion.loading}>
+                  Agregar {currentConfig.singular}
+                </Button>
+              </Guard>
+            )}
+          />
 
-              <ActionBar
-                titulo={currentConfig.plural}
-                count={currentGestion.items.length}
-                onAgregar={() => currentGestion.abrirModal()}
-                loading={currentGestion.loading}
-                permission={`${activeTab === 'pesadas' ? 'pesaje' : activeTab}:create`}
-                soloLectura={activeTab === 'pesadas'}
-              />
+          {currentGestion?.error && <Alert tone="danger" className="mb-4">{currentGestion.error}</Alert>}
+          {currentGestion?.success && <Alert tone="success" className="mb-4">{currentGestion.success}</Alert>}
 
-              {SEARCHABLE_TABS.includes(activeTab) && (
-                <div className={`px-4 py-3 border-b flex items-center gap-3 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-                  <div className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border ${isDark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-300'}`}>
-                    <Search size={16} className="opacity-40 flex-shrink-0" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      placeholder={`Buscar ${currentConfig?.plural?.toLowerCase() ?? ''}...`}
-                      className="bg-transparent border-none outline-none w-full text-sm"
-                    />
-                    {searchTerm && (
-                      <button onClick={() => setSearchTerm('')} className="flex-shrink-0 opacity-50 hover:opacity-100">
-                        <X size={16} />
-                      </button>
-                    )}
-                  </div>
-                  {activeTab === MODULES.VEHICULOS && currentGestion.hasMore && (
+          <Card className="overflow-hidden">
+            {SEARCHABLE_TABS.includes(activeTab) && (
+              <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-line">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder={`Buscar ${currentConfig?.plural?.toLowerCase() ?? ''}...`}
+                    aria-label={`Buscar ${currentConfig?.plural?.toLowerCase() ?? ''}`}
+                    className={cx(controlClass, 'pl-9 pr-9')}
+                  />
+                  {searchTerm && (
                     <button
-                      onClick={() => currentGestion.loadAll?.()}
-                      disabled={currentGestion.loading}
-                      className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${isDark ? 'bg-white/5 border-white/20 text-slate-300 hover:bg-white/10' : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'}`}
+                      type="button"
+                      onClick={() => setSearchTerm('')}
+                      aria-label="Limpiar búsqueda"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-fg-subtle hover:text-fg"
                     >
-                      ↓ Cargar todos
+                      <X size={16} />
                     </button>
                   )}
                 </div>
-              )}
+                {activeTab === MODULES.VEHICULOS && currentGestion.hasMore && (
+                  <Button size="md" icon={ChevronsDown} onClick={() => currentGestion.loadAll?.()} disabled={currentGestion.loading}>
+                    Cargar todos
+                  </Button>
+                )}
+              </div>
+            )}
 
-              {activeTab === 'pesadas' && (
-                <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-                  {/* Sentido */}
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Sentido:</span>
-                    {[
-                      { value: null, label: 'Todos' },
-                      { value: 'INGRESO', label: '↓ Ingreso' },
-                      { value: 'SALIDA', label: '↑ Salida' },
-                    ].map(f => (
-                      <button key={f.value ?? 'ts'} onClick={() => setSentidoFiltro(f.value)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${sentidoFiltro === f.value
-                          ? f.value === 'SALIDA' ? 'bg-orange-500 text-white' : f.value === 'INGRESO' ? 'bg-blue-600 text-white' : isDark ? 'bg-white/20 text-white' : 'bg-slate-700 text-white'
-                          : isDark ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}>{f.label}</button>
-                    ))}
-                  </div>
-
-                  <div className={`w-px h-5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-
-                  {/* Fecha rápida */}
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Fecha:</span>
-                    {[
-                      { value: null, label: 'Todas' },
-                      { value: 'hoy', label: 'Hoy' },
-                      { value: 'mes', label: 'Este mes' },
-                      { value: 'anio', label: 'Este año' },
-                    ].map(f => (
-                      <button key={f.value ?? 'tf'} onClick={() => { setFechaFiltro(f.value); setMesFiltro(null); setAnioFiltro(null); }}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${fechaFiltro === f.value && !anioFiltro
-                          ? 'bg-emerald-600 text-white'
-                          : isDark ? 'bg-white/5 text-slate-400 hover:bg-white/10' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}>{f.label}</button>
-                    ))}
-                  </div>
-
-                  <div className={`w-px h-5 ${isDark ? 'bg-white/10' : 'bg-slate-300'}`} />
-
-                  {/* Mes + Año específico */}
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Específico:</span>
-                    <select
-                      value={mesFiltro ?? ''}
-                      onChange={e => { setMesFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold border outline-none ${isDark ? 'bg-slate-800 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'} ${anioFiltro || mesFiltro ? isDark ? 'border-emerald-500' : 'border-emerald-500' : ''}`}
-                    >
-                      <option value="">Mes</option>
-                      {mesesNombres.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-                    </select>
-                    <select
-                      value={anioFiltro ?? ''}
-                      onChange={e => { setAnioFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
-                      className={`px-2 py-1 rounded-lg text-xs font-bold border outline-none ${isDark ? 'bg-slate-800 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'} ${anioFiltro ? isDark ? 'border-emerald-500' : 'border-emerald-500' : ''}`}
-                    >
-                      <option value="">Año</option>
-                      {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                    {(mesFiltro || anioFiltro) && (
-                      <button onClick={() => { setMesFiltro(null); setAnioFiltro(null); }}
-                        className={`px-2 py-1 rounded-lg text-xs font-bold ${isDark ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}>✕</button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {currentGestion.loading ? (
-                <div className="flex items-center justify-center p-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: isDark ? '#06b6d4' : '#0ea5e9' }}></div>
-                </div>
-              ) : filteredItems.length > 0 || (searchTerm && currentGestion.items.length > 0) ? (
-                <div className="overflow-hidden">
-                  {searchTerm && filteredItems.length === 0 ? (
-                    <EmptyState mensaje={`Sin resultados para "${searchTerm}"`} icono="🔍" />
-                  ) : (
-                  <TablaItems
-                    items={filteredItems}
-                    tipo={activeTab}
-                    columnasKeys={columnasKeys}
-                    columnasLabels={columnasLabels}
-                    onEditar={currentGestion.abrirModal}
-                    onEliminar={handleEliminarIndividual}
-                    onToggleEstado={currentGestion.toggleEstado}
-                    onSubirPDF={handleSubirPDF}
-                    onEliminarMultiples={handleEliminarMultiples}
-                    onGenerarReporte={setPesadasReporte}
-                    onVerDetalles={setPesadaDetalle}
-                    onContenedor={setContenedorModal}
-                    soloLectura={activeTab === 'pesadas'}
-                    hasMore={currentGestion.hasMore}
-                    loadMore={currentGestion.loadMore}
-                    loadingMore={currentGestion.loadingMore}
-                  />
+            {esPesadas && (
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 border-b border-line">
+                <Segmented
+                  label="Sentido"
+                  value={sentidoFiltro}
+                  onChange={setSentidoFiltro}
+                  options={[
+                    { value: null, label: 'Todos' },
+                    { value: 'INGRESO', label: '↓ Ingreso', activeClass: 'text-ingreso' },
+                    { value: 'SALIDA', label: '↑ Salida', activeClass: 'text-salida' },
+                  ]}
+                />
+                <Segmented
+                  label="Fecha"
+                  value={anioFiltro ? '__especifico' : fechaFiltro}
+                  onChange={(v) => { setFechaFiltro(v); setMesFiltro(null); setAnioFiltro(null); }}
+                  options={[
+                    { value: null, label: 'Todas' },
+                    { value: 'hoy', label: 'Hoy' },
+                    { value: 'mes', label: 'Este mes' },
+                    { value: 'anio', label: 'Este año' },
+                  ]}
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-fg-subtle">Período</span>
+                  <select
+                    value={mesFiltro ?? ''}
+                    onChange={e => { setMesFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
+                    aria-label="Mes"
+                    className={cx(controlClass, 'h-8 w-auto text-xs', mesFiltro && 'border-brand-solid')}
+                  >
+                    <option value="">Mes</option>
+                    {MESES.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                  </select>
+                  <select
+                    value={anioFiltro ?? ''}
+                    onChange={e => { setAnioFiltro(e.target.value ? parseInt(e.target.value) : null); setFechaFiltro(null); }}
+                    aria-label="Año"
+                    className={cx(controlClass, 'h-8 w-auto text-xs', anioFiltro && 'border-brand-solid')}
+                  >
+                    <option value="">Año</option>
+                    {aniosDisponibles.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                  {(mesFiltro || anioFiltro) && (
+                    <Button size="sm" variant="ghost" icon={X} onClick={() => { setMesFiltro(null); setAnioFiltro(null); }}>
+                      Quitar
+                    </Button>
                   )}
                 </div>
-              ) : (
-                <EmptyState
-                  mensaje={`No hay ${currentConfig.plural} registrados`}
-                  icono="📭"
-                />
-              )}
-            </div>
-          </ProtectedRoute>
-        )}
-      </div>
+                {mesFiltro && !anioFiltro && (
+                  <p className="w-full text-xs text-fg-subtle">Elegí también el año para filtrar por mes.</p>
+                )}
+              </div>
+            )}
+
+            {currentGestion.loading ? (
+              <LoadingState texto={`Cargando ${currentConfig.plural}...`} />
+            ) : filteredItems.length > 0 ? (
+              <TablaItems
+                items={filteredItems}
+                tipo={activeTab}
+                columnasKeys={columnasKeys}
+                columnasLabels={columnasLabels}
+                onEditar={currentGestion.abrirModal}
+                onEliminar={handleEliminarIndividual}
+                onToggleEstado={currentGestion.toggleEstado}
+                onSubirPDF={handleSubirPDF}
+                onEliminarMultiples={handleEliminarMultiples}
+                onGenerarReporte={setPesadasReporte}
+                onVerDetalles={setPesadaDetalle}
+                onContenedor={setContenedorModal}
+                soloLectura={esPesadas}
+                hasMore={currentGestion.hasMore}
+                loadMore={currentGestion.loadMore}
+                loadingMore={currentGestion.loadingMore}
+              />
+            ) : searchTerm ? (
+              <EmptyState
+                icon={SearchX}
+                title={`Sin resultados para "${searchTerm}"`}
+                description="Probá con otra patente, nombre o código."
+                action={<Button size="sm" onClick={() => setSearchTerm('')}>Limpiar búsqueda</Button>}
+              />
+            ) : (
+              <EmptyState
+                icon={Inbox}
+                title={esPesadas && filtrosFechaActivos ? 'No hay pesadas con estos filtros' : `Todavía no hay ${currentConfig.plural}`}
+                description={esPesadas
+                  ? (filtrosFechaActivos ? 'Cambiá el sentido o el período para ver otras operaciones.' : 'Las operaciones aparecen acá al registrar una pesada.')
+                  : `Los ${currentConfig.plural} que cargues se listan acá.`}
+              />
+            )}
+          </Card>
+        </ProtectedRoute>
+      )}
 
       {/* Modal formulario */}
-      {!tabsEspeciales.includes(activeTab) && activeTab !== 'pesadas' && currentGestion && (
+      {esLista && !esPesadas && currentGestion && (
         <ModalForm
           abierto={currentGestion.modal.abierto}
           titulo={
@@ -532,20 +505,6 @@ const [searchTerm, setSearchTerm] = useState('');
           onSaved={() => setRefreshTrigger(Date.now())}
         />
       )}
-
-      <footer className={`relative z-10 mt-8 pb-6 text-center text-xs space-y-1 ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>
-        <p className="font-semibold">© 2026 CicloIT — Todos los derechos reservados</p>
-        <p>Diseñado y desarrollado por CicloIT</p>
-        <p className="font-mono">v1.0.1</p>
-      </footer>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-in-out; }
-      `}</style>
-    </div>
+    </AppShell>
   );
 }

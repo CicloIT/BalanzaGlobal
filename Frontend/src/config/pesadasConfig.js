@@ -16,14 +16,14 @@ export const pesadasConfig = {
     'abierta'
   ],
   columnasLabels: [
-    'N° Op.',
+    'N° op.',
     'Patente',
     'Sentido',
-    'Peso Bruto (kg)',
-    'Peso Tara (kg)',
-    'Peso Neto (kg)',
-    'Entrada Planta',
-    'Salida Planta',
+    'Bruto',
+    'Tara',
+    'Neto',
+    'Entrada',
+    'Salida',
     'Estado'
   ],
   campos: [

@@ -15,6 +15,7 @@ balanzas; un servidor central guarda las pesadas y sirve la aplicación web.
 | [06 — Despliegue y mantenimiento](06-despliegue-y-mantenimiento.md) | Actualizar Daytona/VPS, mudanza a VPS (IP:puerto o dominio), scripts, pruebas, diagnóstico |
 | [07 — Pendientes y seguridad](07-pendientes-y-seguridad.md) | Lo que falta antes de producción |
 | [08 — Errores comunes](08-errores-comunes.md) | Mensajes de error frecuentes, causa y solución |
+| [09 — Interfaz y diseño](09-interfaz-y-diseno.md) | Sistema de diseño del frontend, componentes base y layout |
 | [Agente/DESPLIEGUE.md](../Agente/DESPLIEGUE.md) | Guía detallada de VPS + nginx + conversores + agente |
 
 ## Resumen en una página

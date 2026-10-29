@@ -2,10 +2,13 @@ import GestionApp from "./GestionApp"
 import { ThemeProvider } from "./context/ThemeContext"
 import { AuthProvider, useAuth } from "./context/AuthContext"
 import LoginPage from "./components/LoginPage"
+import FeedbackProvider from "./components/ui/FeedbackProvider"
+import { LoadingState } from "./components/ui/Spinner"
 
 function AppContent() {
   const { user, verificando } = useAuth();
-  if (verificando) return null; // validando la sesión guardada contra el backend
+  // Validando la sesión guardada contra el backend
+  if (verificando) return <LoadingState texto="Verificando sesión..." className="min-h-screen" />;
   return user ? <GestionApp /> : <LoginPage />;
 }
 
@@ -13,7 +16,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <FeedbackProvider>
+          <AppContent />
+        </FeedbackProvider>
       </AuthProvider>
     </ThemeProvider>
   )

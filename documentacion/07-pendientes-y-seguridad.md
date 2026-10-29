@@ -17,10 +17,8 @@
 
 ## Funcionalidad
 
-- Cámaras: detección de canales fija en 8 como máximo; la API de config devuelve la contraseña del
-  NVR al front (solo admin), conviene no devolverla.
 - Cola offline en el agente (nivel 2): guardar pesadas si se corta internet.
-- Pantalla de usuarios y de cambio de contraseña (la API ya existe).
+- Pantalla de usuarios y de cambio de contraseña (la API ya existe; no hay módulo en el menú).
 - Conversor de La Sarita (.102): pasarlo a TCP Server :6000.
 - Borrar las tablas legado `ticket`, `ticket_old`, `ticket_operacion` cuando se confirme que no
   hacen falta.
