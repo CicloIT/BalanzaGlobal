@@ -19,7 +19,8 @@ const CANALES_AUTO = 16;      // sin canales configurados: se buscan 1..16
 export const CANAL_MAX = 64;  // "Probar cámaras" y la config aceptan hasta este canal
 const ESCANEO_MAX = 32;
 const CONCURRENCIA = 8;       // pedidos simultáneos al NVR
-const DETECCION = { timeoutMs: 3000, minBytes: 1000 };
+// Un NVR Dahua por VPN tarda varios segundos por snapshot cuando se le piden 8 a la vez
+const DETECCION = { timeoutMs: 8000, minBytes: 1000 };
 const CAPTURA = { timeoutMs: 15000, minBytes: 5000 };
 
 const buildSnapshotUrl = ({ ip, puerto, marca }, canal) => {
