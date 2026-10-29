@@ -40,13 +40,14 @@ Notas:
 
 ## Gestión de usuarios y contraseñas
 
-Todavía no hay pantalla de usuarios: la API existe.
+Todavía no hay pantalla de usuarios (alta, baja, reset): la API existe. Cada usuario sí puede cambiar
+su propia contraseña desde la app: **menú de usuario (arriba a la derecha) → Cambiar contraseña**.
 
 | Acción | Cómo |
 |---|---|
 | Alta | `POST /api/usuarios` con `username`, `password` (mín. 6), `rol` (`superadmin`, `logistica` o `balancero`), `localidad_id` (balancero) o `empresa_id` (logística) |
 | Reset por el superadmin | `PUT /api/usuarios/:id` con `password` |
-| Cambio propio | `PUT /api/usuarios/me/password` con `actual` y `nueva` |
+| Cambio propio | Menú de usuario → *Cambiar contraseña* (usa `PUT /api/usuarios/me/password` con `actual` y `nueva`) |
 | Desde la consola del servidor | `node Backend/scripts/usuario_password.mjs <usuario> <nueva>` |
 | Desactivar | `DELETE /api/usuarios/:id` (pierde el acceso de inmediato) |
 

@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Menu, Sun, Moon, LogOut, ChevronDown, ChevronRight, MapPin, Building2 } from 'lucide-react';
+import { Menu, Sun, Moon, LogOut, ChevronDown, ChevronRight, MapPin, Building2, KeyRound } from 'lucide-react';
 import { useThemeContext } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { NAV_ITEMS, ROLE_LABELS } from '../../config/navigation';
+import CambiarPasswordModal from '../CambiarPasswordModal';
 
 function iniciales(nombre = '') {
   return nombre.replace(/[^a-zA-Z0-9 _.-]/g, '').split(/[\s_.-]+/).filter(Boolean).slice(0, 2)
@@ -13,6 +14,7 @@ export default function Topbar({ activo, onOpenMenu }) {
   const { isDark, toggleTheme } = useThemeContext();
   const { user, logout, localidad_nombre, empresa_nombre, isGlobal, isSuperadmin } = useAuth();
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [cambiandoPassword, setCambiandoPassword] = useState(false);
   const menuRef = useRef(null);
   const item = NAV_ITEMS[activo];
 
@@ -34,6 +36,7 @@ export default function Topbar({ activo, onOpenMenu }) {
     : isGlobal ? 'Todas las localidades' : localidad_nombre;
 
   return (
+    <>
     <header className="sticky top-0 z-20 h-14 flex items-center gap-3 px-4 sm:px-6 border-b border-line bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/80">
       <button
         type="button"
@@ -110,6 +113,14 @@ export default function Topbar({ activo, onOpenMenu }) {
                 <button
                   type="button"
                   role="menuitem"
+                  onClick={() => { setMenuAbierto(false); setCambiandoPassword(true); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-fg hover:bg-surface-3"
+                >
+                  <KeyRound size={16} aria-hidden="true" /> Cambiar contraseña
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
                   onClick={logout}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-danger hover:bg-danger-soft"
                 >
@@ -121,5 +132,8 @@ export default function Topbar({ activo, onOpenMenu }) {
         )}
       </div>
     </header>
+    {/* Fuera del header: su backdrop-blur haría que el modal (fixed) quede encerrado en él */}
+    {cambiandoPassword && <CambiarPasswordModal onClose={() => setCambiandoPassword(false)} />}
+    </>
   );
 }
