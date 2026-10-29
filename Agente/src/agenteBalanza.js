@@ -1,6 +1,7 @@
 import net from 'net';
 import WebSocket from 'ws';
 import { parseFrame, cleanFrame, splitFrames, createStabilityTracker } from './balanzaProtocol.js';
+import { snapshots } from './nvr.js';
 
 const RECONNECT_BALANZA_MS = 5000;
 const SIN_DATOS_MS = 5000;           // conectado al conversor pero sin tramas → balanza sin datos
@@ -211,6 +212,7 @@ export class AgenteBalanza {
             try { msg = JSON.parse(raw); } catch { return; }
             if (msg.type === 'WELCOME') this.alRecibirBienvenida(msg);
             else if (msg.type === 'CONFIG') this.alRecibirConfig(msg.config);
+            else if (msg.type === 'NVR_SNAPSHOTS') this.alPedirSnapshots(msg);
         });
         ws.on('unexpected-response', (req, res) => {
             this.log(`❌ el central respondió HTTP ${res.statusCode} al abrir el WebSocket (¿URL o headers del proxy?)`);
@@ -244,6 +246,20 @@ export class AgenteBalanza {
         this.ultimoEnvio = { weight: null, stable: null, ts: 0 };
         this.enviarPeso();
         this.alRecibirConfig(msg.config);
+    }
+
+    // El central no llega a la LAN del sitio: el agente le pide las fotos al NVR y las devuelve
+    async alPedirSnapshots({ req_id, nvr, canales = [], timeout_ms, min_bytes }) {
+        const lista = canales.map(Number).filter(c => Number.isInteger(c) && c > 0);
+        let resultados;
+        if (!nvr?.ip) {
+            resultados = lista.map(canal => ({ canal, ok: false, error: 'Grabadora sin IP configurada' }));
+        } else {
+            resultados = await snapshots(nvr, lista, { timeoutMs: timeout_ms, minBytes: min_bytes });
+        }
+        const ok = resultados.filter(r => r.ok).length;
+        this.log(`📸 NVR ${nvr?.ip ?? '?'}: ${ok}/${lista.length} canal(es) OK`);
+        this.enviar({ type: 'NVR_RESULT', req_id, resultados });
     }
 
     alRecibirConfig(config) {

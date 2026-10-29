@@ -118,6 +118,23 @@ export const expulsarAgente = (dispositivoId, code, reason) => {
     ws.close(code, reason);
 };
 
+// La grabadora de una localidad está en la misma LAN que su balanza: si la balanza va por
+// agente, las capturas también (camarasController.js). Devuelve 'agente' | 'directo' | null.
+export const modoBalanzaDeLocalidad = (localidadId) => {
+    const estados = [...balanzas.values()].filter(e => e.localidadId === Number(localidadId));
+    if (!estados.length) return null;
+    return estados.some(e => e.modo === 'agente') ? 'agente' : 'directo';
+};
+
+// Conexión abierta de algún agente de la localidad (o null)
+export const getAgenteDeLocalidad = (localidadId) => {
+    for (const estado of balanzas.values()) {
+        if (estado.localidadId === Number(localidadId) && estado.modo === 'agente'
+            && estado.agentWs?.readyState === estado.agentWs?.OPEN) return estado.agentWs;
+    }
+    return null;
+};
+
 export const getConfigBalanza = (dispositivoId) => {
     const estado = balanzas.get(Number(dispositivoId));
     return estado ? { ip: estado.ip, puerto: estado.puerto } : null;

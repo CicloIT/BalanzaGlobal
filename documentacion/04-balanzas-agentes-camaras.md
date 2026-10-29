@@ -68,14 +68,41 @@ responde **409** ("Vuelva a capturar el peso o cárguelo como manual"). Se desac
 
 ## Grabadora (NVR / cámaras)
 
-Datos: IP, usuario, contraseña y marca.
+Una grabadora por localidad, en la **misma LAN que su balanza**. Se configura en
+*Configuración de Dispositivos → Grabadora*: IP, puerto HTTP (vacío = 80), usuario, contraseña y
+marca. Si la localidad todavía no tenía grabadora, se crea al guardar.
 
-- `hikvision`: `http://<ip>/ISAPI/Streaming/channels/<canal>/picture`
-- otra marca (Dahua y compatibles): `https://<ip>/cgi-bin/snapshot.cgi?channel=<canal>`
-- Autenticación Digest. Los canales activos se detectan solos y se guardan en caché.
+- `hikvision`: `http://<ip>[:puerto]/ISAPI/Streaming/channels/<canal>01/picture` (101 = cámara 1)
+- `dahua` (y compatibles): `http://<ip>[:puerto]/cgi-bin/snapshot.cgi?channel=<canal>`
+- Autenticación Digest (o Basic si el equipo la pide).
+- **Canales para fotos** (columna `canales integer[]`, `migration_nvr_canales.sql`): lista como
+  `1,2,5-8` (hasta el 64). Se saca una foto de cada uno en cada pesada, sin consultar antes al NVR.
+  Vacío = automático: los que devuelven imagen entre 1 y 16 (caché 1 minuto, se limpia al guardar).
+- Pedidos al NVR de a 8 canales a la vez (central y agente).
 - Al pesar, la app pide `capturar-todo`: una foto por canal, guardada en
   `Backend/capturas/<localidad>/<patente>/<patente>_cam<canal>_<fecha>.jpg`.
+- Botón **Probar cámaras** en la tarjeta: escanea los canales 1 a 32, muestra cuáles devuelven
+  imagen y permite cargarlos como canales para fotos (después *Guardar*).
 
-Hoy **el central se conecta directo al NVR**: tiene que poder llegar a su IP. Con el central en
-internet y el NVR en la LAN del sitio, las fotos no funcionan hasta que el agente también haga de
-puente para las cámaras (pendiente, doc 07).
+### Quién saca las fotos
+
+La grabadora **sigue el modo de la balanza de su localidad**:
+
+| Balanza | Fotos |
+|---|---|
+| `agente` | El central le pide las fotos al agente del sitio por el mismo WS `/agent`; el agente las saca del NVR de su LAN y las devuelve. No hace falta token ni config extra. |
+| `directo` | El central se conecta directo al NVR (tiene que llegar a su IP). |
+
+Mensajes (agente ≥ 0.2.0):
+
+```
+central → agente: { type:'NVR_SNAPSHOTS', req_id, nvr:{ ip, puerto, usuario, password, marca }, canales, timeout_ms, min_bytes }
+agente → central: { type:'NVR_RESULT', req_id, resultados:[{ canal, ok, jpg (base64), bytes, error }] }
+```
+
+Las credenciales del NVR salen siempre de la DB y viajan en cada pedido; el agente no las guarda.
+Si el agente está desconectado o es viejo (< 0.2.0), la captura vuelve `sin_camaras` con el motivo
+y la pesada se registra igual, sin fotos.
+
+Prueba sin hardware: `node Backend/scripts/sim_nvr.mjs 8090 4 admin admin` (NVR simulado con
+Digest) y cargar la grabadora como `127.0.0.1`, puerto `8090`.

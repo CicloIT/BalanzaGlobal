@@ -3,7 +3,8 @@
 > Despliegue en VPS, configuración de los conversores y prueba con hardware: ver [DESPLIEGUE.md](DESPLIEGUE.md).
 
 Servicio Node que corre en la PC de cada sitio: lee la balanza (conversor RS232→TCP) por la LAN
-y publica el peso al backend central por una conexión **WSS saliente** (`/agent`).
+y publica el peso al backend central por una conexión **WSS saliente** (`/agent`). Desde la v0.2.0
+también saca las fotos del NVR del sitio cuando el central las pide (al registrar una pesada).
 El sitio no necesita IP pública ni puertos abiertos.
 
 ## Cómo funciona
@@ -16,6 +17,9 @@ El sitio no necesita IP pública ni puertos abiertos.
 - Sin internet (nivel 1): sigue leyendo la balanza, descarta pesos y reconecta solo (backoff 1→30 s).
   La pantalla muestra "Agente desconectado" y no se puede registrar pesada automática.
 - Dos agentes con el mismo token: el último reemplaza al anterior (cierre 4409).
+- Cámaras: el central manda `NVR_SNAPSHOTS` con los datos de la grabadora de la localidad (vista
+  *Dispositivos → Grabadora*); el agente pide los JPG al NVR por http (Digest) y los devuelve en
+  `NVR_RESULT`. El NVR tiene que ser alcanzable desde la PC del agente.
 
 ## Alta de un sitio
 1. En *Configuración → Dispositivos* (admin de la localidad o admin global): cargar IP/puerto de la

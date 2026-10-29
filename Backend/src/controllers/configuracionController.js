@@ -1,9 +1,28 @@
 import pool from "../config/database.js";
-import { reconectarBalanza, getEstadoBalanza, expulsarAgente } from "../services/balanzaService.js";
+import { reconectarBalanza, getEstadoBalanza, expulsarAgente, modoBalanzaDeLocalidad, getAgenteDeLocalidad } from "../services/balanzaService.js";
+import { invalidarCacheCanales, CANAL_MAX } from "./camarasController.js";
 import { hashToken, generarTokenAgente } from "../services/agenteGateway.js";
 import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError, ScopeError } from "../utils/scope.js";
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+
+// "1,2,5-8" | [1,2,5] → [1,2,5,6,7,8] ordenado y sin repetidos; vacío → null (detección automática)
+const parsearCanales = (valor) => {
+    if (valor === undefined) return undefined;
+    if (valor === null || valor === '' || (Array.isArray(valor) && !valor.length)) return null;
+    const partes = Array.isArray(valor) ? valor.map(String) : String(valor).split(',');
+    const canales = new Set();
+    for (const parte of partes.map(p => p.trim()).filter(Boolean)) {
+        const m = parte.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+        if (!m) throw new ScopeError(`Canal inválido: "${parte}" (ej: 1,2,5-8)`, 400);
+        const desde = Number(m[1]), hasta = Number(m[2] ?? m[1]);
+        if (desde < 1 || hasta > CANAL_MAX || desde > hasta) {
+            throw new ScopeError(`Canales fuera de rango: "${parte}" (1-${CANAL_MAX})`, 400);
+        }
+        for (let c = desde; c <= hasta; c++) canales.add(c);
+    }
+    return canales.size ? [...canales].sort((a, b) => a - b) : null;
+};
 
 const validarDestino = ({ ip, puerto }) => {
     if (ip !== undefined && ip !== null && !IPV4.test(String(ip).trim())) {
@@ -21,7 +40,7 @@ export const getConfiguracion = async (req, res) => {
         if (!user?.localidad_id) throw new ScopeError("Debe indicar localidad_id", 400);
         const scope = scopeSql('localidad_id', user, 1);
         const result = await pool.query(`
-            SELECT id, tipo_dispositivo, ip, puerto, usuario, contraseña, activo, localidad_id, marca,
+            SELECT id, tipo_dispositivo, ip, puerto, usuario, contraseña, activo, localidad_id, marca, canales,
                    modo_conexion, agente_ultima_conexion, agente_info,
                    agente_token_hash IS NOT NULL AS con_token
             FROM configuracion_dispositivos
@@ -38,6 +57,12 @@ export const getConfiguracion = async (req, res) => {
         if (config.balanza) {
             config.balanza.agente_online = getEstadoBalanza(config.balanza.id)?.agente_online ?? false;
         }
+        // La grabadora sigue el modo de la balanza de su localidad (misma LAN)
+        const modoCaptura = modoBalanzaDeLocalidad(user.localidad_id) === 'agente' ? 'agente' : 'directo';
+        config.grabadora_estado = {
+            modo_captura: modoCaptura,
+            agente_online: modoCaptura === 'agente' && Boolean(getAgenteDeLocalidad(user.localidad_id)),
+        };
 
         res.json({
             success: true,
@@ -50,13 +75,40 @@ export const getConfiguracion = async (req, res) => {
 };
 
 export const updateConfiguracion = async (req, res) => {
-    const { tipo } = req.params;
-    const { ip, puerto, usuario, contraseña, activo, marca, localidad_id: bodyLocalidadId } = req.body;
+    const tipo = req.params.tipo.toLowerCase();
+    const { ip, puerto, usuario, contraseña, activo, marca, canales: canalesBody, localidad_id: bodyLocalidadId } = req.body;
 
     try {
+        if (!['balanza', 'grabadora'].includes(tipo)) throw new ScopeError("Tipo de dispositivo inválido", 400);
         validarDestino({ ip, puerto });
         // Usuario con localidad fija → usa la suya. Usuario global → localidad_id del body, dentro de su empresa.
         const localidadId = await resolveLocalidadForWrite(req, bodyLocalidadId);
+
+        // La grabadora puede no existir todavía para la localidad: se crea al guardar
+        if (tipo === 'grabadora') {
+            if (!ip?.trim()) throw new ScopeError("La IP de la grabadora es obligatoria", 400);
+            const canales = parsearCanales(canalesBody);
+            const { rows } = await pool.query(`
+                INSERT INTO configuracion_dispositivos
+                    (tipo_dispositivo, ip, puerto, usuario, contraseña, activo, marca, localidad_id, canales)
+                VALUES ('grabadora', $1, $2::int, $3::varchar, $4::varchar, COALESCE($5::boolean, true),
+                        COALESCE($6::marca_dispositivo_enum, 'hikvision'), $7, $8::int[])
+                ON CONFLICT (tipo_dispositivo, localidad_id) DO UPDATE SET
+                    ip = EXCLUDED.ip,
+                    puerto = EXCLUDED.puerto,
+                    usuario = COALESCE($3, configuracion_dispositivos.usuario),
+                    contraseña = COALESCE($4, configuracion_dispositivos.contraseña),
+                    activo = COALESCE($5, configuracion_dispositivos.activo),
+                    marca = COALESCE($6, configuracion_dispositivos.marca),
+                    canales = CASE WHEN $9 THEN EXCLUDED.canales ELSE configuracion_dispositivos.canales END,
+                    fecha_actualizacion = NOW()
+                RETURNING *
+            `, [ip.trim(), puerto ?? null, usuario, contraseña, activo, marca || null, localidadId,
+                canales ?? null, canales !== undefined]);
+            invalidarCacheCanales(localidadId);
+            const { agente_token_hash, ...data } = rows[0];
+            return res.json({ success: true, data });
+        }
 
         const result = await pool.query(`
             UPDATE configuracion_dispositivos
@@ -71,7 +123,7 @@ export const updateConfiguracion = async (req, res) => {
             WHERE tipo_dispositivo = $7
               AND localidad_id = $8
             RETURNING *
-        `, [ip?.trim() || null, puerto, usuario, contraseña, activo, marca || null, tipo.toLowerCase(), localidadId]);
+        `, [ip?.trim() || null, puerto, usuario, contraseña, activo, null, tipo, localidadId]);
 
         if (!result.rows.length) {
             return res.status(404).json({
@@ -81,7 +133,7 @@ export const updateConfiguracion = async (req, res) => {
         }
 
         // Si se actualizó la balanza, reconectar el TCP (modo directo) o avisar al agente (modo agente)
-        if (tipo.toLowerCase() === 'balanza') {
+        if (tipo === 'balanza') {
             reconectarBalanza(result.rows[0].id).catch(err =>
                 console.error('❌ Error al reconectar balanza:', err.message)
             );

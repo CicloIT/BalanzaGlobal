@@ -8,17 +8,17 @@
 | Archivos | `/capturas` y `/documentos` exigen sesión, pero cualquier usuario logueado puede abrir un archivo de otra localidad si conoce el nombre | Validar la localidad del archivo |
 | Intentos de login | Sin límite | Limitar intentos por IP/usuario |
 | CORS | Abierto a cualquier origen | Limitar al dominio propio |
-| TLS | `NODE_TLS_REJECT_UNAUTHORIZED=0` en `server.js` (para NVR con certificado propio) desactiva la verificación TLS de todo el proceso | Limitarlo a las llamadas al NVR |
 
 ## Infraestructura
 
-- VPS con dominio + HTTPS + nginx con WebSocket (hoy en Daytona).
+- VPS con dominio + HTTPS + nginx con WebSocket (hoy en Daytona). Pasos de mudanza: doc 06 → *Mudanza a un VPS*.
 - Agente como servicio en cada PC de sitio (pm2 o NSSM).
 - Respaldo periódico de `Backend/src/documentos/` y `Backend/capturas/` fuera del servidor.
 
 ## Funcionalidad
 
-- Cámaras/NVR a través del agente (hoy el central tiene que llegar directo al NVR).
+- Cámaras: detección de canales fija en 8 como máximo; la API de config devuelve la contraseña del
+  NVR al front (solo admin), conviene no devolverla.
 - Cola offline en el agente (nivel 2): guardar pesadas si se corta internet.
 - Pantalla de usuarios y de cambio de contraseña (la API ya existe).
 - Conversor de La Sarita (.102): pasarlo a TCP Server :6000.

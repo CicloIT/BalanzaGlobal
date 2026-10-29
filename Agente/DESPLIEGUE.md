@@ -150,11 +150,14 @@ anterior (cierre `4409`).
 | cierre `4401` | Token inválido o balanza no está en modo agente | Regenerar token en la vista (o `agente_token.mjs <id>`) |
 | cierre `4403` | Balanza no habilitada en ese servidor | Revisar que la balanza esté activa |
 | cierre `4409` | Otro agente usa el mismo token | Dejar un solo agente por token |
+| `NVR …: 0/N canal(es) OK` | El agente no llega al NVR o credenciales mal | Desde la PC del agente abrir `http://<ip-nvr>`; revisar usuario/contraseña/marca en la vista |
+| App: "Agente desactualizado" al sacar fotos | Agente < 0.2.0 | Actualizar el agente del sitio (`git pull` + reiniciar) |
 
 Herramientas:
 - `node scripts/agente_token.mjs --listar` (central): modo y última conexión de cada balanza.
 - `node Backend/scripts/smoke_agentes.mjs <baseUrl> <token1> <token2>`: prueba punta a punta.
 - `node Backend/scripts/sim_balanzas.mjs 4101:1000:camion`: simula conversores sin hardware.
+- `node Backend/scripts/sim_nvr.mjs 8090 4 admin admin`: simula un NVR (Digest) sin hardware.
 
 ## 5. Prueba con hardware sin balanza
 
@@ -201,3 +204,4 @@ contraseñas con hash (hoy se comparan en texto plano en el login).
 5. [ ] Agente corriendo como servicio.
 6. [ ] En la app: la balanza muestra peso en vivo y "estable" al quedar quieta.
 7. [ ] Prueba de corte: desenchufar internet → "Agente desconectado"; reconectar → vuelve solo.
+8. [ ] Grabadora cargada en *Dispositivos → Grabadora* y **Probar cámaras** lista los canales.

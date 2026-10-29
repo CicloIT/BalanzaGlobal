@@ -1,7 +1,7 @@
 {
   "name": "balanza-agente",
-  "version": "0.1.0",
-  "description": "Agente local por sitio: lee la balanza por LAN y la publica al backend central por WSS",
+  "version": "0.2.0",
+  "description": "Agente local por sitio: lee la balanza y las cámaras (NVR) por LAN y las publica al backend central por WSS",
   "type": "module",
   "main": "src/index.js",
   "scripts": {

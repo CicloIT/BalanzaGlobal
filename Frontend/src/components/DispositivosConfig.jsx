@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug } from "lucide-react";
+import { Save, RefreshCw, Server, Cpu, CheckCircle2, AlertCircle, KeyRound, Copy, Unplug, Camera } from "lucide-react";
 import { useThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { API_BASE_URL, getAuthHeaders } from "../lib/api";
 
 const CONFIG_VACIA = {
     balanza: { ip: "", puerto: "" },
-    grabadora: { ip: "", usuario: "", contraseña: "", marca: "hikvision" }
+    // canales: texto "1,2,5-8"; vacío = detección automática
+    grabadora: { ip: "", puerto: "", usuario: "", contraseña: "", marca: "hikvision", canales: "" },
+    grabadora_estado: { modo_captura: "directo", agente_online: false }
 };
 
 export default function DispositivosConfig() {
@@ -22,6 +24,9 @@ export default function DispositivosConfig() {
     // Token del agente recién generado: se muestra una sola vez
     const [tokenNuevo, setTokenNuevo] = useState(null);
     const [tokenBusy, setTokenBusy] = useState(false);
+    // Resultado de "Probar cámaras": { ok, texto }
+    const [pruebaCamaras, setPruebaCamaras] = useState(null);
+    const [probando, setProbando] = useState(false);
 
     const [msg, setMsg] = useState(null);
     const [msgType, setMsgType] = useState("success");
@@ -37,7 +42,17 @@ export default function DispositivosConfig() {
             const data = await res.json();
 
             if (data.success) {
-                setConfig({ ...CONFIG_VACIA, ...data.data });
+                const { grabadora, ...resto } = data.data;
+                setConfig({
+                    ...CONFIG_VACIA,
+                    ...resto,
+                    grabadora: {
+                        ...CONFIG_VACIA.grabadora,
+                        ...grabadora,
+                        puerto: grabadora?.puerto ?? "",
+                        canales: grabadora?.canales?.join(",") ?? ""
+                    }
+                });
             }
         } catch (err) {
             console.error(err);
@@ -64,6 +79,7 @@ export default function DispositivosConfig() {
 
     useEffect(() => {
         setTokenNuevo(null);
+        setPruebaCamaras(null);
         fetchConfig();
     }, [localidadSel]);
 
@@ -180,6 +196,30 @@ export default function DispositivosConfig() {
             setMsg(err.message);
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleProbarCamaras = async () => {
+        try {
+            setProbando(true);
+            setPruebaCamaras(null);
+            const qs = isGlobal ? `localidad_id=${localidadId}&` : "";
+            await fetch(`${API_BASE_URL}/api/camaras/limpiar-cache?${qs}`, { method: "POST", headers: getAuthHeaders() });
+            // Escanea 1..32 para mostrar qué canales tienen imagen y poder elegirlos
+            const res = await fetch(`${API_BASE_URL}/api/camaras/config?${qs}escanear=32`, { headers: getAuthHeaders(null) });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success) throw new Error(data.error || "No se pudo consultar la grabadora");
+            const conImagen = data.con_imagen || [];
+            const usados = data.configurados?.length
+                ? `Fotos de: ${data.configurados.join(", ")} (configurados)`
+                : `Fotos de: ${data.canales.join(", ") || "ninguno"} (automático, canales 1-16)`;
+            setPruebaCamaras(conImagen.length
+                ? { ok: true, conImagen, texto: `Canales con imagen: ${conImagen.join(", ")}. ${usados}` }
+                : { ok: false, texto: `Ningún canal devolvió imagen: ${data.errores?.[0]?.error || "revisar usuario, contraseña y marca"}` });
+        } catch (err) {
+            setPruebaCamaras({ ok: false, texto: err.message });
+        } finally {
+            setProbando(false);
         }
     };
 
@@ -518,12 +558,43 @@ export default function DispositivosConfig() {
                             <div className={`h-3 w-3 rounded-full ${isDark ? 'bg-amber-500/50' : 'bg-amber-400'}`} />
                         </div>
 
+                        <div className={`mb-4 text-sm font-semibold space-y-1 ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                            <p>
+                                Capturas:{" "}
+                                <span className={config.grabadora_estado.modo_captura === "agente" ? "text-purple-500" : ""}>
+                                    {config.grabadora_estado.modo_captura === "agente" ? "vía agente local del sitio" : "directo desde el servidor"}
+                                </span>
+                                {config.grabadora_estado.modo_captura === "agente" && (
+                                    <>
+                                        {" · "}agente{" "}
+                                        <span className={config.grabadora_estado.agente_online ? "text-emerald-500" : "text-red-500"}>
+                                            {config.grabadora_estado.agente_online ? "conectado" : "desconectado"}
+                                        </span>
+                                    </>
+                                )}
+                            </p>
+                            <p className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                Sigue el modo de la balanza: el NVR tiene que estar en la misma red que el agente.
+                            </p>
+                        </div>
+
                         <div className="space-y-4 mb-6">
                             <div className="input-field">
                                 <input
                                     placeholder="Dirección IP"
                                     value={config.grabadora.ip}
                                     onChange={(e) => handleChange("grabadora", "ip", e.target.value)}
+                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
+                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
+                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
+                                        }`}
+                                />
+                            </div>
+                            <div className="input-field">
+                                <input
+                                    placeholder="Puerto HTTP (vacío = 80)"
+                                    value={config.grabadora.puerto}
+                                    onChange={(e) => handleChange("grabadora", "puerto", e.target.value)}
                                     className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
                                         ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
                                         : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
@@ -566,6 +637,20 @@ export default function DispositivosConfig() {
                                     <option value="dahua">Dahua</option>
                                 </select>
                             </div>
+                            <div className="input-field">
+                                <input
+                                    placeholder="Canales para fotos, ej: 1,2,5-8 (vacío = automático)"
+                                    value={config.grabadora.canales}
+                                    onChange={(e) => handleChange("grabadora", "canales", e.target.value)}
+                                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm ${isDark
+                                        ? 'bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20'
+                                        : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-100'
+                                        }`}
+                                />
+                                <p className={`mt-1 text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                    Se saca una foto por canal en cada pesada. Vacío: los que respondan entre el 1 y el 16.
+                                </p>
+                            </div>
                         </div>
 
                         <button
@@ -592,6 +677,35 @@ export default function DispositivosConfig() {
                                 </>
                             )}
                         </button>
+
+                        {config.grabadora.id && (
+                            <div className={`mt-6 pt-6 border-t ${isDark ? 'border-slate-700' : 'border-slate-200'}`}>
+                                <button
+                                    onClick={handleProbarCamaras}
+                                    disabled={probando}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all disabled:opacity-50 ${isDark
+                                        ? 'border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20'
+                                        : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                                        }`}
+                                >
+                                    {probando ? <RefreshCw size={16} className="animate-spin" /> : <Camera size={16} />}
+                                    {probando ? "Probando..." : "Probar cámaras"}
+                                </button>
+                                {pruebaCamaras && (
+                                    <p className={`mt-3 text-sm font-semibold ${pruebaCamaras.ok ? 'text-emerald-500' : 'text-red-500'}`}>
+                                        {pruebaCamaras.texto}
+                                    </p>
+                                )}
+                                {pruebaCamaras?.conImagen?.length > 0 && (
+                                    <button
+                                        onClick={() => handleChange("grabadora", "canales", pruebaCamaras.conImagen.join(","))}
+                                        className={`mt-2 text-sm font-bold underline ${isDark ? 'text-purple-300' : 'text-purple-700'}`}
+                                    >
+                                        Usar estos canales (después Guardar)
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

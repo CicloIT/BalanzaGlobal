@@ -226,6 +226,7 @@ CREATE TABLE public.configuracion_dispositivos (
     agente_token_hash text,
     agente_ultima_conexion timestamp with time zone,
     agente_info jsonb,
+    canales integer[],
     CONSTRAINT chk_marca_grabador CHECK ((((tipo_dispositivo = 'grabadora'::public.tipo_dispositivo_enum) AND (marca IS NOT NULL)) OR ((tipo_dispositivo <> 'grabadora'::public.tipo_dispositivo_enum) AND (marca IS NULL)))),
     CONSTRAINT configuracion_dispositivos_modo_conexion_chk CHECK (((modo_conexion)::text = ANY ((ARRAY['directo'::character varying, 'agente'::character varying])::text[])))
 );
