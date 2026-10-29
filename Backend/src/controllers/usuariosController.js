@@ -50,6 +50,9 @@ const resolverAsignacion = async (actor, { rol, localidad_id, empresa_id }) => {
       empresaId = r.rows[0].empresa_id;
     }
     if (!empresaId) throw new ScopeError('Debe indicar empresa_id o localidad_id', 400);
+    // El balancero es de una localidad; logística es global de su empresa (sin localidad)
+    if (rolFinal === 'balancero' && !localidadId) throw new ScopeError('El balancero necesita una localidad', 400);
+    if (rolFinal === 'logistica') return { rol: rolFinal, empresaId, localidadId: null };
     return { rol: rolFinal, empresaId, localidadId };
   }
 
@@ -78,9 +81,9 @@ export const getUsuarios = async (req, res) => {
       FROM usuario u
       LEFT JOIN localidad l ON u.localidad_id = l.id
       LEFT JOIN empresa e ON u.empresa_id = e.id
-      WHERE u.activo = true AND ${scope.sql}
+      WHERE (u.activo = true OR $${scope.params.length + 1}::boolean) AND ${scope.sql}
       ORDER BY u.username ASC
-    `, scope.params);
+    `, [...scope.params, req.query.incluir_inactivos === '1']);
     res.json({
       success: true,
       data: result.rows,
@@ -120,11 +123,15 @@ export const createUsuario = async (req, res) => {
     }
     validarPassword(password);
     const asignacion = await resolverAsignacion(req.user, req.body);
+    const existe = await pool.query('SELECT 1 FROM usuario WHERE LOWER(username) = LOWER($1)', [String(username).trim()]);
+    if (existe.rows.length) {
+      return res.status(409).json({ success: false, error: `Ya existe un usuario "${username}" (puede estar desactivado)` });
+    }
     const result = await pool.query(
       `INSERT INTO usuario (username, password_hash, rol, localidad_id, empresa_id, activo)
        VALUES ($1, $2, $3, $4, $5, true)
        RETURNING id, username, rol, localidad_id, empresa_id`,
-      [username, await hashPassword(password), asignacion.rol || 'balancero', asignacion.localidadId, asignacion.empresaId]
+      [String(username).trim(), await hashPassword(password), asignacion.rol || 'balancero', asignacion.localidadId, asignacion.empresaId]
     );
     res.status(201).json({ success: true, message: 'Usuario creado', data: result.rows[0] });
   } catch (error) {
@@ -145,6 +152,10 @@ export const updateUsuario = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
     }
     const previo = actual.rows[0];
+    // Evita que el usuario se deje afuera a sí mismo (desactivarse o cambiarse el rol)
+    if (Number(id) === req.user.id && (activo === false || (req.body.rol && req.body.rol !== previo.rol))) {
+      throw new ScopeError('No podés desactivarte ni cambiarte el rol a vos mismo', 400);
+    }
     const asignacion = await resolverAsignacion(req.user, {
       rol: req.body.rol ?? previo.rol,
       localidad_id: req.body.localidad_id !== undefined ? req.body.localidad_id : previo.localidad_id,
@@ -176,6 +187,9 @@ export const updateUsuario = async (req, res) => {
 
 export const deleteUsuario = async (req, res) => {
   try {
+    if (Number(req.params.id) === req.user.id) {
+      return res.status(400).json({ success: false, error: 'No podés desactivar tu propio usuario' });
+    }
     const scope = usuarioScopeSql(req.user, 2);
     const result = await pool.query(
       `UPDATE usuario u SET activo = false, updated_at = CURRENT_TIMESTAMP

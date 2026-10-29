@@ -40,8 +40,16 @@ Notas:
 
 ## Gestión de usuarios y contraseñas
 
-Todavía no hay pantalla de usuarios (alta, baja, reset): la API existe. Cada usuario sí puede cambiar
-su propia contraseña desde la app: **menú de usuario (arriba a la derecha) → Cambiar contraseña**.
+Desde la app:
+- **Administración → Usuarios** (solo superadmin): alta, edición de rol y localidad, reset de
+  contraseña, desactivar y reactivar. Muestra activos y desactivados. Un usuario con rol eliminado
+  (admin, gerente, subalancero) se reactiva eligiéndole un rol vigente. Nadie puede desactivarse ni
+  cambiarse el rol a sí mismo.
+- **Menú de usuario (arriba a la derecha) → Cambiar contraseña**: cada usuario la suya.
+
+Reglas que valida la API: el balancero necesita localidad; logística queda sin localidad (ve toda su
+empresa); el nombre de usuario no se puede repetir (sin distinguir mayúsculas); contraseña mínima de
+6 caracteres. `GET /api/usuarios?incluir_inactivos=1` lista también los desactivados.
 
 | Acción | Cómo |
 |---|---|
@@ -49,7 +57,7 @@ su propia contraseña desde la app: **menú de usuario (arriba a la derecha) →
 | Reset por el superadmin | `PUT /api/usuarios/:id` con `password` |
 | Cambio propio | Menú de usuario → *Cambiar contraseña* (usa `PUT /api/usuarios/me/password` con `actual` y `nueva`) |
 | Desde la consola del servidor | `node Backend/scripts/usuario_password.mjs <usuario> <nueva>` |
-| Desactivar | `DELETE /api/usuarios/:id` (pierde el acceso de inmediato) |
+| Desactivar | `DELETE /api/usuarios/:id` (pierde el acceso de inmediato) · reactivar: `PUT /api/usuarios/:id` con `activo: true` |
 
 Las contraseñas se guardan con hash (scrypt) en `usuario.password_hash`. Si se inserta una en
 texto plano por SQL, funciona y se hashea sola en el primer login; o correr

@@ -26,6 +26,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import DetallePesadaModal from './components/DetallePesadaModal';
 import ContenedorModal from './components/ContenedorModal';
 import Configuracion from './components/Configuracion';
+import UsuariosAdmin from './components/UsuariosAdmin';
 import Guard from './components/Guard';
 import PageHeader from './components/ui/PageHeader';
 import Button from './components/ui/Button';
@@ -251,7 +252,7 @@ export default function GestionApp() {
   // Secciones visibles según permisos: los módulos especiales por acceso, los maestros solo
   // si el usuario puede editarlos (el balancero crea catálogos desde la pesada, sin pantalla propia)
   const visibles = useMemo(() => {
-    const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION];
+    const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS];
     const maestros = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES,
       MODULES.PROVINCIAS, MODULES.LOCALIDADES, MODULES.EMPRESAS, MODULES.VEHICULOS];
     return new Set([
@@ -261,7 +262,7 @@ export default function GestionApp() {
   }, [hasModuleAccess, hasPermission, MODULES]);
 
   // Tabs que no usan el layout genérico de tabla
-  const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION];
+  const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS];
   const esLista = !tabsEspeciales.includes(activeTab) && currentConfig;
   const esPesadas = activeTab === 'pesadas';
   const nav = NAV_ITEMS[activeTab];
@@ -299,6 +300,12 @@ export default function GestionApp() {
       {activeTab === MODULES.REPORTES && (
         <ProtectedRoute permissions={PERMISSIONS.REPORTES_VIEW}>
           <ReportesHistorial />
+        </ProtectedRoute>
+      )}
+
+      {activeTab === MODULES.USUARIOS && (
+        <ProtectedRoute permissions={PERMISSIONS.USUARIOS_VIEW}>
+          <UsuariosAdmin />
         </ProtectedRoute>
       )}
 

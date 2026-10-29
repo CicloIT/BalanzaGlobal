@@ -18,7 +18,6 @@
 ## Funcionalidad
 
 - Cola offline en el agente (nivel 2): guardar pesadas si se corta internet.
-- Pantalla de usuarios para el superadmin: alta, baja y reset de contraseña (la API ya existe). El cambio de la propia contraseña ya está en el menú de usuario.
 - Conversor de La Sarita (.102): pasarlo a TCP Server :6000.
 - Borrar las tablas legado `ticket`, `ticket_old`, `ticket_operacion` cuando se confirme que no
   hacen falta.
