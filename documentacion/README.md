@@ -12,7 +12,7 @@ balanzas; un servidor central guarda las pesadas y sirve la aplicación web.
 | [03 — Usuarios, roles y alcance](03-usuarios-roles-alcance.md) | Quién ve y puede hacer qué |
 | [04 — Balanzas, agentes y cámaras](04-balanzas-agentes-camaras.md) | Configurar dispositivos, tokens, agente local, NVR |
 | [05 — Operación diaria](05-operacion-diaria.md) | Pesadas, reportes, dashboard, respaldos |
-| [06 — Despliegue y mantenimiento](06-despliegue-y-mantenimiento.md) | Actualizar Daytona/VPS, scripts, pruebas, diagnóstico |
+| [06 — Despliegue y mantenimiento](06-despliegue-y-mantenimiento.md) | Actualizar Daytona/VPS, mudanza a VPS (IP:puerto o dominio), scripts, pruebas, diagnóstico |
 | [07 — Pendientes y seguridad](07-pendientes-y-seguridad.md) | Lo que falta antes de producción |
 | [08 — Errores comunes](08-errores-comunes.md) | Mensajes de error frecuentes, causa y solución |
 | [Agente/DESPLIEGUE.md](../Agente/DESPLIEGUE.md) | Guía detallada de VPS + nginx + conversores + agente |
