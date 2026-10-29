@@ -8,7 +8,7 @@ Cada usuario tiene un **rol** (qué puede hacer) y un **alcance** (qué datos ve
 | Usuario | `empresa_id` | `localidad_id` | Ve |
 |---|---|---|---|
 | Superadmin de plataforma | vacío | vacío | Todas las empresas |
-| Global de empresa (admin, logística) | E | vacío | Todas las localidades de la empresa E |
+| Global de empresa (logística) | E | vacío | Todas las localidades de la empresa E |
 | Local | E | L | Solo la localidad L |
 
 - Un usuario global puede acotar las listas con `?localidad_id=` (la app lo hace con el selector
@@ -20,22 +20,23 @@ Cada usuario tiene un **rol** (qué puede hacer) y un **alcance** (qué datos ve
 
 ## Roles
 
-| Rol | Alcance típico | Puede |
+Hay tres roles (desde 2026-10-29, `migration_roles_simplificados.sql`):
+
+| Rol | Alcance | Puede |
 |---|---|---|
-| `superadmin` | Plataforma | Todo, incluido administrar empresas |
-| `admin` | Empresa o localidad | Todo menos empresas: catálogos, pesajes (incluido manual), reportes, usuarios, **dispositivos y tokens**; respaldos solo si es global |
-| `logistica` | Empresa (global) | Solo lectura: pesajes, reportes, dashboard, usuarios |
-| `gerente` | Localidad | Catálogos completos, ver pesajes, reportes, dashboard, cámaras. No pesa ni configura |
-| `balancero` | Localidad | Pesar con la balanza (sin peso manual), editar pesajes, ver catálogos, crear reportes, cámaras |
-| `subalancero` | Localidad | Lo mismo que balancero, más **peso manual** |
+| `superadmin` | Plataforma | **Único administrador.** Todo: empresas, localidades, usuarios, catálogos, pesajes, reportes, dispositivos y tokens, módulo de cámaras, respaldos, corregir el peso de una pesada registrada |
+| `logistica` | Empresa (global) | **Solo el Dashboard**, con las métricas de todas las localidades de su empresa (total o filtrado por una localidad). No ve pesadas, catálogos ni configuración |
+| `balancero` | Una localidad | Pesar con la balanza de su localidad, **incluido peso manual** (queda marcado como manual), ver el historial, adjuntar carta de porte, datos de contenedor, generar reportes, cámaras. Puede **dar de alta** choferes, transportes, productores, productos y vehículos desde la pesada, pero no editarlos ni borrarlos |
 
 Notas:
-- *Dispositivos* (ip/puerto, generar y revocar tokens) es solo para admin y superadmin.
-- *Respaldos* es solo para **admin global** (sin localidad) y superadmin, porque el respaldo
-  incluye la base completa. Un admin de localidad no los ve.
+- Los valores `admin`, `gerente` y `subalancero` siguen en el enum `rol_enum` de la base, pero en el
+  código no tienen permisos y esos usuarios quedaron **desactivados** (conservan su historial).
+  La API rechaza crear usuarios con esos roles.
+- Las pantallas de catálogos solo aparecen a quien puede **editarlos** (hoy, el superadmin).
+- `pesaje:manual` (cargar el peso a mano al pesar) es distinto de `pesaje:editar_peso` (cambiar el
+  peso de una pesada ya registrada, `PUT /api/pesadas/:id`): este último es solo superadmin.
 - Los permisos están en `Backend/src/config/rolesConfig.js` (la fuente de verdad) y copiados en
   `Frontend/src/config/rolesConfig.js` para armar el menú. **Si se cambia uno, cambiar el otro.**
-- Un admin de localidad no puede crear usuarios globales.
 
 ## Gestión de usuarios y contraseñas
 
@@ -43,8 +44,8 @@ Todavía no hay pantalla de usuarios: la API existe.
 
 | Acción | Cómo |
 |---|---|
-| Alta | `POST /api/usuarios` con `username`, `password` (mín. 6), `rol`, `localidad_id` |
-| Reset por un admin | `PUT /api/usuarios/:id` con `password` |
+| Alta | `POST /api/usuarios` con `username`, `password` (mín. 6), `rol` (`superadmin`, `logistica` o `balancero`), `localidad_id` (balancero) o `empresa_id` (logística) |
+| Reset por el superadmin | `PUT /api/usuarios/:id` con `password` |
 | Cambio propio | `PUT /api/usuarios/me/password` con `actual` y `nueva` |
 | Desde la consola del servidor | `node Backend/scripts/usuario_password.mjs <usuario> <nueva>` |
 | Desactivar | `DELETE /api/usuarios/:id` (pierde el acceso de inmediato) |

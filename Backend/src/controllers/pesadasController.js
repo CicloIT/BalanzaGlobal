@@ -80,7 +80,7 @@ export const createPesada = async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(403).json({
           success: false,
-          error: 'No tiene permiso para cargar peso manualmente. Solo balancero y subalancero pueden hacerlo.',
+          error: 'No tiene permiso para cargar peso manualmente.',
           code: 'MANUAL_WEIGHT_FORBIDDEN',
           requiredPermission: PERMISSIONS.PESAJE_MANUAL,
           currentRole: userRol
@@ -222,15 +222,16 @@ export const updatePesada = async (req, res) => {
       return res.status(400).json({ success: false, error: 'El peso debe ser positivo' });
     }
 
-    // Si se intenta modificar el peso, verificar permiso de carga manual
+    // Corregir el peso de una pesada ya registrada es distinto de cargar peso manual al pesar:
+    // solo el superadmin (pesaje:editar_peso)
     if (peso !== undefined && peso !== null) {
       const userRol = req.user?.rol;
-      if (!hasPermission(userRol, PERMISSIONS.PESAJE_MANUAL)) {
+      if (!hasPermission(userRol, PERMISSIONS.PESAJE_EDITAR_PESO)) {
         return res.status(403).json({
           success: false,
-          error: 'No tiene permiso para modificar el peso manualmente.',
+          error: 'No tiene permiso para modificar el peso de una pesada registrada.',
           code: 'MANUAL_WEIGHT_FORBIDDEN',
-          requiredPermission: PERMISSIONS.PESAJE_MANUAL,
+          requiredPermission: PERMISSIONS.PESAJE_EDITAR_PESO,
           currentRole: userRol
         });
       }

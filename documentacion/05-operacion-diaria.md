@@ -9,7 +9,7 @@ Una **operación** agrupa las dos pesadas de un camión (BRUTO y TARA) en una lo
    Si un chofer, vehículo, etc. no existe, el formulario lo da de alta en la localidad.
 3. Elegir **INGRESO** (entra cargado) o **SALIDA** (sale cargado).
 4. **Capturar peso** cuando la pantalla muestre "PESO ESTABLE", y registrar.
-   - Si el usuario tiene permiso de peso manual (subalancero, admin), puede escribir el peso.
+   - El balancero y el superadmin también pueden escribir el peso a mano; la pesada queda marcada como manual.
 5. Opcional: adjuntar la Carta de Porte (PDF) y marcar "Es contenedor".
 
 Cómo se arma la operación:
@@ -42,7 +42,7 @@ Respeta el alcance del usuario.
 
 ## Respaldos
 
-*Configuración → Respaldos* (solo **admin global** y superadmin):
+*Configuración → Respaldos* (solo **superadmin**):
 - **Respaldo manual**: genera un `.zip` con `database.sql` (pg_dump de la base completa),
   `capturas/` (fotos) y `documentos/` (PDF).
 - **Automático**: los domingos a las 3 AM.

@@ -22,7 +22,7 @@ con Ctrl+F. Dónde mirar los logs:
 | `No autorizado. Se requiere autenticación.` (401) | El request llegó sin cookie de sesión. Pasa con scripts viejos que mandan `x-user-id`, o con el frontend servido desde otro dominio | Scripts: loguearse y mandar la cookie (ver `smoke_scope.mjs`). Frontend: servirlo desde el mismo dominio que la API |
 | En el log del backend: `⚠️ SESSION_SECRET no definido en .env` | Falta la variable | Agregarla (ver doc 02) y `pm2 restart balanza --update-env` |
 | `La contraseña debe tener al menos 6 caracteres` | Contraseña nueva muy corta | Usar 6 caracteres o más |
-| `La contraseña actual no es correcta` | Al cambiar la propia contraseña se puso mal la actual | Reintentar o pedir un reset al admin |
+| `La contraseña actual no es correcta` | Al cambiar la propia contraseña se puso mal la actual | Reintentar o pedir un reset al superadmin |
 
 ## 2. Permisos
 
@@ -30,9 +30,9 @@ con Ctrl+F. Dónde mirar los logs:
 |---|---|---|
 | `No tiene permiso para realizar esta acción. Se requiere: <permiso>` (403) | El rol no tiene ese permiso | Ver la tabla de roles (doc 03). Si el rol debería tenerlo, cambiar **los dos** `rolesConfig.js` (backend y frontend) |
 | Falta una pestaña del menú | El menú se arma con `Frontend/src/config/rolesConfig.js` | Igual que arriba; si se cambió el permiso, recompilar el frontend |
-| `Solo disponible para administradores globales` (403) en Respaldos | El usuario tiene localidad asignada | Los respaldos son solo para el admin global (sin localidad) y el superadmin |
-| `No tiene permiso para cargar peso manualmente...` | Un balancero intentó escribir el peso a mano | Capturar el peso de la balanza, o que lo cargue un subalancero o un admin |
-| `Un admin local no puede asignar el rol <rol>` | Un admin de localidad quiso crear un usuario global | Que lo cree el admin global |
+| `Solo disponible para administradores globales` (403) en Respaldos | El usuario tiene localidad asignada | Los respaldos son solo para el superadmin |
+| `No tiene permiso para cargar peso manualmente.` | El rol del usuario no tiene `pesaje:manual` | Capturar el peso de la balanza, o que lo cargue el balancero o el superadmin |
+| `Rol inválido: <rol>` | Se quiso crear un usuario con un rol que ya no existe (admin, gerente, subalancero) | Usar `superadmin`, `logistica` o `balancero` |
 | `Solo un superadmin puede asignar el rol superadmin` | — | Solo un superadmin crea superadmins |
 
 ## 3. Pesadas

@@ -45,7 +45,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 export default function GestionApp() {
-  const { hasModuleAccess, canEditModule, PERMISSIONS, MODULES } = usePermissions();
+  const { hasModuleAccess, canEditModule, hasPermission, PERMISSIONS, MODULES } = usePermissions();
   const { isGlobal, isSuperadmin } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
@@ -248,17 +248,17 @@ export default function GestionApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentGestion?.items, searchTerm, currentConfig?.columnasKeys, activeTab]);
 
-  // Secciones visibles según permisos: los módulos especiales por acceso, los maestros
-  // solo si el usuario puede escribir en ellos ("solo ver lo que puedo hacer")
+  // Secciones visibles según permisos: los módulos especiales por acceso, los maestros solo
+  // si el usuario puede editarlos (el balancero crea catálogos desde la pesada, sin pantalla propia)
   const visibles = useMemo(() => {
     const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION];
     const maestros = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES,
       MODULES.PROVINCIAS, MODULES.LOCALIDADES, MODULES.EMPRESAS, MODULES.VEHICULOS];
     return new Set([
       ...especiales.filter(id => hasModuleAccess(id)),
-      ...maestros.filter(id => canEditModule(id)),
+      ...maestros.filter(id => hasPermission(`${id}:update`)),
     ]);
-  }, [hasModuleAccess, canEditModule, MODULES]);
+  }, [hasModuleAccess, hasPermission, MODULES]);
 
   // Tabs que no usan el layout genérico de tabla
   const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION];

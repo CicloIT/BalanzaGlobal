@@ -1,6 +1,6 @@
 // Smoke test del canal de agentes (/agent) + aislamiento de pesos + validación de pesadas.
 // Uso: node scripts/smoke_agentes.mjs <baseUrl> <tokenElMirador> <tokenQuines>
-//   Tokens: node scripts/agente_token.mjs <idBalanza>  (balanzas de gerente_elmirador y gerente_quines)
+//   Tokens: node scripts/agente_token.mjs <idBalanza>  (balanzas de balancero_elmirador y balancero_quines)
 //   Simula los dos agentes por WS (no hace falta sim_balanzas ni Agente/ corriendo para estas balanzas).
 // Requiere migration_agente.sql y los usuarios de seed_usuarios.sql.
 import WebSocket from 'ws';
@@ -67,11 +67,11 @@ const main = async () => {
     console.error('Uso: node scripts/smoke_agentes.mjs <baseUrl> <tokenElMirador> <tokenQuines>');
     process.exit(1);
   }
-  const gerente1 = await login('gerente_elmirador');
-  const gerente2 = await login('gerente_quines');
+  const usuario1 = await login('balancero_elmirador');
+  const usuario2 = await login('balancero_quines');
   const balancero1 = await login('balancero_elmirador');
-  const bal1 = (await api(gerente1, 'GET', '/api/config/balanzas')).data.data[0];
-  const bal2 = (await api(gerente2, 'GET', '/api/config/balanzas')).data.data[0];
+  const bal1 = (await api(usuario1, 'GET', '/api/config/balanzas')).data.data[0];
+  const bal2 = (await api(usuario2, 'GET', '/api/config/balanzas')).data.data[0];
 
   // ── Autenticación del agente ──
   const intruso = await agenteFalso('token-que-no-existe', 1);
@@ -84,7 +84,7 @@ const main = async () => {
   await esperar(800);
 
   // ── Aislamiento de pesos ──
-  const [m1, m2] = await Promise.all([clienteWs(gerente1), clienteWs(gerente2)]);
+  const [m1, m2] = await Promise.all([clienteWs(usuario1), clienteWs(usuario2)]);
   const pesos = (msgs) => [...new Set(msgs.filter(m => m.type === 'WEIGHT' || 'currentWeight' in m)
     .map(m => m.weight ?? m.currentWeight))];
   console.log('   pesos L1:', pesos(m1).join(','), '| pesos L2:', pesos(m2).join(','));
@@ -93,15 +93,15 @@ const main = async () => {
   check(pesos(m1).every(p => p === 1000) && m1.every(m => m.dispositivo_id === bal1.id), 'cliente L1 nunca recibe el peso de L2');
   check(pesos(m2).every(p => p === 5000) && m2.every(m => m.dispositivo_id === bal2.id), 'cliente L2 nunca recibe el peso de L1');
 
-  const estados = (await api(gerente1, 'GET', '/api/config/balanzas')).data.data[0];
+  const estados = (await api(usuario1, 'GET', '/api/config/balanzas')).data.data[0];
   check(estados.agente_online === true && estados.modo_conexion === 'agente', '/api/config/balanzas informa agente online');
 
   // ── Pesadas validadas contra la balanza ──
   const patente = `AG${Date.now() % 100000}`;
-  const veh = await api(gerente1, 'POST', '/api/vehiculos', { patente, tipo_vehiculo: 'CHASIS' });
+  const veh = await api(usuario1, 'POST', '/api/vehiculos', { patente, tipo_vehiculo: 'CHASIS' });
   check(veh.status === 201, `vehículo ${patente} creado en El Mirador`);
   // pesada exige chofer/productor/transporte/producto de la misma localidad
-  const catalogo = async (path, body) => (await api(gerente1, 'POST', path, body)).data.data?.id;
+  const catalogo = async (path, body) => (await api(usuario1, 'POST', path, body)).data.data?.id;
   const refs = {
     chofer_id: await catalogo('/api/choferes', { apellido_nombre: `Chofer ${patente}` }),
     productor_id: await catalogo('/api/productores', { nombre: `Productor ${patente}` }),
@@ -127,7 +127,7 @@ const main = async () => {
   const tara = await pesada(400);
   check(tara.status === 201 && tara.data.data?.tipo === 'TARA', `2ª pesada 400 kg → TARA (${tara.status}${tara.data.error ? ` ${tara.data.error}` : ""})`);
   check(tara.data.data?.operacion_id === bruto.data.data?.operacion_id, 'BRUTO y TARA en la misma operación');
-  const lista = await api(gerente1, 'GET', '/api/pesadas');
+  const lista = await api(usuario1, 'GET', '/api/pesadas');
   const op = (lista.data.data || []).filter(p => p.operacion_id === bruto.data.data?.operacion_id);
   const neto = op.find(p => p.neto != null)?.neto;
   console.log(`   operación ${bruto.data.data?.operacion_id}: ${op.map(p => `${p.tipo}=${p.peso}`).join(' ')}${neto != null ? ` neto=${neto}` : ''}`);
@@ -139,7 +139,7 @@ const main = async () => {
   check(agenteA.closeCode === 4409, 'segundo agente con el mismo token reemplaza al primero (4409)');
 
   // ── Caída del agente ──
-  const m1b = await clienteWs(gerente1, 2000, () => agenteA2.ws.close());
+  const m1b = await clienteWs(usuario1, 2000, () => agenteA2.ws.close());
   const caida = m1b.find(m => m.type === 'STATUS' && m.status === 'DISCONNECTED');
   check(caida?.error === 'Agente desconectado', 'cliente L1 ve "Agente desconectado" al caer el agente');
   check(m1b.every(m => m.dispositivo_id === bal1.id), 'el aviso de caída solo llega a L1');

@@ -2,6 +2,7 @@ import pool from '../config/database.js';
 import { getScope, localidadEnScope, ScopeError, sendScopeError } from '../utils/scope.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { crearToken, setCookieSesion, clearCookieSesion } from '../utils/session.js';
+import { ROLES } from '../config/rolesConfig.js';
 
 const PASSWORD_MIN = 6;
 
@@ -23,6 +24,7 @@ const usuarioScopeSql = (user, startIdx) => {
 };
 
 const ROLES_GLOBALES = ['superadmin', 'logistica'];
+const ROLES_VALIDOS = Object.values(ROLES);
 
 /**
  * Resuelve empresa/localidad/rol permitidos para un alta o edición según quién la hace.
@@ -30,6 +32,9 @@ const ROLES_GLOBALES = ['superadmin', 'logistica'];
 const resolverAsignacion = async (actor, { rol, localidad_id, empresa_id }) => {
   const scope = getScope(actor);
   const rolFinal = rol ? rol.toLowerCase() : undefined;
+  if (rolFinal && !ROLES_VALIDOS.includes(rolFinal)) {
+    throw new ScopeError(`Rol inválido: ${rolFinal} (usar ${ROLES_VALIDOS.join(', ')})`, 400);
+  }
 
   if (rolFinal === 'superadmin' && !scope.isSuperadmin) {
     throw new ScopeError('Solo un superadmin puede asignar el rol superadmin');

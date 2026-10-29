@@ -62,6 +62,7 @@ export const PERMISSIONS = {
   PESAJE_UPDATE: 'pesaje:update',       // Modificar pesada existente
   PESAJE_DELETE: 'pesaje:delete',       // Eliminar pesada
   PESAJE_MANUAL: 'pesaje:manual',       // Cargar peso manualmente (input libre)
+  PESAJE_EDITAR_PESO: 'pesaje:editar_peso', // Corregir el peso de una pesada ya registrada
 
   // Reportes
   REPORTES_VIEW: 'reportes:view',
@@ -83,112 +84,44 @@ export const PERMISSIONS = {
   DISPOSITIVOS_MANAGE: 'dispositivos:manage',
 };
 
-// Definición de roles y sus permisos
+// Roles en uso. Los valores admin, gerente y subalancero siguen existiendo en el enum de la
+// base (usuarios viejos), pero sin permisos: esos usuarios quedaron desactivados.
 export const ROLES = {
   SUPERADMIN: 'superadmin',
-  ADMIN: 'admin',
   LOGISTICA: 'logistica',
-  GERENTE: 'gerente',
   BALANCERO: 'balancero',
-  SUBALANCERO: 'subalancero',
 };
 
 // Mapa de permisos por rol
 export const ROLE_PERMISSIONS = {
-  // Superadmin de plataforma: todo, incluidas las empresas
+  // Único administrador: todo (empresas, usuarios, catálogos, dispositivos, respaldos)
   [ROLES.SUPERADMIN]: Object.values(PERMISSIONS),
 
-  // Admin de empresa: todo salvo administrar empresas
-  [ROLES.ADMIN]: Object.values(PERMISSIONS).filter(p => !p.startsWith('empresas:')),
-
+  // Global, solo métricas: ve el dashboard de todas las localidades de su empresa.
+  // LOCALIDADES_VIEW es para el filtro por localidad del dashboard.
   [ROLES.LOGISTICA]: [
-    // Global, solo lectura — ve todo pero no puede crear/editar/borrar nada
-    PERMISSIONS.USUARIOS_VIEW,
-    PERMISSIONS.CHOFERES_VIEW,
-    PERMISSIONS.PRODUCTORES_VIEW,
-    PERMISSIONS.PRODUCTOS_VIEW,
-    PERMISSIONS.TRANSPORTES_VIEW,
-    PERMISSIONS.VEHICULOS_VIEW,
-    PERMISSIONS.PROVINCIAS_VIEW,
-    PERMISSIONS.LOCALIDADES_VIEW,
-    PERMISSIONS.PESAJE_VIEW,
-    PERMISSIONS.REPORTES_VIEW,
     PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.CAMARAS_VIEW,
+    PERMISSIONS.LOCALIDADES_VIEW,
   ],
 
-  [ROLES.GERENTE]: [
-    // Local por localidad — gestiona su localidad, sin pesajes ni usuarios ni config
+  // Uno por localidad: pesaje de su balanza (incluido peso manual, queda marcado como manual).
+  // Puede dar de alta catálogos desde la pesada, pero no editarlos ni borrarlos.
+  [ROLES.BALANCERO]: [
+    PERMISSIONS.PESAJE_VIEW,
+    PERMISSIONS.PESAJE_CREATE,
+    PERMISSIONS.PESAJE_UPDATE,
+    PERMISSIONS.PESAJE_MANUAL,
     PERMISSIONS.CHOFERES_VIEW,
     PERMISSIONS.CHOFERES_CREATE,
-    PERMISSIONS.CHOFERES_UPDATE,
-    PERMISSIONS.CHOFERES_DELETE,
-
     PERMISSIONS.PRODUCTORES_VIEW,
     PERMISSIONS.PRODUCTORES_CREATE,
-    PERMISSIONS.PRODUCTORES_UPDATE,
-    PERMISSIONS.PRODUCTORES_DELETE,
-
     PERMISSIONS.PRODUCTOS_VIEW,
     PERMISSIONS.PRODUCTOS_CREATE,
-    PERMISSIONS.PRODUCTOS_UPDATE,
-    PERMISSIONS.PRODUCTOS_DELETE,
-
     PERMISSIONS.TRANSPORTES_VIEW,
     PERMISSIONS.TRANSPORTES_CREATE,
-    PERMISSIONS.TRANSPORTES_UPDATE,
-    PERMISSIONS.TRANSPORTES_DELETE,
-
     PERMISSIONS.VEHICULOS_VIEW,
     PERMISSIONS.VEHICULOS_CREATE,
-    PERMISSIONS.VEHICULOS_UPDATE,
-    PERMISSIONS.VEHICULOS_DELETE,
-
-    PERMISSIONS.PESAJE_VIEW,
-    PERMISSIONS.REPORTES_VIEW,
     PERMISSIONS.REPORTES_CREATE,
-    PERMISSIONS.DASHBOARD_VIEW,
-    PERMISSIONS.CAMARAS_VIEW,
-    PERMISSIONS.CAMARAS_CAPTURE,
-  ],
-
-  [ROLES.BALANCERO]: [
-    // Acceso solo al módulo de pesaje
-    // Puede crear y visualizar pesajes
-    // NO puede cargar peso manualmente
-
-    // Pesaje (ver y crear, sin manual)
-    PERMISSIONS.PESAJE_VIEW,
-    PERMISSIONS.PESAJE_CREATE,
-    PERMISSIONS.PESAJE_UPDATE,
-    // Catálogos (solo lectura - necesarios para el formulario)
-    PERMISSIONS.CHOFERES_VIEW,
-    PERMISSIONS.PRODUCTORES_VIEW,
-    PERMISSIONS.PRODUCTOS_VIEW,
-    PERMISSIONS.TRANSPORTES_VIEW,
-    PERMISSIONS.VEHICULOS_VIEW,
-    PERMISSIONS.REPORTES_CREATE,
-    // Cámaras (para captura automática)
-    PERMISSIONS.CAMARAS_VIEW,
-    PERMISSIONS.CAMARAS_CAPTURE,
-  ],
-
-  [ROLES.SUBALANCERO]: [
-    // Mismos permisos que balancero + puede cargar peso manualmente
-
-    // Pesaje (ver, crear, y manual)
-    PERMISSIONS.PESAJE_VIEW,
-    PERMISSIONS.PESAJE_CREATE,
-    PERMISSIONS.PESAJE_MANUAL,
-    PERMISSIONS.PESAJE_UPDATE,
-    // Catálogos (solo lectura)
-    PERMISSIONS.CHOFERES_VIEW,
-    PERMISSIONS.PRODUCTORES_VIEW,
-    PERMISSIONS.PRODUCTOS_VIEW,
-    PERMISSIONS.TRANSPORTES_VIEW,
-    PERMISSIONS.VEHICULOS_VIEW,
-    PERMISSIONS.REPORTES_CREATE,
-    // Cámaras
     PERMISSIONS.CAMARAS_VIEW,
     PERMISSIONS.CAMARAS_CAPTURE,
   ],

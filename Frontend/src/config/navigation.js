@@ -45,9 +45,6 @@ export const NAV_ITEMS = Object.fromEntries(
 
 export const ROLE_LABELS = {
   superadmin: 'Superadministrador',
-  admin: 'Administrador',
   logistica: 'Logística',
-  gerente: 'Gerente',
   balancero: 'Balancero',
-  subalancero: 'Subalancero',
 };

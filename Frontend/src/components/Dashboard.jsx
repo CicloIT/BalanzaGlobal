@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Scale, ClipboardList, Truck, Timer, RefreshCw, CalendarDays, Route, Tractor, Package, IdCard, BarChart3, AlertCircle } from 'lucide-react';
 import { useThemeContext } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 import PageHeader from './ui/PageHeader';
 import { Card, CardHeader, CardBody } from './ui/Card';
 import Button from './ui/Button';
 import EmptyState from './ui/EmptyState';
 import { LoadingState } from './ui/Spinner';
+import { Select } from './ui/Field';
 import { cx } from '../lib/cx';
 
 /* ─── Formato ─────────────────────────────────────────────────────────────── */
@@ -138,13 +140,29 @@ export default function Dashboard() {
   const [metricas, setMetricas] = useState(null);
   const [actualizado, setActualizado] = useState(null);
   const [refrescando, setRefrescando] = useState(false);
+  // Usuarios globales (superadmin, logística): total de todas sus localidades o una en particular
+  const { isGlobal } = useAuth();
+  const [localidades, setLocalidades] = useState([]);
+  const [localidadFiltro, setLocalidadFiltro] = useState('');
+  const pedido = useRef(0);   // descarta respuestas viejas si se cambia el filtro rápido
+
+  useEffect(() => {
+    if (!isGlobal) return;
+    fetch(`${API_BASE_URL}/api/localidades`, { headers: getAuthHeaders(null) })
+      .then(res => res.json())
+      .then(data => { if (data.success) setLocalidades(data.data); })
+      .catch(() => { /* sin filtro: se ve el total */ });
+  }, [isGlobal]);
 
   const fetchMetricas = useCallback(async () => {
+    const id = ++pedido.current;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/metricas/dashboard`, {
+      const qs = localidadFiltro ? `?localidad_id=${localidadFiltro}` : '';
+      const response = await fetch(`${API_BASE_URL}/api/metricas/dashboard${qs}`, {
         headers: getAuthHeaders()
       });
       const data = await response.json();
+      if (id !== pedido.current) return;
 
       if (data.success) {
         setMetricas(data.data);
@@ -157,9 +175,9 @@ export default function Dashboard() {
       setError('No se pudo conectar con el servidor');
       console.error('Error:', err);
     } finally {
-      setLoading(false);
+      if (id === pedido.current) setLoading(false);
     }
-  }, []);
+  }, [localidadFiltro]);
 
   // Carga inicial y actualización cada 30 segundos
   useEffect(() => {
@@ -225,6 +243,17 @@ export default function Dashboard() {
         description={hoyTexto}
         actions={(
           <>
+            {isGlobal && localidades.length > 0 && (
+              <Select
+                value={localidadFiltro}
+                onChange={(e) => setLocalidadFiltro(e.target.value)}
+                aria-label="Localidad"
+                className="h-8 !w-56 text-sm"
+              >
+                <option value="">Todas las localidades</option>
+                {localidades.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+              </Select>
+            )}
             {actualizado && (
               <span className="text-xs text-fg-subtle">
                 Actualizado {actualizado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
