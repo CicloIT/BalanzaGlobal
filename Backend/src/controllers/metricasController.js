@@ -2,6 +2,9 @@ import pool from '../config/database.js';
 import { scopeSqlLiteral, userForRead, sendScopeError } from '../utils/scope.js';
 import { getEstadoBalanza } from '../services/balanzaService.js';
 
+// El trigger calcular_neto guarda el neto en las DOS pesadas de una operación cerrada:
+// para no contarlo doble, los totales de neto suman solo la pesada TARA (una por operación).
+
 // Pesadas dentro del alcance: por la localidad de su operación
 const filtroPesadas = (user) =>
   `AND p.operacion_id IN (SELECT id FROM operacion_pesaje WHERE ${scopeSqlLiteral('localidad_id', user)})`;
@@ -21,7 +24,8 @@ export const getMetricasDashboard = async (req, res) => {
     const pesadasHoy = await pool.query(`
       SELECT COUNT(*) as total,
              COALESCE(SUM(CASE WHEN tipo::text = 'BRUTO' THEN peso END), 0) as bruto_total,
-             COALESCE(SUM(CASE WHEN tipo::text = 'TARA' THEN peso END), 0) as tara_total
+             COALESCE(SUM(CASE WHEN tipo::text = 'TARA' THEN peso END), 0) as tara_total,
+             COALESCE(SUM(neto) FILTER (WHERE tipo::text = 'TARA'), 0) as neto_total
       FROM pesada p
       WHERE DATE(fecha_hora) = CURRENT_DATE
       ${localidadFiltroDisp}
@@ -56,7 +60,7 @@ export const getMetricasDashboard = async (req, res) => {
         pr.codigo,
         pr.nombre,
         COUNT(DISTINCT p.operacion_id) as operaciones,
-        COALESCE(SUM(p.neto), 0) as peso_neto
+        COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) as peso_neto
       FROM pesada p
       JOIN productor pr ON p.productor_id = pr.id
       WHERE p.fecha_hora >= $1
@@ -72,7 +76,7 @@ export const getMetricasDashboard = async (req, res) => {
         pr.codigo,
         pr.nombre,
         COUNT(*) as total_pesadas,
-        COALESCE(SUM(p.neto), 0) as peso_neto
+        COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) as peso_neto
       FROM pesada p
       JOIN producto pr ON p.producto_id = pr.id
       WHERE p.fecha_hora >= $1
@@ -87,9 +91,10 @@ export const getMetricasDashboard = async (req, res) => {
       SELECT
         v.tipo_vehiculo,
         COUNT(DISTINCT p.operacion_id) as operaciones,
-        COALESCE(SUM(p.neto), 0) as peso_neto
+        COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) as peso_neto
       FROM pesada p
-      JOIN vehiculo v ON p.vehiculo_patente = v.patente
+      JOIN operacion_pesaje op ON op.id = p.operacion_id
+      JOIN vehiculo v ON v.patente = p.vehiculo_patente AND v.localidad_id = op.localidad_id
       WHERE p.fecha_hora >= $1
       ${localidadFiltroDisp}
       GROUP BY v.tipo_vehiculo
@@ -102,7 +107,7 @@ export const getMetricasDashboard = async (req, res) => {
         t.nombre,
         t.cuit,
         COUNT(DISTINCT p.operacion_id) as operaciones,
-        COALESCE(SUM(p.neto), 0) as peso_neto
+        COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) as peso_neto
       FROM pesada p
       JOIN transporte t ON p.transporte_id = t.id
       WHERE p.fecha_hora >= $1
@@ -117,7 +122,7 @@ export const getMetricasDashboard = async (req, res) => {
       SELECT
         c.apellido_nombre as nombre,
         COUNT(DISTINCT p.operacion_id) as operaciones,
-        COALESCE(SUM(p.neto), 0) as peso_neto
+        COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) as peso_neto
       FROM pesada p
       JOIN chofer c ON p.chofer_id = c.id
       WHERE p.fecha_hora >= $1
@@ -132,8 +137,8 @@ export const getMetricasDashboard = async (req, res) => {
       SELECT
         COUNT(DISTINCT p.id) as total_pesadas_mes,
         COUNT(DISTINCT p.operacion_id) as total_operaciones_mes,
-        COALESCE(SUM(p.neto), 0) as total_neto_mes,
-        COALESCE(AVG(p.neto) FILTER (WHERE p.neto > 0), 0) as carga_promedio
+        COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) as total_neto_mes,
+        COALESCE(AVG(p.neto) FILTER (WHERE p.tipo::text = 'TARA' AND p.neto > 0), 0) as carga_promedio
       FROM pesada p
       WHERE p.fecha_hora >= $1
       ${localidadFiltroDisp}
@@ -174,6 +179,7 @@ export const getMetricasDashboard = async (req, res) => {
           pesadas: parseInt(pesadasHoy.rows[0]?.total || 0),
           bruto: parseFloat(pesadasHoy.rows[0]?.bruto_total || 0),
           tara: parseFloat(pesadasHoy.rows[0]?.tara_total || 0),
+          neto: parseFloat(pesadasHoy.rows[0]?.neto_total || 0),
           operaciones: parseInt(operacionesHoy.rows[0]?.total || 0),
           operacionesAbiertas: parseInt(operacionesHoy.rows[0]?.abiertas || 0),
         },
@@ -262,7 +268,7 @@ export const getEnVivo = async (req, res) => {
       `),
       pool.query(`
         SELECT op.localidad_id, COUNT(*)::int AS pesadas,
-               COALESCE(SUM(p.neto), 0) AS neto   -- neto solo existe en operaciones cerradas
+               COALESCE(SUM(p.neto) FILTER (WHERE p.tipo::text = 'TARA'), 0) AS neto
         FROM pesada p JOIN operacion_pesaje op ON op.id = p.operacion_id
         WHERE DATE(p.fecha_hora) = CURRENT_DATE AND ${scopeOp}
         GROUP BY op.localidad_id

@@ -225,7 +225,8 @@ export default function Dashboard() {
     eficiencia = { promedioMinutos: 0 }
   } = metricas;
 
-  const netoHoy = (hoy.bruto || 0) - (hoy.tara || 0);
+  // Neto de las operaciones cerradas hoy (un bruto sin tara todavía no tiene neto)
+  const netoHoy = hoy.neto || 0;
 
   const datosSemana = semana.map(d => ({
     ...d,
@@ -280,7 +281,9 @@ export default function Dashboard() {
         <h2 id="titulo-hoy" className="mb-3 text-sm font-semibold uppercase tracking-wide text-fg-subtle">Hoy</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi icon={Scale} label="Neto del día" value={formatPeso(netoHoy)} title={kgCompleto(netoHoy)}
-            detail={`Bruto ${formatPeso(hoy.bruto)} · Tara ${formatPeso(hoy.tara)}`} />
+            detail={hoy.operacionesAbiertas
+              ? `Operaciones cerradas · ${formatNumero(hoy.operacionesAbiertas)} en curso`
+              : `Bruto ${formatPeso(hoy.bruto)} · Tara ${formatPeso(hoy.tara)}`} />
           <Kpi icon={ClipboardList} label="Pesadas registradas" value={formatNumero(hoy.pesadas)} tone="neutral"
             detail="Brutos y taras del día" />
           <Kpi icon={Truck} label="Operaciones iniciadas" value={formatNumero(hoy.operaciones)} tone={hoy.operacionesAbiertas ? 'warning' : 'success'}
@@ -346,7 +349,7 @@ export default function Dashboard() {
                 ['Operaciones', formatNumero(estadisticasMes.totalOperaciones)],
                 ['Pesadas', formatNumero(estadisticasMes.totalPesadas)],
                 ['Carga neta', formatPeso(estadisticasMes.totalNeto), kgCompleto(estadisticasMes.totalNeto)],
-                ['Carga promedio por pesada', formatPeso(estadisticasMes.cargaPromedio), kgCompleto(estadisticasMes.cargaPromedio)],
+                ['Carga promedio por operación', formatPeso(estadisticasMes.cargaPromedio), kgCompleto(estadisticasMes.cargaPromedio)],
               ].map(([k, v, t]) => (
                 <div key={k} className="flex items-baseline justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <dt className="text-sm text-fg-muted">{k}</dt>
