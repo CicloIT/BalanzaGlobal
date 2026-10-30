@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError } from '../utils/scope.js';
+import { crearOReactivar, darDeBaja } from '../utils/catalogos.js';
 
 export const getProductos = async (req, res) => {
   try {
@@ -14,7 +15,7 @@ export const getProductos = async (req, res) => {
     `, [...scope.params]);
     res.json({ success: true, data: result.rows, count: result.rows.length });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -30,7 +31,7 @@ export const getProductoById = async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -41,11 +42,8 @@ export const createProducto = async (req, res) => {
       return res.status(400).json({ success: false, error: 'El nombre es requerido' });
     }
     const localidadId = await resolveLocalidadForWrite(req);
-    const result = await pool.query(
-      'INSERT INTO producto (codigo, nombre, activo, localidad_id) VALUES ($1, $2, true, $3) RETURNING *',
-      [codigo || null, nombre, localidadId]
-    );
-    res.status(201).json({ success: true, message: 'Producto creado', data: result.rows[0] });
+    const { row, reactivado } = await crearOReactivar('producto', { codigo: codigo || null, nombre }, ['codigo', 'nombre'], localidadId);
+    res.status(201).json({ success: true, message: reactivado ? 'Producto reactivado' : 'Producto creado', data: row });
   } catch (error) {
     sendScopeError(res, error);
   }
@@ -69,23 +67,19 @@ export const updateProducto = async (req, res) => {
     }
     res.json({ success: true, message: 'Producto actualizado', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
 export const deleteProducto = async (req, res) => {
   try {
     const scope = scopeSql('localidad_id', req.user, 2);
-    const result = await pool.query(`
-      UPDATE producto SET activo = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND ${scope.sql}
-      RETURNING *
-    `, [req.params.id, ...scope.params]);
-    if (result.rows.length === 0) {
+    const eliminado = await darDeBaja('producto', req.params.id, scope);
+    if (!eliminado) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
     }
-    res.json({ success: true, message: 'Producto eliminado', data: result.rows[0] });
+    res.json({ success: true, message: 'Producto eliminado', data: eliminado });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };

@@ -67,7 +67,7 @@ export const getReportes = async (req, res) => {
     `, [...scope.params]);
         res.json({ success: true, data: result.rows, count: result.rows.length });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -85,7 +85,7 @@ export const getReporteById = async (req, res) => {
         }
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -125,9 +125,6 @@ export const deleteReporte = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendScopeError(res, error);
   }
 };

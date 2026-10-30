@@ -53,7 +53,7 @@ const getFriendlyError = (msg = '') => {
     return 'El peso ingresado no es válido';
   }
 
-  return 'Ocurrió un error al registrar la pesada';
+  return msg || 'Ocurrió un error al registrar la pesada';
 };
 
 const ErrorModal = ({ message, onClose }) => {
@@ -468,18 +468,21 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
 
       // Lo creado se agrega a la lista local: si este intento falla después, el reintento
       // lo encuentra en vez de volver a crearlo (chofer duplicado → error, producto duplicado)
+      // Si el alta falla se corta con el mensaje del backend (ej. "Ya existe un chofer...")
       const createEntityIfMissing = async (endpoint, payload, agregar) => {
-        try {
-          const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'POST',
-            headers: getAuthHeaders('application/json'),
-            body: JSON.stringify(isGlobal ? { ...payload, localidad_id: localidadId } : payload)
-          });
-          const data = await res.json();
-          if (!(data.success && data.data)) return null;
-          agregar?.(prev => [...prev, data.data]);
-          return data.data.id;
-        } catch { return null; }
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+          method: 'POST',
+          headers: getAuthHeaders('application/json'),
+          body: JSON.stringify(isGlobal ? { ...payload, localidad_id: localidadId } : payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!(data.success && data.data)) {
+          const err = new Error(data.error || 'No se pudo dar de alta un dato de la pesada');
+          err.amigable = true;
+          throw err;
+        }
+        agregar?.(prev => [...prev, data.data]);
+        return data.data.id;
       };
 
       const vehiculoExiste = vehiculos.find(v => v.patente === formData.vehiculo_patente);
@@ -550,7 +553,7 @@ export default function PesadaForm({ transportes: transportesProp, choferes: cho
       setArchivoPDF(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (e) {
-      setErrorModal(getFriendlyError(e.message));
+      setErrorModal(e.amigable ? e.message : getFriendlyError(e.message));
     } finally {
       setLoading(false);
     }

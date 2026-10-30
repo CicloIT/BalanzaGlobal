@@ -4,6 +4,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import archiver from 'archiver';
 import pool from '../config/database.js';
+import { sendScopeError } from '../utils/scope.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -107,7 +108,7 @@ export const handleManualBackup = async (req, res) => {
     const result = await createBackup();
     res.json(result);
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -129,7 +130,7 @@ export const listBackups = async (req, res) => {
 
     res.json({ success: true, backups: files });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -149,6 +150,6 @@ export const downloadBackup = async (req, res) => {
       res.status(404).json({ error: 'Archivo no encontrado' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };

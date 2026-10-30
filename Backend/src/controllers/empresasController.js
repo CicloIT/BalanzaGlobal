@@ -1,4 +1,5 @@
 import pool from '../config/database.js';
+import { sendScopeError } from '../utils/scope.js';
 
 export const getEmpresas = async (req, res) => {
     try {
@@ -9,7 +10,7 @@ export const getEmpresas = async (req, res) => {
     `);
         res.json({ success: true, data: result.rows });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -29,7 +30,7 @@ export const createEmpresa = async (req, res) => {
         res.status(201).json({ success: true, data: result.rows[0] });
     } catch (error) {
         await client.query('ROLLBACK');
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     } finally {
         client.release();
     }
@@ -51,7 +52,7 @@ export const updateEmpresa = async (req, res) => {
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -65,7 +66,7 @@ export const deleteEmpresa = async (req, res) => {
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Empresa no encontrada' });
         res.json({ success: true, message: 'Empresa desactivada', data: result.rows[0] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -82,6 +83,6 @@ export const getConfigEmpresaActual = async (req, res) => {
     `, [empresaId]);
         res.json({ success: true, data: result.rows[0] || null });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };

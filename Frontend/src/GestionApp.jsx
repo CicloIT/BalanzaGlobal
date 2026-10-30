@@ -129,7 +129,10 @@ export default function GestionApp() {
         : `${currentConfig.endpoint}/${id}`;
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'DELETE', headers: getAuthHeaders(null) });
-      if (!response.ok) throw new Error('Error eliminando');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo eliminar el registro');
+      }
 
       if (activeTab === 'pesadas') {
         setRefreshTrigger(Date.now());
@@ -139,7 +142,7 @@ export default function GestionApp() {
       toast.success('Registro eliminado');
     } catch (err) {
       console.error(err);
-      toast.error('No se pudo eliminar el registro');
+      toast.error(err.message);
     }
   };
 

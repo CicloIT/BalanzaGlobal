@@ -90,7 +90,7 @@ export const getUsuarios = async (req, res) => {
       count: result.rows.length,
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -110,7 +110,7 @@ export const getUsuarioById = async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -202,7 +202,7 @@ export const deleteUsuario = async (req, res) => {
     }
     res.json({ success: true, message: 'Usuario eliminado', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -234,7 +234,7 @@ export const authLogin = async (req, res) => {
     setCookieSesion(req, res, crearToken(user.id));
     res.json({ success: true, user });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 

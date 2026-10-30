@@ -1,5 +1,5 @@
 import pool from '../config/database.js';
-import { scopeSqlLiteral, userForRead } from '../utils/scope.js';
+import { scopeSqlLiteral, userForRead, sendScopeError } from '../utils/scope.js';
 
 // Pesadas dentro del alcance: por la localidad de su operación
 const filtroPesadas = (user) =>
@@ -229,6 +229,6 @@ export const getMetricasDashboard = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en getMetricasDashboard:', error);
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };

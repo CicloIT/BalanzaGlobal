@@ -38,7 +38,7 @@ export const getPesadas = async (req, res) => {
     `, scope.params);
     res.json({ success: true, data: result.rows, count: result.rows.length });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -209,7 +209,7 @@ export const getPesadaById= async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -257,7 +257,7 @@ export const updatePesada = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -286,7 +286,7 @@ export const updatePdfByOperacion = async (req, res) => {
       data: result.rows,
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -313,10 +313,7 @@ export const deletePesada = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendScopeError(res, error);
   }
 };
 
@@ -337,10 +334,7 @@ export const deleteOperacionesMasivo = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendScopeError(res, error);
   }
 };
 
@@ -447,7 +441,7 @@ export const getPesadasAgrupadas = async (req, res) => {
       hasMore,
     });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -560,6 +554,6 @@ export const getPesadaActivaByPatente = async (req, res) => {
 
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };

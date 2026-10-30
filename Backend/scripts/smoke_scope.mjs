@@ -145,6 +145,18 @@ const main = async () => {
   check((await api(bal1, 'GET', '/api/backup/list')).status === 403, 'balancero no accede a respaldos');
   check((await api(superadmin, 'GET', '/api/backup/list')).status === 200, 'superadmin lista respaldos');
 
+  // ── Catálogos: duplicados con mensaje claro y baja que no bloquea volver a cargar ──
+  const codigo = `ZZ${patente}`;
+  const prod1 = await api(bal1, 'POST', '/api/productos', { codigo, nombre: `Producto ${patente}` });
+  check(prod1.status === 201, 'balancero crea producto');
+  const prodDup = await api(bal1, 'POST', '/api/productos', { codigo, nombre: `Otro ${patente}` });
+  check(prodDup.status === 409 && prodDup.data.error === `Ya existe un producto con el código "${codigo}" en esta localidad`,
+    'código duplicado → 409 con mensaje legible');
+  check((await api(superadmin, 'DELETE', `/api/productos/${prod1.data.data?.id}`)).status === 200, 'baja de producto sin uso');
+  const prod2 = await api(bal1, 'POST', '/api/productos', { codigo, nombre: `Producto ${patente}` });
+  check(prod2.status === 201, 'se puede volver a cargar el mismo código después de la baja');
+  if (prod2.data.data?.id) await api(superadmin, 'DELETE', `/api/productos/${prod2.data.data.id}`);
+
   // ── Limpieza ──
   for (const id of [v1.data.data?.id, v2.data.data?.id].filter(Boolean)) {
     await api(superadmin, 'DELETE', `/api/vehiculos/${id}`);

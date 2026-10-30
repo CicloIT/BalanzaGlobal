@@ -1,11 +1,12 @@
 import pool from '../config/database.js';
+import { sendScopeError } from '../utils/scope.js';
 
 export const getProvincias = async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM provincia ORDER BY nombre ASC');
         res.json({ success: true, data: result.rows });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -20,7 +21,7 @@ export const createProvincia = async (req, res) => {
         );
         res.status(201).json({ success: true, data: result.rows[0] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -35,7 +36,7 @@ export const updateProvincia = async (req, res) => {
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Provincia no encontrada' });
         res.json({ success: true, data: result.rows[0] });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
@@ -46,6 +47,6 @@ export const deleteProvincia = async (req, res) => {
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Provincia no encontrada' });
         res.json({ success: true, message: 'Provincia eliminada' });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };

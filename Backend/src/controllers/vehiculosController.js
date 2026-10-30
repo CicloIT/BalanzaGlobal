@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { scopeSql, userForRead, resolveLocalidadForWrite, sendScopeError } from '../utils/scope.js';
+import { crearOReactivar, darDeBaja } from '../utils/catalogos.js';
 
 export const getVehiculos = async (req, res) => {
   try {
@@ -32,7 +33,7 @@ export const getVehiculos = async (req, res) => {
     const hasMore = (result.rows.length === limit) && (offset + result.rows.length < total);
     res.json({ success: true, data: result.rows, count: result.rows.length, total, page, limit, hasMore });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -48,7 +49,7 @@ export const getVehiculoById = async (req, res) => {
     }
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -59,11 +60,10 @@ export const createVehiculo = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Patente y tipo_vehiculo son requeridos' });
     }
     const localidadId = await resolveLocalidadForWrite(req);
-    const result = await pool.query(
-      'INSERT INTO vehiculo (patente, patente_acoplado, tipo_vehiculo, observaciones, activo, localidad_id) VALUES ($1, $2, $3, $4, true, $5) RETURNING *',
-      [patente, patente_acoplado || null, tipo_vehiculo, observaciones || null, localidadId]
-    );
-    res.status(201).json({ success: true, message: 'Vehículo creado', data: result.rows[0] });
+    const { row, reactivado } = await crearOReactivar('vehiculo', {
+      patente, patente_acoplado: patente_acoplado || null, tipo_vehiculo, observaciones: observaciones || null,
+    }, ['patente'], localidadId);
+    res.status(201).json({ success: true, message: reactivado ? 'Vehículo reactivado' : 'Vehículo creado', data: row });
   } catch (error) {
     sendScopeError(res, error);
   }
@@ -88,24 +88,20 @@ export const updateVehiculo = async (req, res) => {
     }
     res.json({ success: true, message: 'Vehículo actualizado', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
 export const deleteVehiculo = async (req, res) => {
   try {
     const scope = scopeSql('localidad_id', req.user, 2);
-    const result = await pool.query(`
-      UPDATE vehiculo SET activo = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND ${scope.sql}
-      RETURNING *
-    `, [req.params.id, ...scope.params]);
-    if (result.rows.length === 0) {
+    const eliminado = await darDeBaja('vehiculo', req.params.id, scope);
+    if (!eliminado) {
       return res.status(404).json({ success: false, error: 'Vehículo no encontrado' });
     }
-    res.json({ success: true, message: 'Vehículo eliminado', data: result.rows[0] });
+    res.json({ success: true, message: 'Vehículo eliminado', data: eliminado });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };
 
@@ -121,6 +117,6 @@ export const getVehiculosParaSelect = async (req, res) => {
     `, [...scope.params]);
     res.json({ success: true, data: result.rows, count: result.rows.length });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendScopeError(res, error);
   }
 };

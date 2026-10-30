@@ -6,6 +6,7 @@
  *  usuario local         → empresa E,    localidad L    → solo L
  */
 import pool from '../config/database.js';
+import { traducirErrorDb } from './dbErrors.js';
 
 export class ScopeError extends Error {
   constructor(message, status = 403) {
@@ -82,9 +83,16 @@ export const userForRead = (req) => {
   return { ...req.user, localidad_id: requested };
 };
 
+/** Responde un error de alcance, de PostgreSQL (traducido) o genérico. */
 export const sendScopeError = (res, error) => {
-  const status = error instanceof ScopeError ? error.status : 500;
-  return res.status(status).json({ success: false, error: error.message, message: error.message });
+  let status = error instanceof ScopeError ? error.status : 500;
+  let message = error.message;
+  const db = traducirErrorDb(error);
+  if (db) {
+    ({ status, message } = db);
+    if (status >= 500) console.error('Error de base de datos:', error.code, error.message);
+  }
+  return res.status(status).json({ success: false, error: message, message });
 };
 
 // Nombre de la localidad como slug para carpetas (capturas, backups); null si no hay localidad

@@ -26,7 +26,7 @@ export const getLocalidades = async (req, res) => {
     `, scope.params);
         res.json({ success: true, data: result.rows });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        sendScopeError(res, error);
     }
 };
 
