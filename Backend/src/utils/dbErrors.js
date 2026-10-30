@@ -78,7 +78,7 @@ export const traducirErrorDb = (error) => {
         const usadoEn = USOS[error.table];
         return { status: 409, message: `No se puede eliminar: está en uso${usadoEn ? ` en ${usadoEn}` : ''}` };
       }
-      const col = (error.detail || '').match(/\((\w+)\)=/)?.[1];
+      const col = (error.detail || '').match(/\((\w+)[^)]*\)=/)?.[1]; // primera columna (las FK pueden ser compuestas)
       return { status: 400, message: INEXISTENTES[col] || 'Uno de los datos seleccionados no existe' };
     }
     case '23502': // not_null_violation

@@ -1,5 +1,6 @@
 import pool from '../config/database.js';
 import { scopeSqlLiteral, userForRead, sendScopeError } from '../utils/scope.js';
+import { getEstadoBalanza } from '../services/balanzaService.js';
 
 // Pesadas dentro del alcance: por la localidad de su operación
 const filtroPesadas = (user) =>
@@ -229,6 +230,93 @@ export const getMetricasDashboard = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en getMetricasDashboard:', error);
+    sendScopeError(res, error);
+  }
+};
+
+// GET /api/metricas/en-vivo — qué está pasando ahora en cada localidad del alcance:
+// balanza (peso actual), operaciones abiertas (camión con bruto esperando la tara), totales de hoy y últimas pesadas
+export const getEnVivo = async (req, res) => {
+  try {
+    const usuario = userForRead(req);
+    const scopeLoc = scopeSqlLiteral('l.id', usuario);
+    const scopeOp = scopeSqlLiteral('op.localidad_id', usuario);
+
+    const [localidades, balanzas, abiertas, hoy, ultimas] = await Promise.all([
+      pool.query(`SELECT l.id, l.nombre FROM localidad l WHERE ${scopeLoc} ORDER BY l.nombre`),
+      pool.query(`
+        SELECT cd.id, cd.localidad_id FROM configuracion_dispositivos cd
+        JOIN localidad l ON l.id = cd.localidad_id
+        WHERE cd.tipo_dispositivo = 'balanza' AND cd.activo = true AND ${scopeLoc}
+        ORDER BY cd.id
+      `),
+      pool.query(`
+        SELECT op.id, op.localidad_id, op.vehiculo_patente, op.sentido, op.created_at,
+               p.peso AS bruto, ch.apellido_nombre AS chofer, pr.nombre AS producto
+        FROM operacion_pesaje op
+        LEFT JOIN LATERAL (SELECT * FROM pesada WHERE operacion_id = op.id ORDER BY fecha_hora LIMIT 1) p ON true
+        LEFT JOIN chofer ch ON ch.id = p.chofer_id
+        LEFT JOIN producto pr ON pr.id = p.producto_id
+        WHERE op.abierta = true AND ${scopeOp}
+        ORDER BY op.created_at
+      `),
+      pool.query(`
+        SELECT op.localidad_id, COUNT(*)::int AS pesadas,
+               COALESCE(SUM(p.neto), 0) AS neto   -- neto solo existe en operaciones cerradas
+        FROM pesada p JOIN operacion_pesaje op ON op.id = p.operacion_id
+        WHERE DATE(p.fecha_hora) = CURRENT_DATE AND ${scopeOp}
+        GROUP BY op.localidad_id
+      `),
+      pool.query(`
+        SELECT p.id, p.tipo::text AS tipo, p.peso, p.neto, p.fecha_hora, p.vehiculo_patente, p.balancero,
+               op.localidad_id, op.sentido, ch.apellido_nombre AS chofer, pr.nombre AS producto
+        FROM pesada p
+        JOIN operacion_pesaje op ON op.id = p.operacion_id
+        LEFT JOIN chofer ch ON ch.id = p.chofer_id
+        LEFT JOIN producto pr ON pr.id = p.producto_id
+        WHERE ${scopeOp}
+        ORDER BY p.fecha_hora DESC
+        LIMIT 15
+      `),
+    ]);
+
+    const hoyPorLoc = new Map(hoy.rows.map(r => [r.localidad_id, r]));
+    res.json({
+      success: true,
+      data: {
+        localidades: localidades.rows.map(l => {
+          const h = hoyPorLoc.get(l.id);
+          return {
+            id: l.id,
+            nombre: l.nombre,
+            balanzas: balanzas.rows.filter(b => b.localidad_id === l.id).map(b => {
+              const e = getEstadoBalanza(b.id);
+              return {
+                dispositivo_id: b.id,
+                connected: Boolean(e?.connected),
+                peso: e?.lastWeight ?? null,
+                stable: Boolean(e?.stable),
+                ts: e?.lastWeightTs ?? null,
+              };
+            }),
+            abiertas: abiertas.rows.filter(o => o.localidad_id === l.id).map(o => ({
+              id: o.id, patente: o.vehiculo_patente, sentido: o.sentido, desde: o.created_at,
+              bruto: o.bruto != null ? parseFloat(o.bruto) : null, chofer: o.chofer, producto: o.producto,
+            })),
+            hoy: {
+              pesadas: h?.pesadas ?? 0,
+              neto: h ? parseFloat(h.neto) : 0,
+            },
+          };
+        }),
+        ultimas: ultimas.rows.map(p => ({
+          ...p,
+          peso: parseFloat(p.peso),
+          neto: p.neto != null ? parseFloat(p.neto) : null,
+        })),
+      },
+    });
+  } catch (error) {
     sendScopeError(res, error);
   }
 };

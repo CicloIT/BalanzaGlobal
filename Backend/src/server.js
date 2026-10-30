@@ -46,10 +46,10 @@ server.on('upgrade', (req, socket, head) => {
   destino.handleUpgrade(req, socket, head, (ws) => destino.emit('connection', ws, req));
 });
 
-// Broadcast de la balanza: solo a los clientes suscriptos a ese dispositivo
+// Broadcast de la balanza: solo a los clientes suscriptos a ese dispositivo (o a todas las de su alcance)
 function broadcast(msg) {
   wss.clients.forEach(ws => {
-    if (ws.readyState === ws.OPEN && ws.dispositivoId === msg.dispositivo_id) {
+    if (ws.readyState === ws.OPEN && (ws.dispositivoId === msg.dispositivo_id || ws.dispositivos?.has(msg.dispositivo_id))) {
       ws.send(JSON.stringify(msg));
     }
   });
@@ -71,7 +71,18 @@ const resolverBalanzaWs = async (user, requestedId) => {
   return result.rows[0]?.id ?? null;
 };
 
+// Todas las balanzas activas del alcance del usuario (dashboard en vivo)
+const balanzasEnAlcance = async (user) => {
+  const scope = scopeSql('localidad_id', user, 1);
+  const result = await pool.query(`
+    SELECT id FROM configuracion_dispositivos
+    WHERE tipo_dispositivo = 'balanza' AND activo = true AND ${scope.sql}
+  `, scope.params);
+  return result.rows.map(r => r.id);
+};
+
 // Manejar conexiones WebSocket entrantes: ws://host/ws?dispositivoId=Y (el usuario sale de la cookie de sesión)
+// ws://host/ws?todas=1 → peso de todas las balanzas de su alcance (cada mensaje trae dispositivo_id y localidad_id)
 wss.on('connection', async (ws, req) => {
   try {
     const params = new URL(req.url, 'http://localhost').searchParams;
@@ -80,6 +91,24 @@ wss.on('connection', async (ws, req) => {
       ws.close(4401, 'No autorizado');
       return;
     }
+    if (params.get('todas') === '1') {
+      const ids = await balanzasEnAlcance(user);
+      ws.dispositivos = new Set(ids);
+      console.log(`🔌 Cliente WebSocket conectado: ${user.username} → ${ids.length} balanza(s) (en vivo)`);
+      for (const id of ids) {
+        const estado = getEstadoBalanza(id);
+        ws.send(JSON.stringify({
+          type: 'STATUS',
+          status: estado?.connected ? 'CONNECTED' : 'DISCONNECTED',
+          currentWeight: estado?.lastWeight ?? null,
+          stable: estado?.stable ?? false,
+          dispositivo_id: id,
+          localidad_id: estado?.localidad_id ?? null,
+        }));
+      }
+      return;
+    }
+
     const dispositivoId = await resolverBalanzaWs(user, params.get('dispositivoId'));
     ws.dispositivoId = dispositivoId;
     console.log(`🔌 Cliente WebSocket conectado: ${user.username} → balanza ${dispositivoId ?? '-'}`);

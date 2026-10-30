@@ -11,6 +11,7 @@ import EmptyState from './ui/EmptyState';
 import { LoadingState } from './ui/Spinner';
 import { Select } from './ui/Field';
 import { cx } from '../lib/cx';
+import EnVivo from './EnVivo';
 
 /* ─── Formato ─────────────────────────────────────────────────────────────── */
 const kgCompleto = (kg) => `${Math.round(Number(kg) || 0).toLocaleString('es-AR')} kg`;
@@ -270,6 +271,9 @@ export default function Dashboard() {
           <AlertCircle size={16} aria-hidden="true" /> No se pudo actualizar: {error}. Se muestran los últimos datos obtenidos.
         </p>
       )}
+
+      {/* En vivo: usuarios globales ven qué pasa ahora en cada localidad */}
+      {isGlobal && <EnVivo localidadFiltro={localidadFiltro} />}
 
       {/* Hoy */}
       <section aria-labelledby="titulo-hoy">
