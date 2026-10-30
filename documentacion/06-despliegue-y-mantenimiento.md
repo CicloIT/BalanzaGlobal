@@ -6,6 +6,7 @@
 - Repo en `/root/BalanzaGlobal`, backend en pm2 con el nombre `balanza`.
 - `Backend/.env` con `LOCALIDAD_ID=` vacío.
 - Acceso por consola: SSH con token generado en Daytona (revocarlo después de usarlo).
+- **Después de reiniciar el container:** `cd /root/BalanzaGlobal && ./arrancar.sh` (doc 11). Para el build sin quedarse sin RAM, ver doc 11.
 
 ## Actualizar el servidor
 

@@ -16,6 +16,8 @@ balanzas; un servidor central guarda las pesadas y sirve la aplicación web.
 | [07 — Pendientes y seguridad](07-pendientes-y-seguridad.md) | Lo que falta antes de producción |
 | [08 — Errores comunes](08-errores-comunes.md) | Mensajes de error frecuentes, causa y solución |
 | [09 — Interfaz y diseño](09-interfaz-y-diseno.md) | Sistema de diseño del frontend, componentes base y layout |
+| [10 — Instalación local por sitio](10-instalacion-local-por-sitio.md) | Alternativa sin central: una PC por localidad (Windows), base propia, rangos de IDs, respaldos |
+| [11 — pm2 y reinicio del container](11-pm2-y-reinicio-del-container.md) | Levantar Postgres + backend tras reiniciar Daytona (`./arrancar.sh`), deploy sin quedarse sin RAM, qué se pierde si se borra el container |
 | [Agente/DESPLIEGUE.md](../Agente/DESPLIEGUE.md) | Guía detallada de VPS + nginx + conversores + agente |
 
 ## Resumen en una página
