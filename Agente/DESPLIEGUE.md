@@ -103,9 +103,18 @@ Configuración en el panel web del conversor (`http://<ip>`, usuario y clave del
 - Salida a internet por 443. No necesita puertos abiertos.
 - PC que quede prendida (es la que mantiene viva la balanza en el sistema).
 
+### Copiar la carpeta a la PC del sitio
+Copiar la carpeta `Agente` completa (p. ej. a `C:\BalanzaAgente`) y **borrar** lo que no se usa:
+- `node_modules/` → se reinstala con `npm ci` en la PC del sitio.
+- Todos los `sitios/*.json` **menos** `ejemplo.json` (tienen tokens de otros sitios).
+- `*.log`, si hay.
+
+Quedan: `src/`, `sitios/ejemplo.json`, `package.json`, `package-lock.json` (y los `.md`).
+
 ### Instalación
+En la PC del sitio, con [Node 18+](https://nodejs.org) instalado (versión LTS):
 ```bash
-cd Agente
+cd C:\BalanzaAgente
 npm ci
 copy sitios\ejemplo.json sitios\<sitio>.json     # Linux: cp
 ```
@@ -126,14 +135,63 @@ copy sitios\ejemplo.json sitios\<sitio>.json     # Linux: cp
   de la localidad y el central se las manda al agente (si se editan, el agente reconecta solo).
 - `headers`: solo si hace falta pasar un proxy (p. ej. `x-daytona-preview-token` en un sandbox privado).
 
+Probar a mano antes de armar el servicio (Ctrl+C para cortar):
 ```bash
 node src/index.js sitios/<sitio>.json
 ```
+En la app la balanza tiene que dejar de mostrar "Agente desconectado".
 
-### Dejarlo como servicio
-Para que arranque solo con la PC (pendiente de definir cuál usamos):
-- **Windows**: `pm2` + `pm2-windows-startup`, o NSSM (`nssm install BalanzaAgente node src\index.js sitios\<sitio>.json`).
-- **Linux**: `pm2 start src/index.js --name agente -- sitios/<sitio>.json && pm2 save && pm2 startup`.
+### Dejarlo como servicio (Windows, NSSM)
+Así arranca solo con Windows (sin iniciar sesión) y se reinicia si se cae.
+
+**1. Instalar NSSM** (no viene con Node). Consola **como administrador**:
+```
+winget install NSSM.NSSM
+```
+Cerrar y volver a abrir la consola para que tome el comando `nssm`.
+Sin winget: bajar el zip de https://nssm.cc/download, copiar `win64\nssm.exe` a `C:\Windows\System32`
+(si la 2.24 falla en Windows 10/11, usar la *2.24-101 pre-release* de la misma página).
+
+**2. Ver dónde está node:**
+```
+where node
+```
+(normalmente `C:\Program Files\nodejs\node.exe`).
+
+**3. Crear y arrancar el servicio** (consola como administrador; reemplazar `<sitio>` y las rutas):
+```
+nssm install BalanzaAgente "C:\Program Files\nodejs\node.exe" src\index.js sitios\<sitio>.json
+nssm set BalanzaAgente AppDirectory C:\BalanzaAgente
+nssm set BalanzaAgente AppStdout C:\BalanzaAgente\agente.log
+nssm set BalanzaAgente AppStderr C:\BalanzaAgente\agente.log
+nssm start BalanzaAgente
+```
+- `AppDirectory` es **obligatorio**: sin él el servicio arranca en `C:\Windows\System32`, no encuentra
+  `src\index.js` ni el JSON y se cae.
+- Ruta completa de `node.exe`: el servicio no ve el PATH del usuario.
+- `AppStdout/AppStderr`: el log queda en `agente.log` (sin esto no se ve nada si falla).
+
+**4. Verificar:**
+```
+nssm status BalanzaAgente        # tiene que decir SERVICE_RUNNING
+```
+y en la app la balanza muestra peso en vivo. Si no, mirar `agente.log` (ver tabla de diagnóstico).
+
+**Comandos útiles:**
+| Acción | Comando |
+|---|---|
+| Reiniciar (después de cambiar el JSON o actualizar) | `nssm restart BalanzaAgente` |
+| Parar | `nssm stop BalanzaAgente` |
+| Ver/editar la config con ventana | `nssm edit BalanzaAgente` |
+| Quitar el servicio | `nssm stop BalanzaAgente` y `nssm remove BalanzaAgente confirm` |
+
+**Actualizar el agente:** `nssm stop BalanzaAgente` → reemplazar `src/`, `package.json` y
+`package-lock.json` (no tocar `sitios/<sitio>.json`) → `npm ci` → `nssm start BalanzaAgente`.
+
+### Dejarlo como servicio (Linux)
+```bash
+pm2 start src/index.js --name agente -- sitios/<sitio>.json && pm2 save && pm2 startup
+```
 
 Un solo agente por token: si se levantan dos con el mismo token, el último reemplaza al
 anterior (cierre `4409`).
@@ -151,7 +209,7 @@ anterior (cierre `4409`).
 | cierre `4403` | Balanza no habilitada en ese servidor | Revisar que la balanza esté activa |
 | cierre `4409` | Otro agente usa el mismo token | Dejar un solo agente por token |
 | `NVR …: 0/N canal(es) OK` | El agente no llega al NVR o credenciales mal | Desde la PC del agente abrir `http://<ip-nvr>`; revisar usuario/contraseña/marca en la vista |
-| App: "Agente desactualizado" al sacar fotos | Agente < 0.2.0 | Actualizar el agente del sitio (`git pull` + reiniciar) |
+| App: "Agente desactualizado" al sacar fotos | Agente < 0.2.0 | Actualizar el agente del sitio (ver "Actualizar el agente" en §3) |
 
 Herramientas:
 - `node scripts/agente_token.mjs --listar` (central): modo y última conexión de cada balanza.
@@ -200,8 +258,8 @@ contraseñas con hash (hoy se comparan en texto plano en el login).
 1. [ ] Balanza creada en *Configuración de Dispositivos* con su localidad.
 2. [ ] IP/puerto del conversor cargados y token generado en la vista (o `agente_token.mjs <id>`), guardado.
 3. [ ] Conversor con IP fija, TCP Server :6000, parámetros serie de la balanza.
-4. [ ] PC del sitio con Node 18+, `npm ci`, `sitios/<sitio>.json` completo.
-5. [ ] Agente corriendo como servicio.
+4. [ ] Carpeta `Agente` copiada y limpia (sin `node_modules` ni JSON de otros sitios), Node 18+, `npm ci`, `sitios/<sitio>.json` completo.
+5. [ ] NSSM instalado y servicio `BalanzaAgente` en `SERVICE_RUNNING` (con `AppDirectory` y log).
 6. [ ] En la app: la balanza muestra peso en vivo y "estable" al quedar quieta.
 7. [ ] Prueba de corte: desenchufar internet → "Agente desconectado"; reconectar → vuelve solo.
 8. [ ] Grabadora cargada en *Dispositivos → Grabadora* y **Probar cámaras** lista los canales.

@@ -158,8 +158,8 @@ Reiniciar el agente y verificar en *Dispositivos* / `GET /api/health` que la bal
 - **Cámaras/NVR:** el central se conecta directo a la IP del NVR. Desde el VPS no llega a la LAN
   del sitio, así que las fotos quedan vacías hasta que el agente haga de puente (pendiente, doc 07)
   o se agregue VPN / port forwarding al NVR.
-- **Respaldos programados y `PG_DUMP_PATH`:** revisar que `pg_dump` del VPS sea de la misma versión
-  mayor que PostgreSQL.
+- **Respaldos y `PG_DUMP_PATH`:** la app no hace respaldos automáticos (solo el botón manual);
+  revisar que `pg_dump` del VPS sea de la misma versión mayor que PostgreSQL.
 - Actualizar la URL de la sección *Servidor actual* de este documento y apagar Daytona cuando
   todo funcione.
 
