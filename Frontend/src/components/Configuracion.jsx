@@ -127,7 +127,7 @@ function Respaldos() {
         <Card>
           <CardHeader icon={CalendarClock} title="Programación" tone="neutral" />
           <CardBody className="space-y-2 text-sm text-fg-muted">
-            <p>El sistema hace un respaldo automático completo todos los <strong className="text-fg">domingos a las 03:00</strong>.</p>
+            <p>No hay respaldos automáticos: se generan <strong className="text-fg">solo a mano</strong> con "Respaldar ahora".</p>
             <p>Los archivos quedan en el servidor, en la carpeta <code className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-xs text-fg">/backups</code>.</p>
           </CardBody>
         </Card>

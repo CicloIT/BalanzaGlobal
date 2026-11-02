@@ -64,7 +64,7 @@ Mensajes del protocolo del agente: `HELLO`, `STATUS`, `WEIGHT` (agente → centr
 ```
 Balanza/
 ├─ Backend/
-│  ├─ src/server.js            arranque, WebSockets, estáticos, backup semanal
+│  ├─ src/server.js            arranque, WebSockets, estáticos
 │  ├─ src/config/              database.js (pool PG), rolesConfig.js (permisos)
 │  ├─ src/middleware/          authMiddleware.js (requireAuth, requirePermission, optionalAuth)
 │  ├─ src/utils/scope.js       filtro empresa/localidad para TODAS las consultas

@@ -25,7 +25,6 @@ import metricasRoutes from './routes/metricas.js';
 import camarasRoutes from './routes/camaras.js';
 import reportesRoutes from './routes/reporte.js';
 import backupRoutes from './routes/backups.js';
-import { createBackup } from './controllers/backupController.js';
 import configRoutes from './routes/configuraciones.js';
 import empresasRoutes from './routes/empresas.js';
 
@@ -215,21 +214,6 @@ app.use((err, req, res, next) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Backend ejecutándose en http://0.0.0.0:${PORT}`);
   console.log(`   Health: GET /api/health · WS navegadores: /ws · WS agentes: /agent`);
-
-  // Tarea programada semanal para backup (Domingo a las 00:00)
-  // Check cada hora si es Domingo y hora 0.
-  setInterval(async () => {
-    const ahora = new Date();
-    // 0 es Domingo, hora 3 AM (para no interferir con el uso)
-    if (ahora.getDay() === 0 && ahora.getHours() === 3) {
-      console.log('⏰ Iniciando backup automático semanal...');
-      try {
-        await createBackup();
-      } catch (err) {
-        console.error('❌ Falló el backup automático:', err.message);
-      }
-    }
-  }, 1000 * 60 * 60); // Cada hora
 });
 
 export default app;

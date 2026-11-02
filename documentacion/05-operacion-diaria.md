@@ -45,6 +45,6 @@ Respeta el alcance del usuario.
 *Configuración → Respaldos* (solo **superadmin**):
 - **Respaldo manual**: genera un `.zip` con `database.sql` (pg_dump de la base completa),
   `capturas/` (fotos) y `documentos/` (PDF).
-- **Automático**: los domingos a las 3 AM.
+- **Automático**: no hay; se generan solo a mano (para no llenar el disco).
 - Se guardan en `Backend/backups/` y se descargan desde la misma vista.
 - Conviene bajar una copia fuera del servidor cada tanto.
