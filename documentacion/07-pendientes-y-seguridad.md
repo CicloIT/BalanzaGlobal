@@ -11,7 +11,7 @@
 
 ## Infraestructura
 
-- VPS con dominio + HTTPS + nginx con WebSocket (hoy en Daytona). Pasos de mudanza: doc 06 → *Mudanza a un VPS*.
+- Servidor central propio (Windows Server, IP pública) en lugar de Daytona; falta subdominio como registro A + HTTPS (Caddy). Pasos y puertos (servidor propio o VPS): doc 06 → *Mudanza del servidor central*.
 - Agente como servicio en cada PC de sitio (pm2 o NSSM).
 - Respaldo periódico de `Backend/src/documentos/` y `Backend/capturas/` fuera del servidor.
 

@@ -260,7 +260,7 @@
     "semantic_hash": ""
   },
   "Backend/src/utils/catalogos.js": {
-    "mtime": 1793364332.0155072,
+    "mtime": 1793626806.876143,
     "ast_hash": "a474649e1eecb0f87a4f30ad1461186e",
     "semantic_hash": ""
   },
@@ -645,8 +645,8 @@
     "semantic_hash": ""
   },
   "Agente/DESPLIEGUE.md": {
-    "mtime": 1793289465.2912138,
-    "ast_hash": "75bdb4ec8addcf4a243ac544b8f1b897",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "9f5d1e7e7a1b7f28a84c33e83cf8dec4",
     "semantic_hash": ""
   },
   "Agente/README.md": {
@@ -665,8 +665,8 @@
     "semantic_hash": ""
   },
   "documentacion/01-arquitectura.md": {
-    "mtime": 1793619681.4809399,
-    "ast_hash": "7272a880b492453a0ab0b20a4f4a7f0f",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "a06ff8ecdfdb0497a75957d8599c0be1",
     "semantic_hash": ""
   },
   "documentacion/02-instalacion-y-configuracion.md": {
@@ -690,18 +690,18 @@
     "semantic_hash": ""
   },
   "documentacion/06-despliegue-y-mantenimiento.md": {
-    "mtime": 1793368594.8022401,
-    "ast_hash": "e3814ea37a4077f3061f32ce732ae22c",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "280400b63d0a051a981e3ae49c9a08cf",
     "semantic_hash": ""
   },
   "documentacion/07-pendientes-y-seguridad.md": {
-    "mtime": 1793299614.0892491,
-    "ast_hash": "1e42bdc295cb59ce2b07887e39cfe396",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "95bb6395f44ec6f98a0c763590f40d32",
     "semantic_hash": ""
   },
   "documentacion/08-errores-comunes.md": {
-    "mtime": 1793298763.486044,
-    "ast_hash": "3ba9bffd98555bbbb343fa6dae606356",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "a9eae531edc44d0652820d92dbcc7fb0",
     "semantic_hash": ""
   },
   "documentacion/09-interfaz-y-diseno.md": {
@@ -710,18 +710,18 @@
     "semantic_hash": ""
   },
   "documentacion/10-instalacion-local-por-sitio.md": {
-    "mtime": 1793368397.4125624,
-    "ast_hash": "4e3a9166b57c8873dbb417c7e7566b1b",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "e9fb65c2e6da1d67dc1d1f343eb74048",
     "semantic_hash": ""
   },
   "documentacion/11-pm2-y-reinicio-del-container.md": {
-    "mtime": 1793368594.7948222,
-    "ast_hash": "89b466020144adf9b18933e047bff36e",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "73509b1a8e1ea7637517d1e0c096a7fa",
     "semantic_hash": ""
   },
   "documentacion/README.md": {
-    "mtime": 1793368594.8569922,
-    "ast_hash": "4274258530f71d5ea0a26ce7f2ee951a",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "590519758de14e593378fc975d2da29e",
     "semantic_hash": ""
   },
   "Frontend/public/vite.svg": {

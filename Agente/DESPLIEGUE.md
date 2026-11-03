@@ -1,5 +1,9 @@
 # Despliegue: central en VPS + agentes locales por sitio
 
+> Puertos, firewall y pasos completos para las dos opciones (servidor propio con Windows Server o
+> VPS Linux): [doc 06](../documentacion/06-despliegue-y-mantenimiento.md#mudanza-del-servidor-central).
+> Esta guía detalla la variante VPS Linux + nginx.
+
 Cómo queda Balanza cuando la app corre en un VPS (o Daytona) y cada sitio tiene su PC con el
 agente y los conversores RS232→TCP, en redes distintas y sin IP pública.
 
@@ -55,6 +59,7 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;   # cookie de sesión secure
         proxy_read_timeout 120s;
     }
 }

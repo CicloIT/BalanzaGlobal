@@ -692,8 +692,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "ref_express",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "express"
     },
     {
@@ -1264,8 +1264,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_scripts_usuario_password",
-      "community": 0,
-      "community_name": "sendScopeError",
+      "community": 8,
+      "community_name": "usuariosController.js",
       "norm_label": "usuario_password.mjs"
     },
     {
@@ -1275,8 +1275,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_scripts_usuario_password_username_nueva",
-      "community": 0,
-      "community_name": "sendScopeError",
+      "community": 8,
+      "community_name": "usuariosController.js",
       "norm_label": "[username, nueva]"
     },
     {
@@ -1308,8 +1308,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_config_rolesconfig",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "rolesconfig.js"
     },
     {
@@ -1319,8 +1319,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_src_config_rolesconfig_permissions",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "permissions"
     },
     {
@@ -1341,8 +1341,8 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_src_config_rolesconfig_role_permissions",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "role_permissions"
     },
     {
@@ -1352,8 +1352,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "backend_src_config_rolesconfig_haspermission",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "haspermission()"
     },
     {
@@ -1847,8 +1847,8 @@
       "source_location": "L204",
       "_origin": "ast",
       "id": "backend_src_controllers_configuracioncontroller_getbalanzas",
-      "community": 0,
-      "community_name": "sendScopeError",
+      "community": 1,
+      "community_name": "balanzaService.js",
       "norm_label": "getbalanzas()"
     },
     {
@@ -1858,8 +1858,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_controllers_empresascontroller",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "empresascontroller.js"
     },
     {
@@ -1869,8 +1869,8 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "backend_src_controllers_empresascontroller_getempresas",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "getempresas()"
     },
     {
@@ -1880,8 +1880,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_src_controllers_empresascontroller_createempresa",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "createempresa()"
     },
     {
@@ -1891,8 +1891,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_src_controllers_empresascontroller_updateempresa",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "updateempresa()"
     },
     {
@@ -1902,8 +1902,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_src_controllers_empresascontroller_deleteempresa",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "deleteempresa()"
     },
     {
@@ -1913,8 +1913,8 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "backend_src_controllers_empresascontroller_getconfigempresaactual",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "getconfigempresaactual()"
     },
     {
@@ -2738,8 +2738,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "authmiddleware.js"
     },
     {
@@ -2749,8 +2749,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware_loaduser",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 8,
+      "community_name": "usuariosController.js",
       "norm_label": "loaduser()"
     },
     {
@@ -2760,8 +2760,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware_userfromrequest",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 8,
+      "community_name": "usuariosController.js",
       "norm_label": "userfromrequest()"
     },
     {
@@ -2771,8 +2771,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware_requireauth",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "requireauth()"
     },
     {
@@ -2782,8 +2782,8 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware_requirepermission",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "requirepermission()"
     },
     {
@@ -2793,8 +2793,8 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware_optionalauth",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "optionalauth()"
     },
     {
@@ -2804,8 +2804,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "backend_src_middleware_authmiddleware_requireglobal",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "requireglobal()"
     },
     {
@@ -2815,8 +2815,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_backups",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "backups.js"
     },
     {
@@ -2826,8 +2826,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_src_routes_backups_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -2837,8 +2837,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_src_routes_backups_soloadminglobal",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "soloadminglobal"
     },
     {
@@ -2848,8 +2848,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_camaras",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "camaras.js"
     },
     {
@@ -2859,8 +2859,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_src_routes_camaras_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -2870,8 +2870,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_choferes",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "choferes.js"
     },
     {
@@ -2881,8 +2881,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_src_routes_choferes_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -2892,8 +2892,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_configuraciones",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 1,
+      "community_name": "balanzaService.js",
       "norm_label": "configuraciones.js"
     },
     {
@@ -2903,8 +2903,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_src_routes_configuraciones_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -2914,8 +2914,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_empresas",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "empresas.js"
     },
     {
@@ -2925,8 +2925,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_src_routes_empresas_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -2958,8 +2958,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_metricas",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "metricas.js"
     },
     {
@@ -2969,8 +2969,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_src_routes_metricas_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3046,8 +3046,8 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "backend_src_routes_pesadas_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3057,8 +3057,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_productores",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "productores.js"
     },
     {
@@ -3068,8 +3068,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_src_routes_productores_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3079,8 +3079,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_productos",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "productos.js"
     },
     {
@@ -3090,8 +3090,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_src_routes_productos_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3101,8 +3101,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_provincias",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "provincias.js"
     },
     {
@@ -3112,8 +3112,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_src_routes_provincias_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3123,8 +3123,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_reporte",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "reporte.js"
     },
     {
@@ -3134,8 +3134,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "backend_src_routes_reporte_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3145,8 +3145,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_transportes",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "transportes.js"
     },
     {
@@ -3156,8 +3156,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_src_routes_transportes_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3178,8 +3178,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_src_routes_usuarios_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3189,8 +3189,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_routes_vehiculos",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "vehiculos.js"
     },
     {
@@ -3200,8 +3200,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_src_routes_vehiculos_router",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "router"
     },
     {
@@ -3211,8 +3211,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_server",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "server.js"
     },
     {
@@ -3222,8 +3222,8 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_src_server_filename",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "__filename"
     },
     {
@@ -3233,8 +3233,8 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_src_server_dirname",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "__dirname"
     },
     {
@@ -3244,8 +3244,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_src_server_app",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "app"
     },
     {
@@ -3255,8 +3255,8 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_src_server_server",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "server"
     },
     {
@@ -3266,8 +3266,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_src_server_wss",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "wss"
     },
     {
@@ -3277,8 +3277,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_src_server_agentewss",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "agentewss"
     },
     {
@@ -3288,8 +3288,8 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_src_server_broadcast",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "broadcast()"
     },
     {
@@ -3299,8 +3299,8 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_src_server_resolverbalanzaws",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "resolverbalanzaws()"
     },
     {
@@ -3310,8 +3310,8 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "backend_src_server_balanzasenalcance",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "balanzasenalcance()"
     },
     {
@@ -3321,8 +3321,8 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "backend_src_server_capturas_dir",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "capturas_dir"
     },
     {
@@ -3332,8 +3332,8 @@
       "source_location": "L158",
       "_origin": "ast",
       "id": "backend_src_server_documentos_dir",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "documentos_dir"
     },
     {
@@ -3343,8 +3343,8 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "backend_src_server_frontend_dir",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "frontend_dir"
     },
     {
@@ -3772,8 +3772,8 @@
       "source_location": "L290",
       "_origin": "ast",
       "id": "backend_src_services_balanzaservice_getestadobalanza",
-      "community": 0,
-      "community_name": "sendScopeError",
+      "community": 1,
+      "community_name": "balanzaService.js",
       "norm_label": "getestadobalanza()"
     },
     {
@@ -3981,8 +3981,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_src_utils_modulos",
-      "community": 1,
-      "community_name": "balanzaService.js",
+      "community": 0,
+      "community_name": "sendScopeError",
       "norm_label": "modulos.js"
     },
     {
@@ -4135,8 +4135,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_src_utils_scope_localidadenscope",
-      "community": 0,
-      "community_name": "sendScopeError",
+      "community": 8,
+      "community_name": "usuariosController.js",
       "norm_label": "localidadenscope()"
     },
     {
@@ -4245,8 +4245,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_src_utils_session_tokenderequest",
-      "community": 2,
-      "community_name": "server.js",
+      "community": 8,
+      "community_name": "usuariosController.js",
       "norm_label": "tokenderequest()"
     },
     {
@@ -4894,8 +4894,8 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "frontend_src_components_configuracion_configuracion",
-      "community": 15,
-      "community_name": "TablaItems.jsx",
+      "community": 10,
+      "community_name": "useAuth",
       "norm_label": "configuracion()"
     },
     {
@@ -4927,8 +4927,8 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "frontend_src_components_contenedormodal_contenedormodal",
-      "community": 7,
-      "community_name": "GestionApp.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "contenedormodal()"
     },
     {
@@ -4949,8 +4949,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_kgcompleto",
-      "community": 4,
-      "community_name": "cx",
+      "community": 10,
+      "community_name": "useAuth",
       "norm_label": "kgcompleto()"
     },
     {
@@ -4993,8 +4993,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "frontend_src_components_dashboard_ranking",
-      "community": 4,
-      "community_name": "cx",
+      "community": 10,
+      "community_name": "useAuth",
       "norm_label": "ranking()"
     },
     {
@@ -5048,8 +5048,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "detallepesadamodal.jsx"
     },
     {
@@ -5059,8 +5059,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal_formatfecha",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "formatfecha()"
     },
     {
@@ -5070,8 +5070,8 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal_kg",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "kg()"
     },
     {
@@ -5081,8 +5081,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal_seccion",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "seccion()"
     },
     {
@@ -5092,8 +5092,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal_datos",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "datos()"
     },
     {
@@ -5103,8 +5103,8 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal_peso",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "peso()"
     },
     {
@@ -5114,8 +5114,8 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "frontend_src_components_detallepesadamodal_detallepesadamodal",
-      "community": 31,
-      "community_name": "DetallePesadaModal.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "detallepesadamodal()"
     },
     {
@@ -5147,8 +5147,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "frontend_src_components_dispositivosconfig_dispositivosconfig",
-      "community": 4,
-      "community_name": "cx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "dispositivosconfig()"
     },
     {
@@ -5356,8 +5356,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_loginpage",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 10,
+      "community_name": "useAuth",
       "norm_label": "loginpage.jsx"
     },
     {
@@ -5400,8 +5400,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "pesadaform.jsx"
     },
     {
@@ -5411,8 +5411,8 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform_getfriendlyerror",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 7,
+      "community_name": "GestionApp.jsx",
       "norm_label": "getfriendlyerror()"
     },
     {
@@ -5422,8 +5422,8 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform_errormodal",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "errormodal()"
     },
     {
@@ -5433,8 +5433,8 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform_getwsurl",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "getwsurl()"
     },
     {
@@ -5444,8 +5444,8 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform_balanzadisplay",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "balanzadisplay"
     },
     {
@@ -5455,8 +5455,8 @@
       "source_location": "L198",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform_form_inicial",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "form_inicial"
     },
     {
@@ -5466,8 +5466,8 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "frontend_src_components_pesadaform_pesadaform",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 7,
+      "community_name": "GestionApp.jsx",
       "norm_label": "pesadaform()"
     },
     {
@@ -5477,8 +5477,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_protectedroute",
-      "community": 4,
-      "community_name": "cx",
+      "community": 19,
+      "community_name": "usePermissions.js",
       "norm_label": "protectedroute.jsx"
     },
     {
@@ -5488,8 +5488,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_src_components_protectedroute_protectedroute",
-      "community": 4,
-      "community_name": "cx",
+      "community": 19,
+      "community_name": "usePermissions.js",
       "norm_label": "protectedroute()"
     },
     {
@@ -5499,8 +5499,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_reportepesadas",
-      "community": 4,
-      "community_name": "cx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "reportepesadas.jsx"
     },
     {
@@ -5521,8 +5521,8 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "frontend_src_components_reportepesadas_filadato",
-      "community": 4,
-      "community_name": "cx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "filadato()"
     },
     {
@@ -5532,8 +5532,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "frontend_src_components_reportepesadas_reportepreview",
-      "community": 4,
-      "community_name": "cx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "reportepreview()"
     },
     {
@@ -5543,8 +5543,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_reporteshistorial",
-      "community": 4,
-      "community_name": "cx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "reporteshistorial.jsx"
     },
     {
@@ -5554,8 +5554,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_components_reporteshistorial_meses",
-      "community": 4,
-      "community_name": "cx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "meses"
     },
     {
@@ -5576,8 +5576,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_searchableselect",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "searchableselect.jsx"
     },
     {
@@ -5587,8 +5587,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "frontend_src_components_searchableselect_searchableselect",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "searchableselect"
     },
     {
@@ -5917,8 +5917,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_ui_alert",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "alert.jsx"
     },
     {
@@ -5928,8 +5928,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_src_components_ui_alert_tonos",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "tonos"
     },
     {
@@ -5939,8 +5939,8 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "frontend_src_components_ui_alert_alert",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "alert()"
     },
     {
@@ -5983,8 +5983,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_ui_button",
-      "community": 4,
-      "community_name": "cx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "button.jsx"
     },
     {
@@ -5994,8 +5994,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_src_components_ui_button_variantes",
-      "community": 4,
-      "community_name": "cx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "variantes"
     },
     {
@@ -6005,8 +6005,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "frontend_src_components_ui_button_tamanos",
-      "community": 4,
-      "community_name": "cx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "tamanos"
     },
     {
@@ -6093,8 +6093,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_ui_feedbackprovider",
-      "community": 10,
-      "community_name": "useAuth",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "feedbackprovider.jsx"
     },
     {
@@ -6104,8 +6104,8 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "frontend_src_components_ui_feedbackprovider_tonos",
-      "community": 10,
-      "community_name": "useAuth",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "tonos"
     },
     {
@@ -6126,8 +6126,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_ui_field",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "field.jsx"
     },
     {
@@ -6137,8 +6137,8 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "frontend_src_components_ui_field_field",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "field()"
     },
     {
@@ -6159,8 +6159,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "frontend_src_components_ui_field_select",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 4,
+      "community_name": "cx",
       "norm_label": "select"
     },
     {
@@ -6225,8 +6225,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_ui_segmented",
-      "community": 4,
-      "community_name": "cx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "segmented.jsx"
     },
     {
@@ -6236,8 +6236,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_src_components_ui_segmented_segmented",
-      "community": 4,
-      "community_name": "cx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "segmented()"
     },
     {
@@ -6280,8 +6280,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_components_ui_controlclass",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "controlclass.js"
     },
     {
@@ -6291,8 +6291,8 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "frontend_src_components_ui_controlclass_controlclass",
-      "community": 9,
-      "community_name": "PesadaForm.jsx",
+      "community": 11,
+      "community_name": "UsuariosAdmin.jsx",
       "norm_label": "controlclass"
     },
     {
@@ -6753,8 +6753,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_context_feedback",
-      "community": 11,
-      "community_name": "UsuariosAdmin.jsx",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "feedback.js"
     },
     {
@@ -6764,8 +6764,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_src_context_feedback_feedbackcontext",
-      "community": 10,
-      "community_name": "useAuth",
+      "community": 9,
+      "community_name": "PesadaForm.jsx",
       "norm_label": "feedbackcontext"
     },
     {
@@ -6841,8 +6841,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_hooks_usepermissions_usepermissions",
-      "community": 15,
-      "community_name": "TablaItems.jsx",
+      "community": 19,
+      "community_name": "usePermissions.js",
       "norm_label": "usepermissions()"
     },
     {
@@ -7066,7 +7066,7 @@
       "label": "Arquitectura",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L6",
+      "source_location": "L10",
       "_origin": "ast",
       "id": "agente_despliegue_arquitectura",
       "community": 12,
@@ -7077,7 +7077,7 @@
       "label": "1. Central (VPS)",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L28",
+      "source_location": "L32",
       "_origin": "ast",
       "id": "agente_despliegue_1_central_vps",
       "community": 12,
@@ -7088,7 +7088,7 @@
       "label": "Requisitos",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L30",
+      "source_location": "L34",
       "_origin": "ast",
       "id": "agente_despliegue_requisitos",
       "community": 12,
@@ -7099,7 +7099,7 @@
       "label": "Migraci\u00f3n",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L35",
+      "source_location": "L39",
       "_origin": "ast",
       "id": "agente_despliegue_migraci\u00f3n",
       "community": 12,
@@ -7110,7 +7110,7 @@
       "label": "nginx (proxy con WebSocket)",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L40",
+      "source_location": "L44",
       "_origin": "ast",
       "id": "agente_despliegue_nginx_proxy_con_websocket",
       "community": 12,
@@ -7121,7 +7121,7 @@
       "label": "Alta de cada balanza",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L66",
+      "source_location": "L71",
       "_origin": "ast",
       "id": "agente_despliegue_alta_de_cada_balanza",
       "community": 12,
@@ -7132,7 +7132,7 @@
       "label": "2. Conversor RS232\u2192TCP (en cada sitio)",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L80",
+      "source_location": "L85",
       "_origin": "ast",
       "id": "agente_despliegue_2_conversor_rs232_tcp_en_cada_sitio",
       "community": 12,
@@ -7143,7 +7143,7 @@
       "label": "3. Agente (PC de cada sitio)",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L99",
+      "source_location": "L104",
       "_origin": "ast",
       "id": "agente_despliegue_3_agente_pc_de_cada_sitio",
       "community": 12,
@@ -7154,18 +7154,29 @@
       "label": "Requisitos",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L101",
+      "source_location": "L106",
       "_origin": "ast",
-      "id": "agente_despliegue_requisitos_101",
+      "id": "agente_despliegue_requisitos_106",
       "community": 12,
       "community_name": "Despliegue: central en VPS + agentes locales por sitio",
       "norm_label": "requisitos"
     },
     {
+      "label": "Copiar la carpeta a la PC del sitio",
+      "file_type": "document",
+      "source_file": "Agente/DESPLIEGUE.md",
+      "source_location": "L111",
+      "_origin": "ast",
+      "id": "agente_despliegue_copiar_la_carpeta_a_la_pc_del_sitio",
+      "community": 12,
+      "community_name": "Despliegue: central en VPS + agentes locales por sitio",
+      "norm_label": "copiar la carpeta a la pc del sitio"
+    },
+    {
       "label": "Instalaci\u00f3n",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L106",
+      "source_location": "L119",
       "_origin": "ast",
       "id": "agente_despliegue_instalaci\u00f3n",
       "community": 12,
@@ -7173,21 +7184,32 @@
       "norm_label": "instalacion"
     },
     {
-      "label": "Dejarlo como servicio",
+      "label": "Dejarlo como servicio (Windows, NSSM)",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L133",
+      "source_location": "L149",
       "_origin": "ast",
-      "id": "agente_despliegue_dejarlo_como_servicio",
+      "id": "agente_despliegue_dejarlo_como_servicio_windows_nssm",
       "community": 12,
       "community_name": "Despliegue: central en VPS + agentes locales por sitio",
-      "norm_label": "dejarlo como servicio"
+      "norm_label": "dejarlo como servicio (windows, nssm)"
+    },
+    {
+      "label": "Dejarlo como servicio (Linux)",
+      "file_type": "document",
+      "source_file": "Agente/DESPLIEGUE.md",
+      "source_location": "L196",
+      "_origin": "ast",
+      "id": "agente_despliegue_dejarlo_como_servicio_linux",
+      "community": 12,
+      "community_name": "Despliegue: central en VPS + agentes locales por sitio",
+      "norm_label": "dejarlo como servicio (linux)"
     },
     {
       "label": "4. Diagn\u00f3stico",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L141",
+      "source_location": "L204",
       "_origin": "ast",
       "id": "agente_despliegue_4_diagn\u00f3stico",
       "community": 12,
@@ -7198,7 +7220,7 @@
       "label": "5. Prueba con hardware sin balanza",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L162",
+      "source_location": "L225",
       "_origin": "ast",
       "id": "agente_despliegue_5_prueba_con_hardware_sin_balanza",
       "community": 12,
@@ -7209,7 +7231,7 @@
       "label": "Estado al 2026-10-23",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L186",
+      "source_location": "L249",
       "_origin": "ast",
       "id": "agente_despliegue_estado_al_2026_10_23",
       "community": 12,
@@ -7220,7 +7242,7 @@
       "label": "6. Checklist por sitio nuevo",
       "file_type": "document",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L198",
+      "source_location": "L261",
       "_origin": "ast",
       "id": "agente_despliegue_6_checklist_por_sitio_nuevo",
       "community": 12,
@@ -7756,21 +7778,21 @@
       "norm_label": "06 \u2014 despliegue y mantenimiento"
     },
     {
-      "label": "Servidor actual (Daytona)",
+      "label": "Servidor actual (Daytona, en mudanza)",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
       "source_location": "L3",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_servidor_actual_daytona",
+      "id": "documentacion_06_despliegue_y_mantenimiento_servidor_actual_daytona_en_mudanza",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "servidor actual (daytona)"
+      "norm_label": "servidor actual (daytona, en mudanza)"
     },
     {
       "label": "Actualizar el servidor",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L11",
+      "source_location": "L15",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_actualizar_el_servidor",
       "community": 13,
@@ -7781,7 +7803,7 @@
       "label": "Una sola vez: actualizaci\u00f3n de seguridad (sesiones y contrase\u00f1as)",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L39",
+      "source_location": "L43",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_una_sola_vez_actualizaci\u00f3n_de_seguridad_sesiones_y_contrase\u00f1as",
       "community": 13,
@@ -7789,45 +7811,144 @@
       "norm_label": "una sola vez: actualizacion de seguridad (sesiones y contrasenas)"
     },
     {
-      "label": "Mudanza a un VPS",
+      "label": "Mudanza del servidor central",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L57",
+      "source_location": "L61",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
+      "id": "documentacion_06_despliegue_y_mantenimiento_mudanza_del_servidor_central",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "mudanza a un vps"
+      "norm_label": "mudanza del servidor central"
     },
     {
-      "label": "1. En Daytona: respaldar todo",
+      "label": "Puertos y firewall",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L79",
+      "source_location": "L97",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_1_en_daytona_respaldar_todo",
+      "id": "documentacion_06_despliegue_y_mantenimiento_puertos_y_firewall",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "1. en daytona: respaldar todo"
+      "norm_label": "puertos y firewall"
     },
     {
-      "label": "2. En el VPS: instalar",
+      "label": "Paso 1 (las dos opciones): respaldar Daytona",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L92",
+      "source_location": "L129",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_2_en_el_vps_instalar",
+      "id": "documentacion_06_despliegue_y_mantenimiento_paso_1_las_dos_opciones_respaldar_daytona",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "2. en el vps: instalar"
+      "norm_label": "paso 1 (las dos opciones): respaldar daytona"
+    },
+    {
+      "label": "Opci\u00f3n 1: servidor propio (Windows Server)",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L143",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "opcion 1: servidor propio (windows server)"
+    },
+    {
+      "label": "2. Instalar",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L145",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_2_instalar",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "2. instalar"
     },
     {
       "label": "3. Base de datos",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L104",
+      "source_location": "L158",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_3_base_de_datos",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "3. base de datos"
+    },
+    {
+      "label": "4. `Backend\\.env`",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L170",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_4_backend_env",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "4. `backend\\.env`"
+    },
+    {
+      "label": "5. Arrancar como servicio y abrir el puerto",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L185",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_5_arrancar_como_servicio_y_abrir_el_puerto",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "5. arrancar como servicio y abrir el puerto"
+    },
+    {
+      "label": "6. Etapa B: dominio + HTTPS con Caddy",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L220",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_6_etapa_b_dominio_https_con_caddy",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "6. etapa b: dominio + https con caddy"
+    },
+    {
+      "label": "7. Respaldos",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L242",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_7_respaldos",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "7. respaldos"
+    },
+    {
+      "label": "Opci\u00f3n 2: VPS (Linux)",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L247",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "opcion 2: vps (linux)"
+    },
+    {
+      "label": "2. Instalar",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L249",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_2_instalar_249",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "2. instalar"
+    },
+    {
+      "label": "3. Base de datos",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L263",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_3_base_de_datos_263",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
       "norm_label": "3. base de datos"
@@ -7836,51 +7957,62 @@
       "label": "4. `Backend/.env`",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L117",
+      "source_location": "L274",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_4_backend_env",
+      "id": "documentacion_06_despliegue_y_mantenimiento_4_backend_env_274",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
       "norm_label": "4. `backend/.env`"
     },
     {
-      "label": "5. Arrancar y abrir el puerto",
+      "label": "5. Arrancar con pm2 y abrir el puerto",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L131",
+      "source_location": "L279",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_5_arrancar_y_abrir_el_puerto",
+      "id": "documentacion_06_despliegue_y_mantenimiento_5_arrancar_con_pm2_y_abrir_el_puerto",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "5. arrancar y abrir el puerto"
+      "norm_label": "5. arrancar con pm2 y abrir el puerto"
     },
     {
-      "label": "6. Agentes de cada sitio",
+      "label": "6. Etapa B: dominio + HTTPS",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L143",
+      "source_location": "L305",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_6_agentes_de_cada_sitio",
+      "id": "documentacion_06_despliegue_y_mantenimiento_6_etapa_b_dominio_https",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "6. agentes de cada sitio"
+      "norm_label": "6. etapa b: dominio + https"
     },
     {
-      "label": "7. Lo que no se muda solo",
+      "label": "7. Respaldos",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L156",
+      "source_location": "L312",
       "_origin": "ast",
-      "id": "documentacion_06_despliegue_y_mantenimiento_7_lo_que_no_se_muda_solo",
+      "id": "documentacion_06_despliegue_y_mantenimiento_7_respaldos_312",
       "community": 13,
       "community_name": "06 \u2014 Despliegue y mantenimiento",
-      "norm_label": "7. lo que no se muda solo"
+      "norm_label": "7. respaldos"
+    },
+    {
+      "label": "Agentes de cada sitio (las dos opciones)",
+      "file_type": "document",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L317",
+      "_origin": "ast",
+      "id": "documentacion_06_despliegue_y_mantenimiento_agentes_de_cada_sitio_las_dos_opciones",
+      "community": 13,
+      "community_name": "06 \u2014 Despliegue y mantenimiento",
+      "norm_label": "agentes de cada sitio (las dos opciones)"
     },
     {
       "label": "Scripts (`Backend/scripts/`)",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L166",
+      "source_location": "L332",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_scripts_backend_scripts",
       "community": 13,
@@ -7891,7 +8023,7 @@
       "label": "Probar sin hardware",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L177",
+      "source_location": "L343",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_probar_sin_hardware",
       "community": 13,
@@ -7902,7 +8034,7 @@
       "label": "Qu\u00e9 revisar despu\u00e9s de un cambio",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L187",
+      "source_location": "L353",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_qu\u00e9_revisar_despu\u00e9s_de_un_cambio",
       "community": 13,
@@ -7913,7 +8045,7 @@
       "label": "Diagn\u00f3stico r\u00e1pido",
       "file_type": "document",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L195",
+      "source_location": "L361",
       "_origin": "ast",
       "id": "documentacion_06_despliegue_y_mantenimiento_diagn\u00f3stico_r\u00e1pido",
       "community": 13,
@@ -8012,7 +8144,7 @@
       "label": "1. Login y sesi\u00f3n",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L14",
+      "source_location": "L15",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_1_login_y_sesi\u00f3n",
       "community": 20,
@@ -8023,7 +8155,7 @@
       "label": "2. Permisos",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L27",
+      "source_location": "L28",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_2_permisos",
       "community": 20,
@@ -8034,7 +8166,7 @@
       "label": "3. Pesadas",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L38",
+      "source_location": "L39",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_3_pesadas",
       "community": 20,
@@ -8045,7 +8177,7 @@
       "label": "4. Balanza y agente",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L55",
+      "source_location": "L56",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_4_balanza_y_agente",
       "community": 20,
@@ -8056,7 +8188,7 @@
       "label": "5. Dispositivos",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L83",
+      "source_location": "L84",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_5_dispositivos",
       "community": 20,
@@ -8067,7 +8199,7 @@
       "label": "6. Cat\u00e1logos y base de datos",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L92",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_6_cat\u00e1logos_y_base_de_datos",
       "community": 20,
@@ -8078,7 +8210,7 @@
       "label": "7. Archivos, fotos y respaldos",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L105",
+      "source_location": "L106",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_7_archivos_fotos_y_respaldos",
       "community": 20,
@@ -8089,7 +8221,7 @@
       "label": "8. Servidor y despliegue",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L115",
+      "source_location": "L116",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_8_servidor_y_despliegue",
       "community": 20,
@@ -8100,7 +8232,7 @@
       "label": "Si nada de esto aplica",
       "file_type": "document",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L129",
+      "source_location": "L130",
       "_origin": "ast",
       "id": "documentacion_08_errores_comunes_si_nada_de_esto_aplica",
       "community": 20,
@@ -30531,6 +30663,17 @@
     {
       "relation": "references",
       "confidence": "EXTRACTED",
+      "source_file": "Agente/DESPLIEGUE.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "agente_despliegue",
+      "target": "documentacion_06_despliegue_y_mantenimiento",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
       "source_file": "Agente/README.md",
       "source_location": "L3",
       "weight": 1.0,
@@ -30564,17 +30707,6 @@
     {
       "relation": "references",
       "confidence": "EXTRACTED",
-      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L71",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento",
-      "target": "agente_despliegue",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "confidence": "EXTRACTED",
       "source_file": "documentacion/README.md",
       "source_location": "L21",
       "weight": 1.0,
@@ -30587,7 +30719,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L28",
+      "source_location": "L32",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30598,7 +30730,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L80",
+      "source_location": "L85",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30609,7 +30741,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L99",
+      "source_location": "L104",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30620,7 +30752,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L141",
+      "source_location": "L204",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30631,7 +30763,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L162",
+      "source_location": "L225",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30642,7 +30774,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L198",
+      "source_location": "L261",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30653,7 +30785,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L6",
+      "source_location": "L10",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_despliegue_central_en_vps_agentes_locales_por_sitio",
@@ -30664,7 +30796,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L66",
+      "source_location": "L71",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_1_central_vps",
@@ -30675,7 +30807,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L35",
+      "source_location": "L39",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_1_central_vps",
@@ -30686,7 +30818,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L40",
+      "source_location": "L44",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_1_central_vps",
@@ -30697,7 +30829,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L30",
+      "source_location": "L34",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_1_central_vps",
@@ -30708,18 +30840,40 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L133",
+      "source_location": "L111",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_3_agente_pc_de_cada_sitio",
-      "target": "agente_despliegue_dejarlo_como_servicio",
+      "target": "agente_despliegue_copiar_la_carpeta_a_la_pc_del_sitio",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L106",
+      "source_location": "L196",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "agente_despliegue_3_agente_pc_de_cada_sitio",
+      "target": "agente_despliegue_dejarlo_como_servicio_linux",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Agente/DESPLIEGUE.md",
+      "source_location": "L149",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "agente_despliegue_3_agente_pc_de_cada_sitio",
+      "target": "agente_despliegue_dejarlo_como_servicio_windows_nssm",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "Agente/DESPLIEGUE.md",
+      "source_location": "L119",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_3_agente_pc_de_cada_sitio",
@@ -30730,18 +30884,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L101",
+      "source_location": "L106",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_3_agente_pc_de_cada_sitio",
-      "target": "agente_despliegue_requisitos_101",
+      "target": "agente_despliegue_requisitos_106",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "Agente/DESPLIEGUE.md",
-      "source_location": "L186",
+      "source_location": "L249",
       "weight": 1.0,
       "_origin": "ast",
       "source": "agente_despliegue_5_prueba_con_hardware_sin_balanza",
@@ -31258,7 +31412,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L11",
+      "source_location": "L15",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
@@ -31269,7 +31423,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L195",
+      "source_location": "L317",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
+      "target": "documentacion_06_despliegue_y_mantenimiento_agentes_de_cada_sitio_las_dos_opciones",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L361",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
@@ -31280,18 +31445,40 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L57",
+      "source_location": "L61",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
-      "target": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
+      "target": "documentacion_06_despliegue_y_mantenimiento_mudanza_del_servidor_central",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L177",
+      "source_location": "L143",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
+      "target": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L247",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
+      "target": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L343",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
@@ -31302,7 +31489,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L187",
+      "source_location": "L353",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
@@ -31313,7 +31500,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L166",
+      "source_location": "L332",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
@@ -31328,14 +31515,14 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_06_despliegue_y_mantenimiento",
-      "target": "documentacion_06_despliegue_y_mantenimiento_servidor_actual_daytona",
+      "target": "documentacion_06_despliegue_y_mantenimiento_servidor_actual_daytona_en_mudanza",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L39",
+      "source_location": "L43",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_06_despliegue_y_mantenimiento_actualizar_el_servidor",
@@ -31346,32 +31533,43 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L79",
+      "source_location": "L129",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
-      "target": "documentacion_06_despliegue_y_mantenimiento_1_en_daytona_respaldar_todo",
+      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_del_servidor_central",
+      "target": "documentacion_06_despliegue_y_mantenimiento_paso_1_las_dos_opciones_respaldar_daytona",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L92",
+      "source_location": "L97",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
-      "target": "documentacion_06_despliegue_y_mantenimiento_2_en_el_vps_instalar",
+      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_del_servidor_central",
+      "target": "documentacion_06_despliegue_y_mantenimiento_puertos_y_firewall",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L104",
+      "source_location": "L145",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
+      "target": "documentacion_06_despliegue_y_mantenimiento_2_instalar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L158",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
       "target": "documentacion_06_despliegue_y_mantenimiento_3_base_de_datos",
       "confidence_score": 1.0
     },
@@ -31379,10 +31577,10 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L117",
+      "source_location": "L170",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
       "target": "documentacion_06_despliegue_y_mantenimiento_4_backend_env",
       "confidence_score": 1.0
     },
@@ -31390,33 +31588,99 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L131",
+      "source_location": "L185",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
-      "target": "documentacion_06_despliegue_y_mantenimiento_5_arrancar_y_abrir_el_puerto",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
+      "target": "documentacion_06_despliegue_y_mantenimiento_5_arrancar_como_servicio_y_abrir_el_puerto",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L143",
+      "source_location": "L220",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
-      "target": "documentacion_06_despliegue_y_mantenimiento_6_agentes_de_cada_sitio",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
+      "target": "documentacion_06_despliegue_y_mantenimiento_6_etapa_b_dominio_https_con_caddy",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
-      "source_location": "L156",
+      "source_location": "L242",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "documentacion_06_despliegue_y_mantenimiento_mudanza_a_un_vps",
-      "target": "documentacion_06_despliegue_y_mantenimiento_7_lo_que_no_se_muda_solo",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_1_servidor_propio_windows_server",
+      "target": "documentacion_06_despliegue_y_mantenimiento_7_respaldos",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L249",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "target": "documentacion_06_despliegue_y_mantenimiento_2_instalar_249",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L263",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "target": "documentacion_06_despliegue_y_mantenimiento_3_base_de_datos_263",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L274",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "target": "documentacion_06_despliegue_y_mantenimiento_4_backend_env_274",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L279",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "target": "documentacion_06_despliegue_y_mantenimiento_5_arrancar_con_pm2_y_abrir_el_puerto",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L305",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "target": "documentacion_06_despliegue_y_mantenimiento_6_etapa_b_dominio_https",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "documentacion/06-despliegue-y-mantenimiento.md",
+      "source_location": "L312",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "documentacion_06_despliegue_y_mantenimiento_opci\u00f3n_2_vps_linux",
+      "target": "documentacion_06_despliegue_y_mantenimiento_7_respaldos_312",
       "confidence_score": 1.0
     },
     {
@@ -31511,7 +31775,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31522,7 +31786,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L27",
+      "source_location": "L28",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31533,7 +31797,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L38",
+      "source_location": "L39",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31544,7 +31808,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L55",
+      "source_location": "L56",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31555,7 +31819,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L83",
+      "source_location": "L84",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31566,7 +31830,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L92",
+      "source_location": "L93",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31577,7 +31841,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L105",
+      "source_location": "L106",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31588,7 +31852,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L115",
+      "source_location": "L116",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31599,7 +31863,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "documentacion/08-errores-comunes.md",
-      "source_location": "L129",
+      "source_location": "L130",
       "weight": 1.0,
       "_origin": "ast",
       "source": "documentacion_08_errores_comunes_08_errores_comunes_y_c\u00f3mo_solucionarlos",
@@ -31960,5 +32224,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "7793fa8ca95e6f235fbe0b66f7b709fa80ed0452"
+  "built_at_commit": "2e5d1b91db75463d78c4e11d1c49a17d54b36f53"
 }

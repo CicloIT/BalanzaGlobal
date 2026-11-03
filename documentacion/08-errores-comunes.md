@@ -5,7 +5,8 @@ con Ctrl+F. Dónde mirar los logs:
 
 | Componente | Log |
 |---|---|
-| Backend (Daytona/VPS) | `pm2 logs balanza --lines 100` |
+| Backend (Daytona o VPS) | `pm2 logs balanza --lines 100` |
+| Backend (servidor propio, NSSM) | `C:\Balanza\Backend\logs\balanza.log` |
 | Agente (PC del sitio) | La consola donde corre `node src/index.js ...`, o `pm2 logs agente` si corre como servicio |
 | Navegador | F12 → pestaña *Console* y *Network* |
 

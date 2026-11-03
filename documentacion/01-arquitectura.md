@@ -3,7 +3,7 @@
 ## Vista general
 
 ```
- SITIO (LAN propia)                                         CENTRAL (VPS / Daytona)
+ SITIO (LAN propia)                                         CENTRAL (servidor propio / VPS)
 ┌──────────────────────────────────────────┐            ┌─────────────────────────────────┐
 │ Balanza ─RS232─> Conversor (TCP Server)  │            │ Backend Node :3000              │
 │                  192.168.x.y:6000        │            │  ├─ /          Frontend (dist)  │

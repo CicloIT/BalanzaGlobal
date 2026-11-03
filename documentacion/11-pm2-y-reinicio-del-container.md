@@ -100,4 +100,4 @@ clonar, pero **esto no está en git y se pierde**:
 | PDF de operaciones | `Backend/src/documentos/` | Van en el `.zip` de respaldo |
 
 Bajar un respaldo **antes** de cualquier cambio grande y cada tanto. Para reconstruir desde cero:
-mismos pasos que la mudanza a VPS (doc 06), restaurando ese respaldo, y después `./arrancar.sh`.
+mismos pasos que la mudanza del servidor central (doc 06, opción VPS), restaurando ese respaldo, y después `./arrancar.sh`.

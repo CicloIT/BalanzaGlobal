@@ -1,11 +1,20 @@
 {
   "sitio": "El Mirador",
-  "central": "wss://TU-SERVIDOR/agent",
+  "central": "wss://TU-SERVIDOR/agent",  //sin dominio 
   "headers": {},
   "balanzas": [
     {
       "nombre": "Balanza principal",
       "token": "PEGAR_TOKEN_DE_agente_token.mjs"
     }
+  ]
+}
+O puede ser asi si es ip y puerto
+{
+  "sitio": "El Mirador",
+  "central": "ws://IP_PUBLICA:PUERTO/agent",  //sin dominio 
+  "headers": {},
+  "balanzas": [
+    { "nombre": "Balanza principal", "token": "el mismo de antes" }
   ]
 }

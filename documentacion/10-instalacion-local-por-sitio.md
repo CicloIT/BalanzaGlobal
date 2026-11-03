@@ -1,6 +1,6 @@
 # 10 — Instalación local por sitio
 
-Alternativa al servidor central (Daytona o VPS, doc 06): **una PC por localidad** con todo el sistema
+Alternativa al servidor central (servidor propio, VPS o Daytona, doc 06): **una PC por localidad** con todo el sistema
 adentro. Cada sitio funciona solo, sin internet, pero **los datos no se comparten**.
 
 No requiere cambios de código: `LOCALIDAD_ID` en el `.env` limita el servidor a las balanzas de
