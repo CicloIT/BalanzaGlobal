@@ -242,8 +242,13 @@ queda `secure`).
        reverse_proxy 127.0.0.1:3000
    }
    ```
-4. Probar con `caddy run` en `C:\Caddy`; si anda, dejarlo como servicio:
-   `nssm install caddy C:\Caddy\caddy.exe run --config C:\Caddy\Caddyfile` y `nssm start caddy`.
+4. Con script (recomendado), en PowerShell como administrador desde la carpeta del repo:
+   - `.\caddy-windows.ps1` baja Caddy a `tools\caddy\`, escribe el `Caddyfile` (dominio por defecto
+     `balanza.cicloit.com`, cambiar con `-Dominio`) y crea el servicio `caddy` **sin arrancarlo**.
+   - Cuando el router ya mande 80 y 443 a este equipo: `.\caddy-windows.ps1 -Iniciar` (abre 80/443
+     en el firewall de Windows, servicio automático, arranca y saca el certificado).
+   - No usar `-Iniciar` antes de abrir los puertos: Let's Encrypt limita los intentos fallidos.
+   - Log: `tools\caddy\logs\caddy.log`; certificados en `tools\caddy\data\`.
 5. Entrar a `https://balanza.empresa.com`, pasar los agentes a `wss://balanza.empresa.com/agent`
    y **cerrar el 3000** (firewall y router).
 
