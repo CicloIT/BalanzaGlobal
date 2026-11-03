@@ -1,6 +1,6 @@
 {
   "sitio": "El Mirador",
-  "central": "wss://TU-SERVIDOR/agent",  //sin dominio 
+  "central": "wss://TU-SERVIDOR/agent",  //con dominio 
   "headers": {},
   "balanzas": [
     {
@@ -9,7 +9,8 @@
     }
   ]
 }
-O puede ser asi si es ip y puerto
+
+o puede ser asi si es ip y puerto
 {
   "sitio": "El Mirador",
   "central": "ws://IP_PUBLICA:PUERTO/agent",  //sin dominio 
