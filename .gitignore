@@ -1,3 +1,6 @@
 ﻿
 # NSSM descargado por servicio-windows.ps1
 tools/
+
+# Notas internas con IPs (repo publico)
+PRODUCCION.md
