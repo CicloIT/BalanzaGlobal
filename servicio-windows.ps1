@@ -26,6 +26,27 @@ $NssmDir  = Join-Path $Root 'tools\nssm'
 function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
 function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
 
+# Detiene el servicio; si a los 20 s sigue trabado (STOP_PENDING), mata el proceso (nssm + node).
+function Detener-Servicio($nombre) {
+  $svc = Get-Service -Name $nombre -ErrorAction SilentlyContinue
+  if (-not $svc -or $svc.Status -eq 'Stopped') { return }
+  sc.exe stop $nombre | Out-Null
+  for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Seconds 1
+    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
+  }
+  $procId = (Get-CimInstance Win32_Service -Filter "Name='$nombre'").ProcessId
+  if ($procId) {
+    Write-Host "  $nombre no se detuvo en 20 s: matando PID $procId" -ForegroundColor Yellow
+    taskkill /PID $procId /T /F | Out-Null
+  }
+  for ($i = 0; $i -lt 10; $i++) {
+    Start-Sleep -Seconds 1
+    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
+  }
+  Write-Host "  No se pudo detener $nombre" -ForegroundColor Red; exit 1
+}
+
 # --- Administrador ---
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) { Falla 'Abrir PowerShell como administrador (clic derecho > Ejecutar como administrador).' }
@@ -70,7 +91,7 @@ function Existe-Servicio { [bool](Get-Service -Name $Servicio -ErrorAction Silen
 if ($Desinstalar) {
   if (Existe-Servicio) {
     Paso "Borrando servicio $Servicio"
-    & $nssm stop $Servicio | Out-Null
+    Detener-Servicio $Servicio
     & $nssm remove $Servicio confirm
   } else { Write-Host "No existe el servicio $Servicio" }
   exit 0
@@ -109,7 +130,7 @@ if (-not (Test-Path (Join-Path $Frontend 'dist\index.html'))) { Falla 'No existe
 New-Item -ItemType Directory -Force $Logs | Out-Null
 if (Existe-Servicio) {
   Paso "Servicio $Servicio ya existe: deteniendo para reconfigurar"
-  & $nssm stop $Servicio | Out-Null
+  Detener-Servicio $Servicio
 } else {
   Paso "Creando servicio $Servicio"
   & $nssm install $Servicio $node 'src\server.js'

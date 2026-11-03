@@ -13,6 +13,27 @@ $Frontend = Join-Path $Root 'Frontend'
 function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
 function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
 
+# Detiene el servicio; si a los 20 s sigue trabado (STOP_PENDING), mata el proceso (nssm + node).
+function Detener-Servicio($nombre) {
+  $svc = Get-Service -Name $nombre -ErrorAction SilentlyContinue
+  if (-not $svc -or $svc.Status -eq 'Stopped') { return }
+  sc.exe stop $nombre | Out-Null
+  for ($i = 0; $i -lt 20; $i++) {
+    Start-Sleep -Seconds 1
+    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
+  }
+  $procId = (Get-CimInstance Win32_Service -Filter "Name='$nombre'").ProcessId
+  if ($procId) {
+    Write-Host "  $nombre no se detuvo en 20 s: matando PID $procId" -ForegroundColor Yellow
+    taskkill /PID $procId /T /F | Out-Null
+  }
+  for ($i = 0; $i -lt 10; $i++) {
+    Start-Sleep -Seconds 1
+    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
+  }
+  Write-Host "  No se pudo detener $nombre" -ForegroundColor Red; exit 1
+}
+
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) { Falla 'Abrir PowerShell como administrador.' }
 if (-not (Get-Service -Name $Servicio -ErrorAction SilentlyContinue)) { Falla "No existe el servicio $Servicio. Correr primero .\servicio-windows.ps1" }
@@ -46,12 +67,13 @@ if ($cambiaFront) {
 if ($cambiaBack) {
   if ($cambios -contains 'Backend/package-lock.json') {
     Paso 'npm ci en Backend'
-    Stop-Service $Servicio   # node_modules en uso
+    Detener-Servicio $Servicio   # npm ci borra node_modules: en Windows no se borran archivos en uso
     Push-Location $Backend; npm ci; $rc = $LASTEXITCODE; Pop-Location
     if ($rc -ne 0) { Start-Service $Servicio; Falla 'npm ci del backend fallo' }
   }
   Paso "Reiniciando $Servicio"
-  Restart-Service $Servicio -Force
+  Detener-Servicio $Servicio
+  Start-Service $Servicio
   Start-Sleep -Seconds 4
 } else {
   Write-Host 'Backend sin cambios: no hace falta reiniciar (el frontend nuevo se sirve directo de dist).'
