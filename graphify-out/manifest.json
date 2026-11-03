@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "Agente/sitios/ejemplo.json": {
-    "mtime": 1793021694.8237448,
-    "ast_hash": "ee617c814a89f33d7fa25afd0ee6edcb",
+    "mtime": 1793707695.7571037,
+    "ast_hash": "f241692c450bfaca4b4e0598752e0dc9",
     "semantic_hash": ""
   },
   "Agente/src/agenteBalanza.js": {
@@ -690,8 +690,8 @@
     "semantic_hash": ""
   },
   "documentacion/06-despliegue-y-mantenimiento.md": {
-    "mtime": 1793707170.1369796,
-    "ast_hash": "280400b63d0a051a981e3ae49c9a08cf",
+    "mtime": 1793709242.9369562,
+    "ast_hash": "c3b0fee3243a0b52de67e4fe5220f70d",
     "semantic_hash": ""
   },
   "documentacion/07-pendientes-y-seguridad.md": {
@@ -727,6 +727,16 @@
   "Frontend/public/vite.svg": {
     "mtime": 1779455550.9632256,
     "ast_hash": "8e3a10e157f75ada21ab742c022d5430",
+    "semantic_hash": ""
+  },
+  "actualizar-windows.ps1": {
+    "mtime": 1793709234.2176454,
+    "ast_hash": "19986d636432b6232f2d14b757ae147e",
+    "semantic_hash": ""
+  },
+  "servicio-windows.ps1": {
+    "mtime": 1793709234.1425073,
+    "ast_hash": "cece0495ded1d6f777293689a74f1698",
     "semantic_hash": ""
   }
 }

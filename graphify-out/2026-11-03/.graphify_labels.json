@@ -1,7 +1,6 @@
 {
   "0": "sendScopeError",
   "1": "balanzaService.js",
-  "2": "server.js",
   "3": "devDependencies",
   "4": "cx",
   "5": "AgenteBalanza",
@@ -30,7 +29,6 @@
   "28": "11 — pm2 y reinicio del container (Daytona)",
   "29": "05 — Operación diaria",
   "30": "09 — Interfaz y sistema de diseño",
-  "31": "DetallePesadaModal.jsx",
   "32": "smoke_scope.mjs",
   "33": "02 — Instalación y configuración",
   "34": "07 — Pendientes y seguridad",

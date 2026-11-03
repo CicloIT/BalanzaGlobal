@@ -1,22 +1,23 @@
 # Graph Report - Balanza  (2026-11-03)
 
 ## Corpus Check
-- 144 files · ~73,458 words
+- 146 files · ~75,026 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 781 nodes · 2021 edges · 40 communities (39 shown, 1 thin omitted)
+- 789 nodes · 2029 edges · 44 communities (43 shown, 1 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 6 edges (avg confidence: 0.6)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2e5d1b91`
+- Built from commit: `bde44ccd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - sendScopeError
 - balanzaService.js
+- server.js
 - devDependencies
 - cx
 - AgenteBalanza
@@ -45,6 +46,7 @@
 - 11 — pm2 y reinicio del container (Daytona)
 - 05 — Operación diaria
 - 09 — Interfaz y sistema de diseño
+- getAuthHeaders
 - smoke_scope.mjs
 - 02 — Instalación y configuración
 - 07 — Pendientes y seguridad
@@ -52,6 +54,7 @@
 - 03 — Usuarios, roles y alcance
 - Frontend — Sistema de Balanzas
 - arrancar.sh
+- servicio-windows.ps1
 
 ## God Nodes (most connected - your core abstractions)
 1. `sendScopeError()` - 87 edges
@@ -68,27 +71,31 @@
 ## Surprising Connections (you probably didn't know these)
 - `usePesosEnVivo()` --indirect_call--> `conectar()`  [INFERRED]
   Frontend/src/components/EnVivo.jsx → Backend/src/services/balanzaService.js
+- `resolverBalanzaWs()` --calls--> `scopeSql()`  [EXTRACTED]
+  Backend/src/server.js → Backend/src/utils/scope.js
+- `balanzasEnAlcance()` --calls--> `scopeSql()`  [EXTRACTED]
+  Backend/src/server.js → Backend/src/utils/scope.js
 - `Marca()` --calls--> `cx()`  [EXTRACTED]
   Frontend/src/components/layout/Sidebar.jsx → Frontend/src/lib/cx.js
 - `Navegacion()` --calls--> `cx()`  [EXTRACTED]
   Frontend/src/components/layout/Sidebar.jsx → Frontend/src/lib/cx.js
-- `snapshotsDirecto()` --references--> `digest-fetch`  [EXTRACTED]
-  Backend/src/controllers/camarasController.js → Backend/package.json
-- `handleManualBackup()` --calls--> `sendScopeError()`  [EXTRACTED]
-  Backend/src/controllers/backupController.js → Backend/src/utils/scope.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (40 total, 1 thin omitted)
+## Communities (44 total, 1 thin omitted)
 
 ### Community 0 - "sendScopeError"
-Cohesion: 0.05
-Nodes (111): pool, hasPermission(), PERMISSIONS, ROLE_PERMISSIONS, createChofer(), deleteChofer(), getChoferById(), getChoferes() (+103 more)
+Cohesion: 0.08
+Nodes (71): pool, createChofer(), deleteChofer(), getChoferById(), getChoferes(), updateChofer(), assertGestionLocalidades(), createLocalidad() (+63 more)
 
 ### Community 1 - "balanzaService.js"
 Cohesion: 0.06
-Nodes (73): [arg, flag], listar(), main(), buildSnapshotUrl(), cacheCanalesPorLocalidad, CAPTURA, capturarTodo(), CAPTURAS_DIR (+65 more)
+Nodes (74): [arg, flag], listar(), main(), buildSnapshotUrl(), cacheCanalesPorLocalidad, CAPTURA, capturarTodo(), CAPTURAS_DIR (+66 more)
+
+### Community 2 - "server.js"
+Cohesion: 0.10
+Nodes (42): hasPermission(), PERMISSIONS, ROLE_PERMISSIONS, createEmpresa(), deleteEmpresa(), getConfigEmpresaActual(), getEmpresas(), updateEmpresa() (+34 more)
 
 ### Community 3 - "devDependencies"
 Cohesion: 0.05
@@ -96,7 +103,7 @@ Nodes (42): eslint, @eslint/js, eslint-plugin-react-hooks, eslint-plugin-react-r
 
 ### Community 4 - "cx"
 Cohesion: 0.17
-Nodes (22): ActividadSemanal(), DIAS, HORAS, Kpi(), CONFIG_VACIA, BalanzaDisplay, FORM_INICIAL, SearchableSelect (+14 more)
+Nodes (20): ActividadSemanal(), DIAS, HORAS, Kpi(), BalanzaDisplay, FORM_INICIAL, MESES, SearchableSelect (+12 more)
 
 ### Community 5 - "AgenteBalanza"
 Cohesion: 0.13
@@ -108,23 +115,23 @@ Nodes (32): archiver, author, dependencies, archiver, cors, digest-fetch, dotenv
 
 ### Community 7 - "GestionApp.jsx"
 Cohesion: 0.11
-Nodes (19): getFriendlyError(), PesadaForm(), ReportePesadas(), choferesConfig, empresasConfig, localidadesConfig, pesadasConfig, productoresConfig (+11 more)
+Nodes (18): Configuracion(), Guard(), ModalForm, getFriendlyError(), PesadaForm(), ProtectedRoute(), choferesConfig, empresasConfig (+10 more)
 
 ### Community 8 - "usuariosController.js"
-Cohesion: 0.12
-Nodes (31): [username, nueva], ROLES, authLogin(), authLogout(), cambiarPasswordPropia(), createUsuario(), deleteUsuario(), getSesion() (+23 more)
+Cohesion: 0.13
+Nodes (28): [username, nueva], ROLES, authLogin(), authLogout(), cambiarPasswordPropia(), createUsuario(), deleteUsuario(), getSesion() (+20 more)
 
 ### Community 9 - "PesadaForm.jsx"
-Cohesion: 0.13
-Nodes (16): ContenedorModal(), kg(), DetallePesadaModal(), formatFecha(), kg(), Peso(), InputField, ModalForm (+8 more)
+Cohesion: 0.25
+Nodes (12): ContenedorModal(), kg(), CONFIG_VACIA, InputField, Alert(), TONOS, Button, Field() (+4 more)
 
 ### Community 10 - "useAuth"
-Cohesion: 0.13
-Nodes (21): App(), AppContent(), CambiarPasswordModal(), Configuracion(), Dashboard(), formatNumero(), formatPeso(), kgCompleto() (+13 more)
+Cohesion: 0.33
+Nodes (7): App(), AppContent(), LoginPage(), AuthContext, AuthProvider(), useAuth(), getStoredUser()
 
 ### Community 11 - "UsuariosAdmin.jsx"
 Cohesion: 0.18
-Nodes (19): Respaldos(), DispositivosConfig(), ReportePreview(), MESES, ReportesHistorial(), controlClass, Segmented(), alcanceDe() (+11 more)
+Nodes (18): Respaldos(), DispositivosConfig(), ReportesHistorial(), FeedbackProvider(), TONOS, alcanceDe(), pedir(), ResetPassword() (+10 more)
 
 ### Community 12 - "Despliegue: central en VPS + agentes locales por sitio"
 Cohesion: 0.11
@@ -139,8 +146,8 @@ Cohesion: 0.14
 Nodes (13): 10 — Instalación local por sitio, 1. Código, 2. Base de datos, 3. Dejar solo la localidad del sitio, 4. Rangos de IDs (obligatorio), 5. `Backend/.env`, 6. Dispositivos y arranque, 7. Respaldos (+5 more)
 
 ### Community 15 - "TablaItems.jsx"
-Cohesion: 0.23
-Nodes (9): Guard(), AccionesCatalogo(), CardItem, COLUMNAS_PESO, estaActivo(), FilaTabla, kg(), RenderCelda() (+1 more)
+Cohesion: 0.14
+Nodes (14): DetallePesadaModal(), formatFecha(), kg(), Peso(), AccionesCatalogo(), CardItem, COLUMNAS_PESO, estaActivo() (+6 more)
 
 ### Community 16 - "EnVivo.jsx"
 Cohesion: 0.24
@@ -155,16 +162,16 @@ Cohesion: 0.20
 Nodes (11): BACKUP_DIR, CAPTURAS_DIR, createBackup(), __dirname, DOCUMENTOS_DIR, downloadBackup(), __filename, getPgDumpCommand() (+3 more)
 
 ### Community 19 - "usePermissions.js"
-Cohesion: 0.29
-Nodes (12): ProtectedRoute(), canEditModule(), canWrite(), hasModuleAccess(), hasPermission(), hasPermissions(), MODULE_PERMISSIONS, MODULES (+4 more)
+Cohesion: 0.32
+Nodes (10): canEditModule(), canWrite(), hasModuleAccess(), hasPermission(), hasPermissions(), MODULE_PERMISSIONS, MODULES, PERMISSIONS (+2 more)
 
 ### Community 20 - "08 — Errores comunes y cómo solucionarlos"
 Cohesion: 0.18
 Nodes (10): 08 — Errores comunes y cómo solucionarlos, 1. Login y sesión, 2. Permisos, 3. Pesadas, 4. Balanza y agente, 5. Dispositivos, 6. Catálogos y base de datos, 7. Archivos, fotos y respaldos (+2 more)
 
 ### Community 21 - "AppShell.jsx"
-Cohesion: 0.24
-Nodes (8): AppShell(), leerColapsado(), Marca(), Navegacion(), Sidebar(), NAV_GROUPS, NAV_ITEMS, ROLE_LABELS
+Cohesion: 0.16
+Nodes (14): AppShell(), leerColapsado(), Marca(), Navegacion(), Sidebar(), iniciales(), Topbar(), NAV_GROUPS (+6 more)
 
 ### Community 22 - "smoke_agentes.mjs"
 Cohesion: 0.33
@@ -202,6 +209,10 @@ Nodes (6): 05 — Operación diaria, Dashboard, Lista de pesadas, Pesada de un c
 Cohesion: 0.29
 Nodes (6): 09 — Interfaz y sistema de diseño, Componentes base (`src/components/ui/`), Layout, Pantallas, Reglas para pantallas nuevas, Tema y colores
 
+### Community 31 - "getAuthHeaders"
+Cohesion: 0.17
+Nodes (13): CambiarPasswordModal(), Dashboard(), formatNumero(), formatPeso(), kgCompleto(), Ranking(), ReportePesadas(), ReportePreview() (+5 more)
+
 ### Community 32 - "smoke_scope.mjs"
 Cohesion: 0.60
 Nodes (5): api(), check(), login(), main(), wsMensajes()
@@ -226,6 +237,10 @@ Nodes (4): 03 — Usuarios, roles y alcance, Alcance, Gestión de usuarios y con
 Cohesion: 0.40
 Nodes (4): Desarrollo, Estructura, Frontend — Sistema de Balanzas, Producción
 
+### Community 42 - "servicio-windows.ps1"
+Cohesion: 0.60
+Nodes (3): Falla(), Get-Nssm(), Paso()
+
 ## Knowledge Gaps
 - **221 isolated node(s):** `name`, `version`, `description`, `type`, `main` (+216 more)
   These have ≤1 connection - possible missing edges or undocumented components.
@@ -235,16 +250,16 @@ Nodes (4): Desarrollo, Estructura, Frontend — Sistema de Balanzas, Producción
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `conectar()` connect `balanzaService.js` to `EnVivo.jsx`?**
-  _High betweenness centrality (0.253) - this node is a cross-community bridge._
+  _High betweenness centrality (0.248) - this node is a cross-community bridge._
 - **Why does `usePesosEnVivo()` connect `EnVivo.jsx` to `balanzaService.js`?**
-  _High betweenness centrality (0.253) - this node is a cross-community bridge._
-- **Why does `cx()` connect `cx` to `GestionApp.jsx`, `PesadaForm.jsx`, `useAuth`, `UsuariosAdmin.jsx`, `TablaItems.jsx`, `EnVivo.jsx`, `AppShell.jsx`?**
-  _High betweenness centrality (0.107) - this node is a cross-community bridge._
+  _High betweenness centrality (0.248) - this node is a cross-community bridge._
+- **Why does `cx()` connect `cx` to `GestionApp.jsx`, `PesadaForm.jsx`, `UsuariosAdmin.jsx`, `TablaItems.jsx`, `EnVivo.jsx`, `AppShell.jsx`, `getAuthHeaders`?**
+  _High betweenness centrality (0.105) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `description` to the rest of the system?**
   _221 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `sendScopeError` be split into smaller, more focused modules?**
-  _Cohesion score 0.05303030303030303 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08372093023255814 - nodes in this community are weakly interconnected._
 - **Should `balanzaService.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.06329113924050633 - nodes in this community are weakly interconnected._
-- **Should `devDependencies` be split into smaller, more focused modules?**
-  _Cohesion score 0.046511627906976744 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.060828680575962385 - nodes in this community are weakly interconnected._
+- **Should `server.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.09701928696668614 - nodes in this community are weakly interconnected._

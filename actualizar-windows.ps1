@@ -1,0 +1,68 @@
+# Actualiza el servidor Windows: git pull, dependencias, build del frontend y reinicio del servicio.
+# Uso (PowerShell COMO ADMINISTRADOR, desde la carpeta del repo):
+#   powershell -ExecutionPolicy Bypass -File .\actualizar-windows.ps1
+# Las migraciones .sql NO se corren solas: si el pull trae una nueva, correrla con psql antes.
+
+param([string]$Servicio = 'balanza')
+
+$ErrorActionPreference = 'Stop'
+$Root     = $PSScriptRoot
+$Backend  = Join-Path $Root 'Backend'
+$Frontend = Join-Path $Root 'Frontend'
+
+function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
+function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
+
+$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $admin) { Falla 'Abrir PowerShell como administrador.' }
+if (-not (Get-Service -Name $Servicio -ErrorAction SilentlyContinue)) { Falla "No existe el servicio $Servicio. Correr primero .\servicio-windows.ps1" }
+
+Push-Location $Root
+$antes = (git rev-parse HEAD).Trim()
+Paso 'git pull'
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { Pop-Location; Falla 'git pull fallo (cambios locales?). Ver git status.' }
+$despues = (git rev-parse HEAD).Trim()
+if ($antes -eq $despues) { Write-Host 'Sin cambios nuevos.'; Pop-Location; exit 0 }
+$cambios = git diff --name-only $antes $despues
+Pop-Location
+
+$cambiaBack  = $cambios | Where-Object { $_ -like 'Backend/*' }
+$cambiaFront = $cambios | Where-Object { $_ -like 'Frontend/*' }
+$migraciones = $cambios | Where-Object { $_ -like '*.sql' }
+if ($migraciones) {
+  Write-Host "AVISO: cambiaron estos .sql, revisar si hay que aplicarlos:`n  $($migraciones -join "`n  ")" -ForegroundColor Yellow
+}
+
+if ($cambiaFront) {
+  Paso 'Compilando frontend'
+  Push-Location $Frontend
+  if ($cambios -contains 'Frontend/package-lock.json') { npm ci; if ($LASTEXITCODE -ne 0) { Pop-Location; Falla 'npm ci del frontend fallo' } }
+  npm run build; $rc = $LASTEXITCODE
+  Pop-Location
+  if ($rc -ne 0) { Falla 'Fallo el build del frontend (el servicio sigue con la version anterior).' }
+}
+
+if ($cambiaBack) {
+  if ($cambios -contains 'Backend/package-lock.json') {
+    Paso 'npm ci en Backend'
+    Stop-Service $Servicio   # node_modules en uso
+    Push-Location $Backend; npm ci; $rc = $LASTEXITCODE; Pop-Location
+    if ($rc -ne 0) { Start-Service $Servicio; Falla 'npm ci del backend fallo' }
+  }
+  Paso "Reiniciando $Servicio"
+  Restart-Service $Servicio -Force
+  Start-Sleep -Seconds 4
+} else {
+  Write-Host 'Backend sin cambios: no hace falta reiniciar (el frontend nuevo se sirve directo de dist).'
+}
+
+$puerto = 3000
+$lineaPort = Select-String -Path (Join-Path $Backend '.env') -Pattern '^\s*PORT\s*=\s*(\d+)' | Select-Object -First 1
+if ($lineaPort) { $puerto = [int]$lineaPort.Matches[0].Groups[1].Value }
+try {
+  $r = Invoke-WebRequest "http://127.0.0.1:$puerto/api/health" -UseBasicParsing -TimeoutSec 10
+  Write-Host "OK: /api/health -> $($r.StatusCode). En el navegador: Ctrl+Shift+R." -ForegroundColor Green
+} catch {
+  Write-Host "No responde. Log: $(Join-Path $Backend 'logs\balanza.log')" -ForegroundColor Yellow
+}

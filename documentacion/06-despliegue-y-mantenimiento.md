@@ -185,14 +185,25 @@ Generar `SESSION_SECRET`: `node -e "console.log(require('crypto').randomBytes(32
 ### 5. Arrancar como servicio y abrir el puerto
 
 Primero a mano, para ver errores: `cd C:\Balanza\Backend; node src\server.js`.
-Después como **servicio de Windows** con [NSSM](https://nssm.cc) (arranca con el equipo, sin iniciar sesión):
+Después como **servicio de Windows** con [NSSM](https://nssm.cc) (arranca con el equipo, sin iniciar
+sesión, se reinicia solo si se cae). En Windows no se usa pm2: no arranca solo con el equipo.
+Cerrar antes las terminales de `node` / `vite` (el puerto tiene que estar libre) y, en PowerShell
+**como administrador**:
 ```powershell
-nssm install balanza "C:\Program Files\nodejs\node.exe" src\server.js
-nssm set balanza AppDirectory C:\Balanza\Backend
-nssm set balanza AppStdout C:\Balanza\Backend\logs\balanza.log
-nssm set balanza AppStderr C:\Balanza\Backend\logs\balanza.log
-nssm start balanza
+cd C:\Balanza
+powershell -ExecutionPolicy Bypass -File .\servicio-windows.ps1
 ```
+El script baja NSSM a `tools\nssm\` si no está, compila el frontend, crea/reconfigura el servicio
+`balanza` (log en `Backend\logs\balanza.log`, rota cada 10 MB; depende del servicio de PostgreSQL),
+y prueba `/api/health`. **No abre el puerto**: queda accesible solo desde el propio equipo
+(`http://127.0.0.1:3000`). Para abrirlo en el firewall de Windows cuando haga falta:
+`.\servicio-windows.ps1 -SinBuild -AbrirPuerto`. Se puede correr de nuevo sin problema.
+Opciones: `-SinBuild`, `-AbrirPuerto`, `-Desinstalar`.
+
+Manejo diario: `Restart-Service balanza`, `Stop-Service balanza`, `Get-Service balanza`,
+`Get-Content C:\Balanza\Backend\logs\balanza.log -Tail 50 -Wait`.
+Actualizar a una versión nueva: `.\actualizar-windows.ps1` (git pull + build si cambió el
+frontend + reinicio si cambió el backend; las migraciones `.sql` se aplican a mano).
 
 Abrir el puerto en **dos lugares**:
 

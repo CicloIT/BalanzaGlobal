@@ -645,8 +645,8 @@
     "semantic_hash": ""
   },
   "Agente/DESPLIEGUE.md": {
-    "mtime": 1793706995.7686584,
-    "ast_hash": "55cecfac8bc7633e57b41fce78730a06",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "9f5d1e7e7a1b7f28a84c33e83cf8dec4",
     "semantic_hash": ""
   },
   "Agente/README.md": {
@@ -665,8 +665,8 @@
     "semantic_hash": ""
   },
   "documentacion/01-arquitectura.md": {
-    "mtime": 1793706995.7428327,
-    "ast_hash": "9d9909fdd40315c5e7f82a872a0b66b5",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "a06ff8ecdfdb0497a75957d8599c0be1",
     "semantic_hash": ""
   },
   "documentacion/02-instalacion-y-configuracion.md": {
@@ -690,18 +690,18 @@
     "semantic_hash": ""
   },
   "documentacion/06-despliegue-y-mantenimiento.md": {
-    "mtime": 1793706995.726613,
-    "ast_hash": "04fe0d34346334f2b9448c88d274819f",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "280400b63d0a051a981e3ae49c9a08cf",
     "semantic_hash": ""
   },
   "documentacion/07-pendientes-y-seguridad.md": {
-    "mtime": 1793706995.726613,
-    "ast_hash": "03a044404c9ef29b7fc7846960d53da7",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "95bb6395f44ec6f98a0c763590f40d32",
     "semantic_hash": ""
   },
   "documentacion/08-errores-comunes.md": {
-    "mtime": 1793707000.2454948,
-    "ast_hash": "5c37469ab4d1243156ded1a810952a64",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "a9eae531edc44d0652820d92dbcc7fb0",
     "semantic_hash": ""
   },
   "documentacion/09-interfaz-y-diseno.md": {
@@ -710,18 +710,18 @@
     "semantic_hash": ""
   },
   "documentacion/10-instalacion-local-por-sitio.md": {
-    "mtime": 1793706995.743833,
-    "ast_hash": "649b5f5e144c6d1718cb377e60c872ea",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "e9fb65c2e6da1d67dc1d1f343eb74048",
     "semantic_hash": ""
   },
   "documentacion/11-pm2-y-reinicio-del-container.md": {
-    "mtime": 1793706995.751445,
-    "ast_hash": "8de673fdf54d7960f95683adf268ee10",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "73509b1a8e1ea7637517d1e0c096a7fa",
     "semantic_hash": ""
   },
   "documentacion/README.md": {
-    "mtime": 1793706995.7348258,
-    "ast_hash": "43cbb8cede0386d91b8382d3214b9c29",
+    "mtime": 1793707170.1369796,
+    "ast_hash": "590519758de14e593378fc975d2da29e",
     "semantic_hash": ""
   },
   "Frontend/public/vite.svg": {
