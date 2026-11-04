@@ -200,8 +200,12 @@ y prueba `/api/health`. **No abre el puerto**: queda accesible solo desde el pro
 `.\servicio-windows.ps1 -SinBuild -AbrirPuerto`. Se puede correr de nuevo sin problema.
 Opciones: `-SinBuild`, `-AbrirPuerto`, `-Desinstalar`.
 
-Manejo diario: `Restart-Service balanza`, `Stop-Service balanza`, `Get-Service balanza`,
-`Get-Content C:\Balanza\Backend\logs\balanza.log -Tail 50 -Wait`.
+Manejo diario: `Get-Service balanza, caddy`, `Get-Content C:\Balanza\Backend\logs\balanza.log -Tail 50 -Wait`.
+Con Caddy instalado, `caddy` **depende** de `balanza` y Windows no deja detener `balanza` con
+`caddy` corriendo: reiniciar en orden `Stop-Service caddy; Restart-Service balanza; Start-Service caddy`
+(en CMD: `net stop caddy`, `net stop balanza`, `net start balanza`, `net start caddy`).
+`actualizar-windows.ps1` y `servicio-windows.ps1` ya lo hacen solos. En PowerShell usar `sc.exe` y
+`curl.exe` (`sc` y `curl` son alias de otros comandos).
 Actualizar a una versión nueva: `.\actualizar-windows.ps1` (git pull + build si cambió el
 frontend + reinicio si cambió el backend; las migraciones `.sql` se aplican a mano).
 

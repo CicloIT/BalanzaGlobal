@@ -26,10 +26,19 @@ $NssmDir  = Join-Path $Root 'tools\nssm'
 function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
 function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
 
+# Servicios que dependen de este (ej. caddy -> balanza) y que se detuvieron para poder pararlo:
+# Windows no deja detener un servicio con dependientes corriendo (sc stop -> error 1051).
+$script:Dependientes = @()
+
 # Detiene el servicio; si a los 20 s sigue trabado (STOP_PENDING), mata el proceso (nssm + node).
 function Detener-Servicio($nombre) {
   $svc = Get-Service -Name $nombre -ErrorAction SilentlyContinue
   if (-not $svc -or $svc.Status -eq 'Stopped') { return }
+  foreach ($d in ($svc.DependentServices | Where-Object Status -ne 'Stopped')) {
+    Write-Host "  Deteniendo $($d.Name) (depende de $nombre)"
+    Detener-Servicio $d.Name
+    if ($script:Dependientes -notcontains $d.Name) { $script:Dependientes += $d.Name }
+  }
   sc.exe stop $nombre | Out-Null
   for ($i = 0; $i -lt 20; $i++) {
     Start-Sleep -Seconds 1
@@ -45,6 +54,15 @@ function Detener-Servicio($nombre) {
     if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
   }
   Write-Host "  No se pudo detener $nombre" -ForegroundColor Red; exit 1
+}
+
+# Vuelve a arrancar los dependientes que Detener-Servicio paro (ej. caddy)
+function Arrancar-Dependientes {
+  foreach ($d in $script:Dependientes) {
+    Write-Host "  Arrancando $d"
+    try { Start-Service $d -ErrorAction Stop } catch { Write-Host "  No arranco $d : $($_.Exception.Message)" -ForegroundColor Yellow }
+  }
+  $script:Dependientes = @()
 }
 
 # --- Administrador ---
@@ -163,6 +181,7 @@ if ($pg) {
 Paso "Iniciando $Servicio"
 & $nssm start $Servicio
 Start-Sleep -Seconds 4
+Arrancar-Dependientes
 
 # --- Firewall ---
 if ($AbrirPuerto) {
