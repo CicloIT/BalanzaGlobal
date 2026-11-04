@@ -44,12 +44,12 @@ $NssmExe  = Join-Path $Root 'tools\nssm\nssm.exe'
 function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
 function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
 
-# Detiene el servicio; si a los 20 s sigue trabado, mata el proceso.
+# Detiene el servicio; si a los 30 s sigue trabado, mata el proceso.
 function Detener-Servicio($nombre) {
   $svc = Get-Service -Name $nombre -ErrorAction SilentlyContinue
   if (-not $svc -or $svc.Status -eq 'Stopped') { return }
   sc.exe stop $nombre | Out-Null
-  for ($i = 0; $i -lt 20; $i++) {
+  for ($i = 0; $i -lt 30; $i++) {
     Start-Sleep -Seconds 1
     if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
   }
@@ -132,7 +132,9 @@ Write-Host (& $CaddyExe version)
 
 # --- Caddyfile ---
 Paso "Escribiendo Caddyfile para $Dominio -> 127.0.0.1:$puerto"
-$opciones = @()
+# grace_period: por defecto Caddy espera para siempre a que cierren las conexiones al
+# detenerse (WebSocket de agentes/navegadores), y el servicio queda en StopPending.
+$opciones = @("`tgrace_period 10s")
 if ($Email) { $opciones += "`temail $Email" }
 # Con HTTPS en un puerto publico distinto de 443, la redireccion automatica de Caddy
 # mandaria a https://DOMINIO (443 publico = otro equipo): se desactiva y se hace a mano.
@@ -148,8 +150,9 @@ if ($usarDns) {
 		dns_challenge_override_domain $AcmeDominio
 		# deSEC tarda en replicar el TXT a todos sus servidores (anycast); Let's Encrypt
 		# valida desde varias regiones y falla "During secondary validation" si no espera.
-		propagation_delay 2m
-		propagation_timeout 10m
+		# Medido 2026-11-04: ns2.desec.org tarda mas de 10 min en tener el TXT.
+		propagation_delay 15m
+		propagation_timeout 30m
 	}
 
 "@
@@ -220,6 +223,12 @@ if ($usarDns) { $entorno += "DESEC_TOKEN=$token" }
 & $nssm set $Servicio AppRotateBytes 10485760 | Out-Null
 & $nssm set $Servicio AppExit Default Restart | Out-Null
 & $nssm set $Servicio AppRestartDelay 5000 | Out-Null
+# Al detener: Ctrl+C y hasta 15 s para cerrar (grace_period 10s), despues lo mata con sus hijos
+& $nssm set $Servicio AppStopMethodSkip 0 | Out-Null
+& $nssm set $Servicio AppStopMethodConsole 15000 | Out-Null
+& $nssm set $Servicio AppStopMethodWindow 2000 | Out-Null
+& $nssm set $Servicio AppStopMethodThreads 2000 | Out-Null
+& $nssm set $Servicio AppKillProcessTree 1 | Out-Null
 
 # Algo mas ocupando 80/443 en este equipo (IIS, otro servidor web)?
 $ocupados = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 80, 443 }
