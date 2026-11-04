@@ -126,6 +126,13 @@ Estos errores salen como texto de PostgreSQL:
 | `EADDRINUSE: address already in use :::3000` | Ya hay otro backend en ese puerto | `pm2 list`; no arrancar `node src/server.js` a mano si pm2 ya lo corre |
 | `password authentication failed for user` / `ECONNREFUSED 127.0.0.1:5432` | Datos de la base mal o PostgreSQL apagado | Revisar `DB_*` en `.env`; arrancar PostgreSQL |
 | `psql: invalid command \restrict` al cargar `schema.sql` | psql viejo con un dump de pg_dump 18 | Borrar las líneas `\restrict` / `\unrestrict` del archivo |
+| Servicio `caddy` o `balanza` queda en `StopPending` | El proceso no termina al detenerse (Caddy esperaba para siempre a que cierren los WebSocket) | `$p = (Get-CimInstance Win32_Service -Filter "Name='caddy'").ProcessId; taskkill /PID $p /T /F` (comparar antes con el PID del otro servicio). El script actual de Caddy ya trae `grace_period 10s` |
+| Caddy: `bind: address already in use` en :80 o :443 | IIS (Default Web Site) u otro programa tiene el puerto; PID 4 = IIS | Mover/detener Default Web Site (no el sitio `apps`) |
+| Caddy: `401 ... Invalid token` (deSEC) | Token mal pegado, vencido o con subnet que no coincide | Probarlo con `Invoke-RestMethod` (doc 06, 6b) y volver a correr `caddy-windows.ps1` |
+| Caddy: `During secondary validation: No TXT record found` / `query timed out looking up TXT` | `ns2.desec.org` tarda en replicar el TXT; Let's Encrypt valida desde varias regiones | Esperar (el script usa `propagation_delay 15m`); si sigue, subir la espera (doc 06, 6b) |
+| Caddy: `No TXT record found` sin "secondary" y el DNS falla | CNAME `_acme-challenge` o NS de la zona deSEC mal cargados | `nslookup -type=NS balanza-acme.cicloit.com ns3.hostmar.com` y `-type=CNAME _acme-challenge.balanza.cicloit.com` |
+| `https://...` da error de certificado / `TLS internal error` | Caddy todavía no obtuvo el certificado | Ver `tools\caddy\logs\caddy.log`; el primero tarda 15-20 min |
+| El agente no conecta después de pasar a `wss://` | Falta el puerto en la URL, campo mal nombrado o el 443/puerto público no llega | `"central": "wss://<dominio>:<puerto>/agent"`; probar `https://<dominio>:<puerto>` desde afuera |
 
 ## Si nada de esto aplica
 

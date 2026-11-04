@@ -102,7 +102,7 @@ Las dos opciones pasan por las mismas dos etapas:
 |---|---|---|
 | `PORT` del backend (3000) | **Sí en la etapa A**, no en la B | Web, API, WebSocket del navegador (`/ws`) y de los agentes (`/agent`): todo por el mismo puerto |
 | 443 | Sí en la etapa B | HTTPS/WSS a través del proxy |
-| 80 | Sí en la etapa B | Validación y renovación del certificado (Let's Encrypt) |
+| 80 | Sí en la etapa B | Validación y renovación del certificado (Let's Encrypt). Con DNS-01 ([6b](#6b-router-sin-80443-públicos-certificado-por-dns-01)) solo sirve para redirigir a https |
 | 5432 (PostgreSQL) | **Nunca** | Lo usa solo el backend en la misma máquina |
 | Acceso remoto (3389 RDP en Windows, 22 SSH en Linux) | Solo lo necesario | RDP: no abierto a todo internet (limitar a IPs conocidas o VPN). SSH: con clave, sin contraseña |
 
@@ -255,6 +255,108 @@ queda `secure`).
 Alternativa: IIS + ARR + win-acme. Funciona, pero hay que activar el *WebSocket Protocol* de IIS y
 mandar `X-Forwarded-Proto: https` a mano; Caddy lo trae resuelto.
 
+### 6b. Router sin 80/443 públicos: certificado por DNS-01
+
+Es el caso del servidor propio actual (2026-11-04): los puertos públicos 80 y 443 del router los
+usa otro equipo, así que el router entra por **puertos altos** que van al 80/443 del servidor
+(valores concretos en `PRODUCCION.md`, no versionado):
+
+```
+Internet                               Router                     Servidor
+http://DOMINIO:PUERTO_HTTP_PUB    →    PUERTO_HTTP_PUB  → 80   →  Caddy :80  → redirige a https
+https://DOMINIO:PUERTO_HTTPS_PUB  →    PUERTO_HTTPS_PUB → 443  →  Caddy :443 → backend 127.0.0.1:3000
+```
+
+**Por qué no alcanza con el paso 6:** Let's Encrypt valida siempre contra los puertos públicos 80
+(HTTP-01) o 443 (TLS-ALPN). Con el router en puertos altos esas validaciones no llegan nunca. Queda
+**DNS-01**: Caddy crea un registro TXT temporal por API y Let's Encrypt lo busca en el DNS. No usa
+ningún puerto.
+
+**Por qué deSEC:** el DNS de `cicloit.com` está en DonWeb, que no tiene API ni plugin para Caddy.
+En vez de mudar todo el dominio, se **delega solo el desafío**: una zona chica en
+[deSEC](https://desec.io) (gratis, con plugin para Caddy, sin tarjeta). El token de deSEC solo puede
+tocar esa zona, no `cicloit.com`. Se descartaron: dedyn.io de deSEC (altas suspendidas, solo para
+uso hogareño), Cloudflare gratis (no permite zonas de subdominio), DigitalOcean y Route 53 (piden
+tarjeta) y Hetzner (migró su API de DNS en 2026 y el plugin no estaba confirmado).
+
+**Cómo queda el DNS:**
+
+| Dónde | Registro | Valor |
+|---|---|---|
+| deSEC | zona `balanza-acme.cicloit.com` ("Configure your own domain"; los NS de la zona los crea deSEC solo) | — |
+| DonWeb | `NS` `balanza-acme` (×2) | `ns1.desec.io.` y `ns2.desec.org.` |
+| DonWeb | `CNAME` `_acme-challenge.balanza.cicloit.com` (DonWeb pide el nombre completo en CNAME, en NS no) | `balanza-acme.cicloit.com` |
+| DonWeb | `A` `balanza` | IP pública |
+
+El subdominio `balanza-acme` **no tiene que existir antes**: existe cuando se cargan los NS. Para ese
+nombre cargar **solo** los NS (un A o CNAME en el mismo nombre rompe la delegación). Agregar estos
+registros no afecta al resto del dominio; lo que lo rompería es cambiar los NS de la raíz (`@`).
+
+Verificar contra los servidores de DonWeb, sin esperar caché:
+```powershell
+nslookup -type=NS balanza-acme.cicloit.com ns3.hostmar.com    # → ns1.desec.io, ns2.desec.org
+nslookup -type=CNAME _acme-challenge.balanza.cicloit.com 1.1.1.1
+```
+En deSEC: *Token management* → **+**. Sin marcar *can create/delete domain* ni *can manage tokens*;
+*Maximum age* y *Maximum unused period* **vacíos** (Caddy lo usa una vez cada 1-2 meses: si vence,
+la renovación falla). El token se muestra una sola vez. Probarlo antes de dárselo a Caddy:
+```powershell
+$t = Read-Host "Token deSEC"
+(Invoke-RestMethod https://desec.io/api/v1/domains/ -Headers @{Authorization = "Token $($t.Trim())"}).name
+```
+Tiene que responder `balanza-acme.cicloit.com`. Cerrar la ventana después (el token queda visible).
+
+**Instalar / reconfigurar Caddy** (PowerShell como administrador, en la carpeta del repo):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\caddy-windows.ps1 -AcmeDominio balanza-acme.cicloit.com -PuertoHttps PUERTO_HTTPS_PUB -Email <email> -Iniciar
+```
+- `-AcmeDominio`: baja un Caddy con el plugin `dns.providers.desec` (el oficial no lo trae) y
+  arma el bloque `tls` con `dns desec` + `dns_challenge_override_domain`.
+- `-PuertoHttps`: desactiva la redirección automática de Caddy (mandaría a `https://DOMINIO` sin
+  puerto, o sea al 443 público, que es otro equipo) y redirige explícito a ese puerto.
+- `-Email`: avisos de vencimiento de Let's Encrypt.
+- Pide el token **por teclado** (pegar con clic derecho, una vez, y Enter; no se ve) y lo guarda solo
+  en el entorno del servicio `caddy`, nunca en el repo. **Enter vacío** = conservar el que ya tiene.
+- Antes, liberar el 80 del servidor: Default Web Site de IIS en otro puerto o detenido (el sitio
+  `apps` :8181 no se toca). `netstat -ano | findstr ":80 " | findstr LISTENING` no debe mostrar nada.
+  PID 4 (*System*) en el 80 es IIS (http.sys).
+
+**Primer certificado:** tarda unos **15-20 minutos** (ver problema 4). En el log queda
+`trying to solve challenge` todo ese tiempo, es normal. Después: `certificate obtained successfully`.
+Se renueva solo ~30 días antes del vencimiento, con la misma espera.
+
+Agentes: `"central": "wss://balanza.cicloit.com:PUERTO_HTTPS_PUB/agent"`. Navegador:
+`https://balanza.cicloit.com:PUERTO_HTTPS_PUB`. Cuando todo ande, quitar la redirección del 3000.
+
+#### Problemas que tuvimos (2026-11-04)
+
+1. **NS cargados en el nombre equivocado.** La zona de deSEC se llamó `balanza-acme` pero los NS se
+   cargaron primero en `acme` y después en `balanza`. Delegar `balanza` le entrega a deSEC el
+   subdominio de la app y anula su registro A (la app deja de resolver). El nombre del NS en DonWeb
+   tiene que ser **exactamente** el de la zona creada en deSEC. Un punto final de más o de menos en
+   el valor del NS no cambia nada (DonWeb publica igual).
+2. **`401 Invalid token`** en el log de Caddy: el token se pegó mal en el `Read-Host` oculto. Probarlo
+   antes con el comando de arriba y pegarlo con clic derecho.
+3. **Servicios trabados en `StopPending`** (`caddy` y una vez `balanza`). Caddy espera para siempre
+   a que cierren las conexiones abiertas (WebSocket) al detenerse. Resuelto en el script con
+   `grace_period 10s` y los métodos de parada de NSSM (Ctrl+C, 15 s, después lo mata con sus hijos).
+   NSSM del servidor: `2.24-101` (la versión que corrige las paradas en Windows nuevos). Si vuelve a
+   pasar: `$p = (Get-CimInstance Win32_Service -Filter "Name='caddy'").ProcessId` → `taskkill /PID $p /T /F`
+   (antes comparar con el PID de `balanza`: si es el mismo, no matarlo).
+4. **`During secondary validation: No TXT record found`** y **`DNS problem: query timed out`.** El DNS
+   estaba bien (verificado contra DonWeb, deSEC y [unboundtest.com](https://unboundtest.com), que
+   usa el mismo resolver que Let's Encrypt). La causa: `ns2.desec.org` tardaba **más de 10 minutos**
+   en tener el TXT que `ns1.desec.io` ya tenía; Let's Encrypt valida desde varias regiones y alguna
+   cae en `ns2`. No es el TTL (eso es cuánto se guarda una respuesta; un timeout es que no responde).
+   Arreglo: `propagation_delay 15m` y `propagation_timeout 30m` en el Caddyfile. Con 2 minutos no
+   alcanzó. Si un día vuelve a fallar: subir la espera o cambiar deSEC por otro DNS con API
+   (en DonWeb solo cambian los NS de `balanza-acme`).
+5. **TXT viejos en deSEC:** al matar Caddy en medio de un intento queda el TXT publicado. No molesta;
+   se puede borrar a mano en deSEC.
+6. **Mientras no hay certificado**, la app y los agentes pueden seguir por el 3000 sin cifrado
+   (etapa A). Detener Caddy y dejarlo manual para que no siga reintentando (Let's Encrypt limita los
+   fallos): `Stop-Service caddy` y `tools\nssm\nssm.exe set caddy Start SERVICE_DEMAND_START`.
+
 ### 7. Respaldos
 
 Programar un respaldo diario con el Programador de tareas (script en doc 10, *Respaldos*) y copiar
@@ -336,7 +438,9 @@ En la PC de cada sitio, editar su `Agente/sitios/<sitio>.json`:
 ```json
 "central": "ws://IP_PUBLICA:3000/agent"
 ```
-(o `wss://<dominio>/agent` en la etapa B). Quitar `headers` si tenía el `x-daytona-preview-token`.
+(o `wss://<dominio>/agent` en la etapa B; si el router usa un puerto público distinto de 443,
+`wss://<dominio>:<puerto>/agent`, ver [6b](#6b-router-sin-80443-públicos-certificado-por-dns-01)).
+El campo es **`central`** (no `url`). Quitar `headers` si tenía el `x-daytona-preview-token`.
 Reiniciar el agente y verificar en *Dispositivos* / `GET /api/health` que la balanza figure `agente_online`.
 
 - Con la base migrada, los tokens siguen valiendo.
