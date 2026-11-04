@@ -146,6 +146,10 @@ if ($usarDns) {
 			token {env.DESEC_TOKEN}
 		}
 		dns_challenge_override_domain $AcmeDominio
+		# deSEC tarda en replicar el TXT a todos sus servidores (anycast); Let's Encrypt
+		# valida desde varias regiones y falla "During secondary validation" si no espera.
+		propagation_delay 2m
+		propagation_timeout 10m
 	}
 
 "@
