@@ -7,6 +7,8 @@
 //  B) Bloque STX ... ETX con un campo por renglón (campos alineados a la derecha):
 //     02 "         1\r\n" "     49420\r\n" "         0\r\n" 03
 //     Renglones: [0] estado  [1] PESO  [2] estado
+//  C) Bloque STX ... ETX con un solo renglón, que es el peso:
+//     02 "      -180\r\n" 03
 
 const STX = 0x02;
 const ETX = 0x03;
@@ -22,7 +24,8 @@ export const parseFrame = (clean) => {
         return aEntero(parts[2]);
     }
     const renglones = clean.split('\n').map(l => l.trim()).filter(Boolean);
-    return renglones.length >= 2 ? aEntero(renglones[1].replace(/\s+/g, '')) : null;
+    const raw = renglones.length === 1 ? renglones[0] : renglones[1];   // C: único renglón; B: el segundo
+    return raw !== undefined ? aEntero(raw.replace(/\s+/g, '')) : null;
 };
 
 // Limpia una trama cruda: saca STX/ETX/CR. Deja los LF (separan renglones del formato B).
