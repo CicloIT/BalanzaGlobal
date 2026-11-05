@@ -149,6 +149,14 @@ En la app la balanza tiene que dejar de mostrar "Agente desconectado".
 ### Dejarlo como servicio (Windows, NSSM)
 Así arranca solo con Windows (sin iniciar sesión) y se reinicia si se cae.
 
+**Forma rápida (script):** PowerShell **como administrador**, en la carpeta del agente:
+```
+powershell -ExecutionPolicy Bypass -File .\servicio-agente.ps1 -Sitio <sitio>
+```
+Baja NSSM si falta, crea/reconfigura el servicio `BalanzaAgente` (inicio automático retrasado,
+reinicio si se cae, log rotado en `logs\agente.log`) y lo arranca. `-Desinstalar` lo borra.
+Los pasos manuales de abajo hacen lo mismo.
+
 **1. Instalar NSSM** (no viene con Node). Consola **como administrador**:
 ```
 winget install NSSM.NSSM
