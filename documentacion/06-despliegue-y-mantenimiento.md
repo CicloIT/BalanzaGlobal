@@ -201,13 +201,15 @@ y prueba `/api/health`. **No abre el puerto**: queda accesible solo desde el pro
 Opciones: `-SinBuild`, `-AbrirPuerto`, `-Desinstalar`.
 
 Manejo diario: `Get-Service balanza, caddy`, `Get-Content C:\Balanza\Backend\logs\balanza.log -Tail 50 -Wait`.
-Con Caddy instalado, `caddy` **depende** de `balanza` y Windows no deja detener `balanza` con
-`caddy` corriendo: reiniciar en orden `Stop-Service caddy; Restart-Service balanza; Start-Service caddy`
-(en CMD: `net stop caddy`, `net stop balanza`, `net start balanza`, `net start caddy`).
-`actualizar-windows.ps1` y `servicio-windows.ps1` ya lo hacen solos. En PowerShell usar `sc.exe` y
-`curl.exe` (`sc` y `curl` son alias de otros comandos).
+Reiniciar sin actualizar: `.\reiniciar-windows.ps1` (backend) o `.\reiniciar-windows.ps1 -Servicio caddy`;
+si el servicio se traba lo mata, y si estaba detenido lo arranca. Caddy no depende de `balanza`:
+reiniciar el backend no corta el HTTPS (502 unos segundos, los agentes reconectan solos).
+En PowerShell usar `sc.exe` y `curl.exe` (`sc` y `curl` son alias de otros comandos).
+
 Actualizar a una versión nueva: `.\actualizar-windows.ps1` (git pull + build si cambió el
-frontend + reinicio si cambió el backend; las migraciones `.sql` se aplican a mano).
+frontend + reinicio si cambió el backend). Si cambió algún `.sql` frena y pregunta antes de tocar
+el servicio: las migraciones se aplican a mano y después se responde `SI`. Si algo falla, corregirlo
+y volver a correrlo: compara contra el último deploy exitoso (`tools\ultimo-deploy.txt`) y retoma.
 
 Abrir el puerto en **dos lugares**:
 
@@ -314,6 +316,9 @@ Tiene que responder `balanza-acme.cicloit.com`. Cerrar la ventana después (el t
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\caddy-windows.ps1 -AcmeDominio balanza-acme.cicloit.com -PuertoHttps PUERTO_HTTPS_PUB -Email <email> -Iniciar
 ```
+Los parámetros quedan en `tools\caddy\parametros.json` (sin el token): después alcanza con
+`.\caddy-windows.ps1`, y si Caddy estaba corriendo vuelve a quedar corriendo. Si la instalación es
+anterior a ese archivo, el script exige pasar `-AcmeDominio` y `-PuertoHttps` la primera vez.
 - `-AcmeDominio`: baja un Caddy con el plugin `dns.providers.desec` (el oficial no lo trae) y
   arma el bloque `tls` con `dns desec` + `dns_challenge_override_domain`.
 - `-PuertoHttps`: desactiva la redirección automática de Caddy (mandaría a `https://DOMINIO` sin

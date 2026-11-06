@@ -23,51 +23,10 @@ $Frontend = Join-Path $Root 'Frontend'
 $Logs     = Join-Path $Backend 'logs'
 $NssmDir  = Join-Path $Root 'tools\nssm'
 
-function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
-function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
-
-# Servicios que dependen de este (ej. caddy -> balanza) y que se detuvieron para poder pararlo:
-# Windows no deja detener un servicio con dependientes corriendo (sc stop -> error 1051).
-$script:Dependientes = @()
-
-# Detiene el servicio; si a los 20 s sigue trabado (STOP_PENDING), mata el proceso (nssm + node).
-function Detener-Servicio($nombre) {
-  $svc = Get-Service -Name $nombre -ErrorAction SilentlyContinue
-  if (-not $svc -or $svc.Status -eq 'Stopped') { return }
-  foreach ($d in ($svc.DependentServices | Where-Object Status -ne 'Stopped')) {
-    Write-Host "  Deteniendo $($d.Name) (depende de $nombre)"
-    Detener-Servicio $d.Name
-    if ($script:Dependientes -notcontains $d.Name) { $script:Dependientes += $d.Name }
-  }
-  sc.exe stop $nombre | Out-Null
-  for ($i = 0; $i -lt 20; $i++) {
-    Start-Sleep -Seconds 1
-    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
-  }
-  $procId = (Get-CimInstance Win32_Service -Filter "Name='$nombre'").ProcessId
-  if ($procId) {
-    Write-Host "  $nombre no se detuvo en 20 s: matando PID $procId" -ForegroundColor Yellow
-    taskkill /PID $procId /T /F | Out-Null
-  }
-  for ($i = 0; $i -lt 10; $i++) {
-    Start-Sleep -Seconds 1
-    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
-  }
-  Write-Host "  No se pudo detener $nombre" -ForegroundColor Red; exit 1
-}
-
-# Vuelve a arrancar los dependientes que Detener-Servicio paro (ej. caddy)
-function Arrancar-Dependientes {
-  foreach ($d in $script:Dependientes) {
-    Write-Host "  Arrancando $d"
-    try { Start-Service $d -ErrorAction Stop } catch { Write-Host "  No arranco $d : $($_.Exception.Message)" -ForegroundColor Yellow }
-  }
-  $script:Dependientes = @()
-}
+. (Join-Path $Root 'comun-windows.ps1')
 
 # --- Administrador ---
-$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $admin) { Falla 'Abrir PowerShell como administrador (clic derecho > Ejecutar como administrador).' }
+Exigir-Admin
 
 # --- NSSM: PATH, o tools\nssm, o descargarlo ---
 function Get-Nssm {
@@ -123,9 +82,7 @@ Write-Host "Node: $node ($(& $node --version))"
 $envFile = Join-Path $Backend '.env'
 if (-not (Test-Path $envFile)) { Falla "Falta $envFile (ver doc 06, paso 4)." }
 
-$puerto = 3000
-$lineaPort = Select-String -Path $envFile -Pattern '^\s*PORT\s*=\s*(\d+)' | Select-Object -First 1
-if ($lineaPort) { $puerto = [int]$lineaPort.Matches[0].Groups[1].Value }
+$puerto = Leer-Puerto $Backend
 Write-Host "Puerto: $puerto"
 
 # --- Dependencias y build ---
@@ -148,6 +105,7 @@ if (-not (Test-Path (Join-Path $Frontend 'dist\index.html'))) { Falla 'No existe
 New-Item -ItemType Directory -Force $Logs | Out-Null
 if (Existe-Servicio) {
   Paso "Servicio $Servicio ya existe: deteniendo para reconfigurar"
+  Marcar-PorArrancar $Servicio   # si algo falla a partir de aca, no queda apagado
   Detener-Servicio $Servicio
 } else {
   Paso "Creando servicio $Servicio"
@@ -179,9 +137,10 @@ if ($pg) {
 }
 
 Paso "Iniciando $Servicio"
-& $nssm start $Servicio
-Start-Sleep -Seconds 4
-Arrancar-Dependientes
+Liberar-Puerto $puerto
+Arrancar-Servicio $Servicio
+$script:PorArrancar = @($script:PorArrancar | Where-Object { $_ -ne $Servicio })
+Arrancar-Pendientes
 
 # --- Firewall ---
 if ($AbrirPuerto) {
@@ -199,13 +158,12 @@ if ($AbrirPuerto) {
 # --- Verificacion ---
 Paso 'Verificando'
 Get-Service $Servicio | Format-Table Name, Status, StartType -AutoSize
-try {
-  $r = Invoke-WebRequest "http://127.0.0.1:$puerto/api/health" -UseBasicParsing -TimeoutSec 10
-  Write-Host "OK: http://127.0.0.1:$puerto/api/health -> $($r.StatusCode)" -ForegroundColor Green
-} catch {
-  Write-Host "El backend no responde todavia. Ver el log: $log" -ForegroundColor Yellow
+if (-not (Esperar-Health $puerto)) {
   if (Test-Path $log) { Get-Content $log -Tail 30 }
+  Falla "/api/health no responde. Ver el log: $log"
 }
+Write-Host "OK: http://127.0.0.1:$puerto/api/health responde" -ForegroundColor Green
+Avisar-Caddy
 if ($AbrirPuerto) {
   Write-Host "`nListo. Falta (si se entra desde afuera) redirigir en el router IP_PUBLICA:$puerto -> IP_LAN_DE_ESTE_EQUIPO:$puerto."
 } else {
