@@ -1,7 +1,7 @@
 # Reinicia un servicio sin actualizar nada. Si estaba detenido, lo arranca.
 # Uso (PowerShell COMO ADMINISTRADOR, desde la carpeta del repo):
-#   powershell -ExecutionPolicy Bypass -File .\reiniciar-windows.ps1                  (backend)
-#   powershell -ExecutionPolicy Bypass -File .\reiniciar-windows.ps1 -Servicio caddy  (HTTPS)
+#   powershell -ExecutionPolicy Bypass -File .\reiniciar-app.ps1                  (backend)
+#   powershell -ExecutionPolicy Bypass -File .\reiniciar-app.ps1 -Servicio caddy  (HTTPS)
 
 param(
   [ValidateSet('balanza', 'caddy')]
@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
-. (Join-Path $Root 'comun-windows.ps1')
+. (Join-Path $Root 'funciones-comunes.ps1')
 
 Exigir-Admin
 if (-not (Get-Service -Name $Servicio -ErrorAction SilentlyContinue)) { Falla "No existe el servicio $Servicio." }

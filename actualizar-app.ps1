@@ -1,6 +1,6 @@
 # Actualiza el servidor Windows: git pull, dependencias, build del frontend y reinicio del servicio.
 # Uso (PowerShell COMO ADMINISTRADOR, desde la carpeta del repo):
-#   powershell -ExecutionPolicy Bypass -File .\actualizar-windows.ps1
+#   powershell -ExecutionPolicy Bypass -File .\actualizar-app.ps1
 # Opciones:
 #   -MigracionesAplicadas   no pregunta por los .sql nuevos (ya se aplicaron con psql)
 #
@@ -18,10 +18,10 @@ $Root     = $PSScriptRoot
 $Backend  = Join-Path $Root 'Backend'
 $Frontend = Join-Path $Root 'Frontend'
 $Estado   = Join-Path $Root 'tools\ultimo-deploy.txt'
-. (Join-Path $Root 'comun-windows.ps1')
+. (Join-Path $Root 'funciones-comunes.ps1')
 
 Exigir-Admin
-if (-not (Get-Service -Name $Servicio -ErrorAction SilentlyContinue)) { Falla "No existe el servicio $Servicio. Correr primero .\servicio-windows.ps1" }
+if (-not (Get-Service -Name $Servicio -ErrorAction SilentlyContinue)) { Falla "No existe el servicio $Servicio. Correr primero .\1-instalar-app.ps1" }
 
 Push-Location $Root
 $antes = (git rev-parse HEAD).Trim()

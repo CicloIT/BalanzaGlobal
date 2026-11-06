@@ -142,6 +142,8 @@ Bajar `mudanza.tgz` y copiarlo al servidor nuevo (escritorio remoto en Windows, 
 
 ## Opción 1: servidor propio (Windows Server)
 
+Cuál script correr y en qué orden: [`SCRIPTS.md`](../SCRIPTS.md).
+
 ### 2. Instalar
 
 - [Node.js 22 LTS](https://nodejs.org), [PostgreSQL](https://www.postgresql.org/download/windows/),
@@ -191,22 +193,22 @@ Cerrar antes las terminales de `node` / `vite` (el puerto tiene que estar libre)
 **como administrador**:
 ```powershell
 cd C:\Balanza
-powershell -ExecutionPolicy Bypass -File .\servicio-windows.ps1
+powershell -ExecutionPolicy Bypass -File .\1-instalar-app.ps1
 ```
 El script baja NSSM a `tools\nssm\` si no está, compila el frontend, crea/reconfigura el servicio
 `balanza` (log en `Backend\logs\balanza.log`, rota cada 10 MB; depende del servicio de PostgreSQL),
 y prueba `/api/health`. **No abre el puerto**: queda accesible solo desde el propio equipo
 (`http://127.0.0.1:3000`). Para abrirlo en el firewall de Windows cuando haga falta:
-`.\servicio-windows.ps1 -SinBuild -AbrirPuerto`. Se puede correr de nuevo sin problema.
+`.\1-instalar-app.ps1 -SinBuild -AbrirPuerto`. Se puede correr de nuevo sin problema.
 Opciones: `-SinBuild`, `-AbrirPuerto`, `-Desinstalar`.
 
 Manejo diario: `Get-Service balanza, caddy`, `Get-Content C:\Balanza\Backend\logs\balanza.log -Tail 50 -Wait`.
-Reiniciar sin actualizar: `.\reiniciar-windows.ps1` (backend) o `.\reiniciar-windows.ps1 -Servicio caddy`;
+Reiniciar sin actualizar: `.\reiniciar-app.ps1` (backend) o `.\reiniciar-app.ps1 -Servicio caddy`;
 si el servicio se traba lo mata, y si estaba detenido lo arranca. Caddy no depende de `balanza`:
 reiniciar el backend no corta el HTTPS (502 unos segundos, los agentes reconectan solos).
 En PowerShell usar `sc.exe` y `curl.exe` (`sc` y `curl` son alias de otros comandos).
 
-Actualizar a una versión nueva: `.\actualizar-windows.ps1` (git pull + build si cambió el
+Actualizar a una versión nueva: `.\actualizar-app.ps1` (git pull + build si cambió el
 frontend + reinicio si cambió el backend). Si cambió algún `.sql` frena y pregunta antes de tocar
 el servicio: las migraciones se aplican a mano y después se responde `SI`. Si algo falla, corregirlo
 y volver a correrlo: compara contra el último deploy exitoso (`tools\ultimo-deploy.txt`) y retoma.
@@ -249,9 +251,9 @@ queda `secure`).
    }
    ```
 4. Con script (recomendado), en PowerShell como administrador desde la carpeta del repo:
-   - `.\caddy-windows.ps1` baja Caddy a `tools\caddy\`, escribe el `Caddyfile` (dominio por defecto
+   - `.\2-instalar-https.ps1` baja Caddy a `tools\caddy\`, escribe el `Caddyfile` (dominio por defecto
      `balanza.cicloit.com`, cambiar con `-Dominio`) y crea el servicio `caddy` **sin arrancarlo**.
-   - Cuando el router ya mande 80 y 443 a este equipo: `.\caddy-windows.ps1 -Iniciar` (abre 80/443
+   - Cuando el router ya mande 80 y 443 a este equipo: `.\2-instalar-https.ps1 -Iniciar` (abre 80/443
      en el firewall de Windows, servicio automático, arranca y saca el certificado).
    - No usar `-Iniciar` antes de abrir los puertos: Let's Encrypt limita los intentos fallidos.
    - Log: `tools\caddy\logs\caddy.log`; certificados en `tools\caddy\data\`.
@@ -314,10 +316,10 @@ Tiene que responder `balanza-acme.cicloit.com`. Cerrar la ventana después (el t
 
 **Instalar / reconfigurar Caddy** (PowerShell como administrador, en la carpeta del repo):
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\caddy-windows.ps1 -AcmeDominio balanza-acme.cicloit.com -PuertoHttps PUERTO_HTTPS_PUB -Email <email> -Iniciar
+powershell -ExecutionPolicy Bypass -File .\2-instalar-https.ps1 -AcmeDominio balanza-acme.cicloit.com -PuertoHttps PUERTO_HTTPS_PUB -Email <email> -Iniciar
 ```
 Los parámetros quedan en `tools\caddy\parametros.json` (sin el token): después alcanza con
-`.\caddy-windows.ps1`, y si Caddy estaba corriendo vuelve a quedar corriendo. Si la instalación es
+`.\2-instalar-https.ps1`, y si Caddy estaba corriendo vuelve a quedar corriendo. Si la instalación es
 anterior a ese archivo, el script exige pasar `-AcmeDominio` y `-PuertoHttps` la primera vez.
 - `-AcmeDominio`: baja un Caddy con el plugin `dns.providers.desec` (el oficial no lo trae) y
   arma el bloque `tls` con `dns desec` + `dns_challenge_override_domain`.

@@ -114,7 +114,7 @@ Copiar la carpeta `Agente` completa (p. ej. a `C:\BalanzaAgente`) y **borrar** l
 - Todos los `sitios/*.json` **menos** `ejemplo.json` (tienen tokens de otros sitios).
 - `*.log`, si hay.
 
-Quedan: `src/`, `sitios/ejemplo.json`, `package.json`, `package-lock.json` (y los `.md`).
+Quedan: `src/`, `sitios/ejemplo.json`, `package.json`, `package-lock.json`, los `.ps1` (y los `.md`).
 
 ### Instalación
 En la PC del sitio, con [Node 18+](https://nodejs.org) instalado (versión LTS):
@@ -151,11 +151,21 @@ Así arranca solo con Windows (sin iniciar sesión) y se reinicia si se cae.
 
 **Forma rápida (script):** PowerShell **como administrador**, en la carpeta del agente:
 ```
-powershell -ExecutionPolicy Bypass -File .\servicio-agente.ps1 -Sitio <sitio>
+powershell -ExecutionPolicy Bypass -File .\instalar-agente.ps1 -Sitio <sitio>
 ```
 Baja NSSM si falta, crea/reconfigura el servicio `BalanzaAgente` (inicio automático retrasado,
-reinicio si se cae, log rotado en `logs\agente.log`) y lo arranca. `-Desinstalar` lo borra.
-Los pasos manuales de abajo hacen lo mismo.
+reinicio si se cae, log rotado en `logs\agente.log`), lo arranca y comprueba que quede andando.
+`-Desinstalar` lo borra, `-Dependencias` fuerza `npm ci`. Se puede correr con el agente andando o
+trabado. Si hay otro agente con el mismo JSON (por ejemplo abierto en una consola) lo cierra.
+
+**Reiniciar, o destrabar si quedó en "Deteniendo":**
+```
+powershell -ExecutionPolicy Bypass -File .\reiniciar-agente.ps1
+```
+Si no para en 10 s mata `nssm` y `node`, e informa cuál se trabó. `-SoloDetener` lo deja detenido.
+Usar este script en lugar de `nssm restart`, `Restart-Service` o la consola de Servicios.
+
+Los pasos manuales de abajo instalan lo mismo.
 
 **1. Instalar NSSM** (no viene con Node). Consola **como administrador**:
 ```
@@ -193,13 +203,14 @@ y en la app la balanza muestra peso en vivo. Si no, mirar `agente.log` (ver tabl
 **Comandos útiles:**
 | Acción | Comando |
 |---|---|
-| Reiniciar (después de cambiar el JSON o actualizar) | `nssm restart BalanzaAgente` |
-| Parar | `nssm stop BalanzaAgente` |
+| Reiniciar (después de cambiar el JSON o actualizar) | `.\reiniciar-agente.ps1` |
+| Parar | `.\reiniciar-agente.ps1 -SoloDetener` |
 | Ver/editar la config con ventana | `nssm edit BalanzaAgente` |
-| Quitar el servicio | `nssm stop BalanzaAgente` y `nssm remove BalanzaAgente confirm` |
+| Quitar el servicio | `.\instalar-agente.ps1 -Desinstalar` |
 
-**Actualizar el agente:** `nssm stop BalanzaAgente` → reemplazar `src/`, `package.json` y
-`package-lock.json` (no tocar `sitios/<sitio>.json`) → `npm ci` → `nssm start BalanzaAgente`.
+**Actualizar el agente:** `.\reiniciar-agente.ps1 -SoloDetener` → reemplazar `src/`, `package.json`,
+`package-lock.json` y los `.ps1` (no tocar `sitios/<sitio>.json`) →
+`.\instalar-agente.ps1 -Sitio <sitio> -Dependencias`.
 
 ### Dejarlo como servicio (Linux)
 ```bash

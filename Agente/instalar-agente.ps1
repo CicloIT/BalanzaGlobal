@@ -1,15 +1,19 @@
 # Instala (o reinstala) el agente local como servicio de Windows con NSSM.
 # Arranca solo al prender la PC (sin iniciar sesion) y se reinicia si se cae.
+# Se puede correr con el agente andando o trabado en "Deteniendo": lo mata y lo vuelve a levantar.
+# Para reiniciar nada mas: .\reiniciar-agente.ps1
 #
 # Uso (PowerShell COMO ADMINISTRADOR, desde la carpeta del agente):
-#   powershell -ExecutionPolicy Bypass -File .\servicio-agente.ps1 -Sitio quines
+#   powershell -ExecutionPolicy Bypass -File .\instalar-agente.ps1 -Sitio quines
 #     (usa sitios\quines.json; si hay un solo JSON distinto de ejemplo.json, -Sitio es opcional)
 # Opciones:
+#   -Dependencias    corre npm ci aunque ya esten instaladas (si cambio package-lock.json)
 #   -Desinstalar     detiene y borra el servicio (no toca archivos)
 #   -Servicio <n>    nombre del servicio (por defecto BalanzaAgente)
 
 param(
   [string]$Sitio,
+  [switch]$Dependencias,
   [switch]$Desinstalar,
   [string]$Servicio = 'BalanzaAgente'
 )
@@ -18,34 +22,10 @@ $ErrorActionPreference = 'Stop'
 $Root    = $PSScriptRoot
 $NssmDir = Join-Path $Root 'tools\nssm'
 $Logs    = Join-Path $Root 'logs'
-
-function Paso($t) { Write-Host "`n> $t" -ForegroundColor Cyan }
-function Falla($t) { Write-Host "ERROR: $t" -ForegroundColor Red; exit 1 }
-
-# Detiene el servicio; si a los 20 s sigue trabado (STOP_PENDING), mata el proceso.
-function Detener-Servicio($nombre) {
-  $svc = Get-Service -Name $nombre -ErrorAction SilentlyContinue
-  if (-not $svc -or $svc.Status -eq 'Stopped') { return }
-  sc.exe stop $nombre | Out-Null
-  for ($i = 0; $i -lt 20; $i++) {
-    Start-Sleep -Seconds 1
-    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
-  }
-  $procId = (Get-CimInstance Win32_Service -Filter "Name='$nombre'").ProcessId
-  if ($procId) {
-    Write-Host "  $nombre no se detuvo en 20 s: matando PID $procId" -ForegroundColor Yellow
-    taskkill /PID $procId /T /F | Out-Null
-  }
-  for ($i = 0; $i -lt 10; $i++) {
-    Start-Sleep -Seconds 1
-    if ((Get-Service -Name $nombre).Status -eq 'Stopped') { return }
-  }
-  Falla "No se pudo detener $nombre"
-}
+. (Join-Path $Root 'funciones-agente.ps1')
 
 # --- Administrador ---
-$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $admin) { Falla 'Abrir PowerShell como administrador (clic derecho > Ejecutar como administrador).' }
+Exigir-Admin
 
 # --- NSSM: PATH, o tools\nssm, o descargarlo ---
 function Get-Nssm {
@@ -86,7 +66,7 @@ $existe = [bool](Get-Service -Name $Servicio -ErrorAction SilentlyContinue)
 if ($Desinstalar) {
   if ($existe) {
     Paso "Borrando servicio $Servicio"
-    Detener-Servicio $Servicio
+    Detener-Agente $Servicio
     & $nssm remove $Servicio confirm
   } else { Write-Host "No existe el servicio $Servicio" }
   exit 0
@@ -113,19 +93,25 @@ if ($Sitio) {
 try { Get-Content $json -Raw | ConvertFrom-Json | Out-Null } catch { Falla "$json no es JSON valido: $($_.Exception.Message)" }
 $relJson = 'sitios\' + (Split-Path $json -Leaf)
 Write-Host "Config: $relJson"
+$sitioNuevo = [IO.Path]::GetFileNameWithoutExtension($json)
 
-if (-not (Test-Path (Join-Path $Root 'node_modules\ws'))) {
+# --- Detener lo que este corriendo (servicio trabado, huerfanos, consola con el mismo JSON) ---
+New-Item -ItemType Directory -Force $Logs | Out-Null
+if ($existe) {
+  Paso "Servicio $Servicio ya existe: deteniendo para reconfigurar"
+  if ((Get-Service -Name $Servicio).Status -eq 'Running') { $script:RearrancarAlFallar = $Servicio }
+}
+Detener-Agente $Servicio $sitioNuevo
+
+# npm ci borra node_modules: va con el agente detenido (en Windows no se borran archivos en uso)
+if ($Dependencias -or -not (Test-Path (Join-Path $Root 'node_modules\ws'))) {
   Paso 'npm ci'
   Push-Location $Root; npm ci; $rc = $LASTEXITCODE; Pop-Location
   if ($rc -ne 0) { Falla 'npm ci fallo' }
 }
 
 # --- Servicio ---
-New-Item -ItemType Directory -Force $Logs | Out-Null
-if ($existe) {
-  Paso "Servicio $Servicio ya existe: deteniendo para reconfigurar"
-  Detener-Servicio $Servicio
-} else {
+if (-not $existe) {
   Paso "Creando servicio $Servicio"
   & $nssm install $Servicio $node 'src\index.js' $relJson
   if ($LASTEXITCODE -ne 0) { Falla 'nssm install fallo' }
@@ -146,15 +132,14 @@ $log = Join-Path $Logs 'agente.log'
 & $nssm set $Servicio AppExit Default Restart               | Out-Null
 & $nssm set $Servicio AppRestartDelay 3000                  | Out-Null
 & $nssm set $Servicio AppThrottle 5000                      | Out-Null
+# Parada con limite: Ctrl+C (el agente sale en menos de 1 s), a los 5 s como maximo lo termina con sus hijos
+& $nssm set $Servicio AppStopMethodSkip 0                   | Out-Null
 & $nssm set $Servicio AppStopMethodConsole 3000             | Out-Null
+& $nssm set $Servicio AppStopMethodWindow 1000              | Out-Null
+& $nssm set $Servicio AppStopMethodThreads 1000             | Out-Null
+& $nssm set $Servicio AppKillProcessTree 1                  | Out-Null
 
-Paso "Iniciando $Servicio"
-& $nssm start $Servicio
-Start-Sleep -Seconds 5
-
-# --- Verificacion ---
-Paso 'Verificando'
-Get-Service $Servicio | Format-Table Name, Status, StartType -AutoSize
-if (Test-Path $log) { Get-Content $log -Tail 15 }
+Paso "Iniciando y verificando $Servicio"
+Arrancar-Agente $Servicio $log
 Write-Host "`nListo. Arranca solo con Windows. Log: $log" -ForegroundColor Green
-Write-Host "Reiniciar tras cambiar el JSON: Restart-Service $Servicio"
+Write-Host 'Reiniciar tras cambiar el JSON, o si queda en "Deteniendo": .\reiniciar-agente.ps1'

@@ -1,6 +1,6 @@
 # Funciones compartidas por los scripts de servicio de Windows.
-# No se corre solo: lo cargan servicio-windows.ps1, actualizar-windows.ps1, reiniciar-windows.ps1
-# y caddy-windows.ps1 con ". (Join-Path $PSScriptRoot 'comun-windows.ps1')".
+# No se corre solo: lo cargan 1-instalar-app.ps1, actualizar-app.ps1, reiniciar-app.ps1
+# y 2-instalar-https.ps1 con ". (Join-Path $PSScriptRoot 'funciones-comunes.ps1')".
 
 # Servicios que el script detuvo y que hay que volver a arrancar, incluso si algo falla despues.
 $script:PorArrancar = @()
@@ -58,7 +58,10 @@ function Detener-Servicio($nombre) {
   if (Esperar-Detenido $nombre 30) { return }
   $procId = (Get-CimInstance Win32_Service -Filter "Name='$nombre'").ProcessId
   if ($procId) {
-    Write-Host "  $nombre no se detuvo en 30 s: matando PID $procId" -ForegroundColor Yellow
+    # Este dato dice que parte se traba: si no quedan hijos, el problema es NSSM y no la aplicacion.
+    $hijos = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$procId" | Where-Object { $_.Name -ne 'conhost.exe' })
+    $causa = if ($hijos) { "$($hijos[0].Name) sigue vivo" } else { 'la aplicacion ya termino, se trabo NSSM' }
+    Write-Host "  $nombre no se detuvo en 30 s ($causa): matando PID $procId" -ForegroundColor Yellow
     taskkill /PID $procId /T /F | Out-Null
   }
   if (Esperar-Detenido $nombre 10) { return }
@@ -124,6 +127,6 @@ function Reiniciar-Backend($nombre, [int]$puerto) {
 function Avisar-Caddy {
   $caddy = Get-Service -Name 'caddy' -ErrorAction SilentlyContinue
   if ($caddy -and $caddy.Status -ne 'Running') {
-    Write-Host "AVISO: el servicio caddy esta $($caddy.Status). Arrancarlo: .\reiniciar-windows.ps1 -Servicio caddy" -ForegroundColor Yellow
+    Write-Host "AVISO: el servicio caddy esta $($caddy.Status). Arrancarlo: .\reiniciar-app.ps1 -Servicio caddy" -ForegroundColor Yellow
   }
 }

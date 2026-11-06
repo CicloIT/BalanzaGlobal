@@ -1,17 +1,18 @@
+# PASO 2 (despues de 1-instalar-app.ps1; orden: SCRIPTS.md).
 # Instala Caddy como servicio de Windows (NSSM) delante del backend: HTTPS con certificado
 # automatico de Let's Encrypt para el dominio, WebSocket incluido (agentes por wss://DOMINIO/agent).
 #
 # Uso (PowerShell COMO ADMINISTRADOR, desde la carpeta del repo):
 #   1) Preparar (baja Caddy, escribe el Caddyfile, crea el servicio SIN arrancarlo):
-#        powershell -ExecutionPolicy Bypass -File .\caddy-windows.ps1
+#        powershell -ExecutionPolicy Bypass -File .\2-instalar-https.ps1
 #   2) Cuando el router ya mande 80 y 443 a este equipo y el DNS resuelva:
-#        powershell -ExecutionPolicy Bypass -File .\caddy-windows.ps1 -Iniciar
+#        powershell -ExecutionPolicy Bypass -File .\2-instalar-https.ps1 -Iniciar
 #      (abre 80/443 en el firewall de Windows, deja el servicio automatico y lo arranca)
 #
 # Reconfigurar con Caddy corriendo: se puede, vuelve a quedar corriendo aunque falte -Iniciar.
 # Los parametros quedan en tools\caddy\parametros.json: lo que no se pase se toma de ahi.
 # Instalacion anterior a ese archivo: la primera vez hay que pasar -AcmeDominio y -PuertoHttps
-# (sin DNS-01, desde una consola PowerShell, no con -File: .\caddy-windows.ps1 -AcmeDominio '' -PuertoHttps 443).
+# (sin DNS-01, desde una consola PowerShell, no con -File: .\2-instalar-https.ps1 -AcmeDominio '' -PuertoHttps 443).
 #
 # Caddy NO depende del servicio balanza: reiniciar el backend no corta el HTTPS (502 unos segundos).
 #
@@ -26,7 +27,7 @@
 #                       con NS a deSEC; en el DNS principal: CNAME _acme-challenge.DOMINIO -> esa zona)
 #   -PuertoHttps N      puerto PUBLICO de HTTPS (ej. 63443): la redireccion http->https apunta ahi
 #   El token de deSEC se pide por teclado (no queda en el historial) y se guarda solo en el servicio.
-#   Ej: .\caddy-windows.ps1 -AcmeDominio acme.cicloit.com -PuertoHttps 63443
+#   Ej: .\2-instalar-https.ps1 -AcmeDominio acme.cicloit.com -PuertoHttps 63443
 #
 # No arrancarlo antes de abrir los puertos: Let's Encrypt limita los intentos fallidos.
 
@@ -49,15 +50,15 @@ $DataDir  = Join-Path $CaddyDir 'data'     # certificados (no se versiona: tools
 $Logs     = Join-Path $CaddyDir 'logs'
 $NssmExe  = Join-Path $Root 'tools\nssm\nssm.exe'
 $ParametrosFile = Join-Path $CaddyDir 'parametros.json'
-. (Join-Path $Root 'comun-windows.ps1')
+. (Join-Path $Root 'funciones-comunes.ps1')
 
 Exigir-Admin
 
-# --- NSSM (lo baja servicio-windows.ps1) ---
+# --- NSSM (lo baja 1-instalar-app.ps1) ---
 $nssm = $null
 $cmd = Get-Command nssm -ErrorAction SilentlyContinue
 if ($cmd) { $nssm = $cmd.Source } elseif (Test-Path $NssmExe) { $nssm = $NssmExe }
-if (-not $nssm) { Falla 'No se encuentra NSSM. Correr primero .\servicio-windows.ps1' }
+if (-not $nssm) { Falla 'No se encuentra NSSM. Correr primero .\1-instalar-app.ps1' }
 
 # --- Desinstalar ---
 if ($Desinstalar) {
@@ -260,7 +261,7 @@ foreach ($o in $ocupados) {
 if (-not $Iniciar -and -not $estabaCorriendo) {
   Write-Host "`nListo: Caddy configurado pero SIN arrancar." -ForegroundColor Green
   Write-Host 'Cuando el router mande los puertos a este equipo y el DNS resuelva, arrancarlo con:'
-  Write-Host '  powershell -ExecutionPolicy Bypass -File .\caddy-windows.ps1 -Iniciar'
+  Write-Host '  powershell -ExecutionPolicy Bypass -File .\2-instalar-https.ps1 -Iniciar'
   exit 0
 }
 

@@ -1,9 +1,9 @@
-# Instala (o reinstala) el backend como servicio de Windows con NSSM.
+# PASO 1. Instala (o reinstala) el backend como servicio de Windows con NSSM. Orden: SCRIPTS.md
 # El servicio arranca con el equipo (sin iniciar sesion), se reinicia solo si se cae
 # y sirve frontend + API + WebSocket en un solo puerto (PORT de Backend\.env, 3000 por defecto).
 #
 # Uso (PowerShell COMO ADMINISTRADOR, desde la carpeta del repo):
-#   powershell -ExecutionPolicy Bypass -File .\servicio-windows.ps1
+#   powershell -ExecutionPolicy Bypass -File .\1-instalar-app.ps1
 # Opciones:
 #   -SinBuild        no recompila el frontend
 #   -AbrirPuerto     ademas abre el puerto en el firewall de Windows (por defecto NO lo toca)
@@ -23,7 +23,7 @@ $Frontend = Join-Path $Root 'Frontend'
 $Logs     = Join-Path $Backend 'logs'
 $NssmDir  = Join-Path $Root 'tools\nssm'
 
-. (Join-Path $Root 'comun-windows.ps1')
+. (Join-Path $Root 'funciones-comunes.ps1')
 
 # --- Administrador ---
 Exigir-Admin
@@ -168,5 +168,5 @@ if ($AbrirPuerto) {
   Write-Host "`nListo. Falta (si se entra desde afuera) redirigir en el router IP_PUBLICA:$puerto -> IP_LAN_DE_ESTE_EQUIPO:$puerto."
 } else {
   Write-Host "`nListo. Puerto NO abierto en el firewall: entrar desde este equipo con http://127.0.0.1:$puerto"
-  Write-Host "Para abrirlo despues: .\servicio-windows.ps1 -SinBuild -AbrirPuerto"
+  Write-Host "Para abrirlo despues: .\1-instalar-app.ps1 -SinBuild -AbrirPuerto"
 }
