@@ -145,6 +145,20 @@ const main = async () => {
   check((await api(bal1, 'GET', '/api/backup/list')).status === 403, 'balancero no accede a respaldos');
   check((await api(superadmin, 'GET', '/api/backup/list')).status === 200, 'superadmin lista respaldos');
 
+  // ── Reportes: el balancero ve y reimprime los de su localidad, no borra ──
+  const pesadaRep = { bruto: 1000, tara: 400, neto: 600, vehiculo_patente: patente };
+  const rep1 = await api(bal1, 'POST', '/api/reportes', { pesadas: [pesadaRep], observaciones: `smoke ${patente}` });
+  const rep2 = await api(bal2, 'POST', '/api/reportes', { pesadas: [pesadaRep], observaciones: `smoke ${patente}` });
+  check(rep1.status === 201 && rep2.status === 201, 'balancero genera reporte');
+  const reps1 = await api(bal1, 'GET', '/api/reportes');
+  check(reps1.status === 200 && reps1.data.data?.some(r => r.id === rep1.data.data?.id), 'balancero lista sus reportes');
+  check(!reps1.data.data?.some(r => r.id === rep2.data.data?.id), 'balancero no ve reportes de otra localidad');
+  check((await api(bal1, 'GET', `/api/reportes/${rep1.data.data?.id}`)).status === 200, 'balancero abre su reporte para reimprimir');
+  check((await api(bal1, 'GET', `/api/reportes/${rep2.data.data?.id}`)).status === 404, 'balancero no abre reporte de otra localidad');
+  check((await api(bal1, 'POST', '/api/reportes/delete-masivo', { ids: [rep1.data.data?.id] })).status === 403, 'balancero no borra reportes');
+  const repIds = [rep1.data.data?.id, rep2.data.data?.id].filter(Boolean);
+  if (repIds.length) await api(superadmin, 'POST', '/api/reportes/delete-masivo', { ids: repIds });
+
   // ── Catálogos: duplicados con mensaje claro y baja que no bloquea volver a cargar ──
   const codigo = `ZZ${patente}`;
   const prod1 = await api(bal1, 'POST', '/api/productos', { codigo, nombre: `Producto ${patente}` });

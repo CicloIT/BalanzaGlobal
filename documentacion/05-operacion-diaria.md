@@ -34,6 +34,9 @@ infinita. Desde cada fila:
 *Pesajes → Reportes*: desde la lista se genera un reporte de las pesadas seleccionadas; queda
 guardado en el historial, se puede volver a abrir o borrar.
 
+El balancero también ve el menú *Reportes* (solo los de su localidad): puede abrir y reimprimir
+un reporte ya generado sin crearlo de nuevo. Borrar reportes queda solo para el superadmin.
+
 ## Dashboard
 
 Pesadas y neto de hoy, operaciones abiertas en playa, semana, mapa de calor por hora,

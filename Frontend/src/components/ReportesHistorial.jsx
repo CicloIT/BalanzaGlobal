@@ -5,6 +5,7 @@ import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 import { formatFecha } from '../lib/format';
 import { useConfirm, useToast } from '../context/feedback';
 import Guard from './Guard';
+import { usePermissions } from '../hooks/usePermissions';
 import PageHeader from './ui/PageHeader';
 import { Card } from './ui/Card';
 import Button from './ui/Button';
@@ -21,6 +22,9 @@ const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', '
 export default function ReportesHistorial() {
     const confirm = useConfirm();
     const toast = useToast();
+    const { hasPermissions } = usePermissions();
+    // Los checkboxes solo sirven para borrar: el balancero ve y reimprime, no borra.
+    const puedeBorrar = hasPermissions(['reportes:delete']);
 
     const [reportes, setReportes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -207,8 +211,10 @@ export default function ReportesHistorial() {
                         <ul className="md:hidden divide-y divide-line">
                             {reportesFiltrados.map(r => (
                                 <li key={r.id} className="flex items-start gap-3 px-4 py-3">
-                                    <input type="checkbox" checked={seleccionados.has(r.id)} onChange={() => toggleSeleccion(r.id)}
-                                        aria-label={`Seleccionar reporte ${r.numero_reporte}`} className="mt-1 h-5 w-5 accent-[var(--brand-solid)]" />
+                                    {puedeBorrar && (
+                                        <input type="checkbox" checked={seleccionados.has(r.id)} onChange={() => toggleSeleccion(r.id)}
+                                            aria-label={`Seleccionar reporte ${r.numero_reporte}`} className="mt-1 h-5 w-5 accent-[var(--brand-solid)]" />
+                                    )}
                                     <div className="flex-1 min-w-0">
                                         <p className="font-mono text-sm font-semibold text-fg">N° {String(r.numero_reporte).padStart(6, '0')}</p>
                                         <p className="text-xs text-fg-subtle tabular">{formatFecha(r.created_at)} · {r.cantidad_pesadas} pesadas</p>
@@ -224,10 +230,12 @@ export default function ReportesHistorial() {
                             <table className="w-full text-sm">
                                 <thead className="bg-surface-2">
                                     <tr className="border-b border-line">
-                                        <th className="w-10 pl-4 pr-1">
-                                            <input type="checkbox" checked={todosVisibles} onChange={toggleTodos}
-                                                aria-label="Seleccionar todos los reportes visibles" className="h-4 w-4 accent-[var(--brand-solid)]" />
-                                        </th>
+                                        {puedeBorrar && (
+                                            <th className="w-10 pl-4 pr-1">
+                                                <input type="checkbox" checked={todosVisibles} onChange={toggleTodos}
+                                                    aria-label="Seleccionar todos los reportes visibles" className="h-4 w-4 accent-[var(--brand-solid)]" />
+                                            </th>
+                                        )}
                                         {[['N° reporte'], ['Fecha'], ['Pesadas', true], ['Total bruto', true], ['Total tara', true], ['Total neto', true], ['Acciones', true]].map(([h, der]) => (
                                             <th key={h} scope="col" className={cx('px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-fg-subtle whitespace-nowrap', der ? 'text-right' : 'text-left')}>{h}</th>
                                         ))}
@@ -236,10 +244,12 @@ export default function ReportesHistorial() {
                                 <tbody>
                                     {reportesFiltrados.map(r => (
                                         <tr key={r.id} className={cx('border-b border-line last:border-b-0', seleccionados.has(r.id) ? 'bg-brand-soft/60' : 'hover:bg-surface-2')}>
-                                            <td className="pl-4 pr-1 py-2.5">
-                                                <input type="checkbox" checked={seleccionados.has(r.id)} onChange={() => toggleSeleccion(r.id)}
-                                                    aria-label={`Seleccionar reporte ${r.numero_reporte}`} className="h-4 w-4 accent-[var(--brand-solid)]" />
-                                            </td>
+                                            {puedeBorrar && (
+                                                <td className="pl-4 pr-1 py-2.5">
+                                                    <input type="checkbox" checked={seleccionados.has(r.id)} onChange={() => toggleSeleccion(r.id)}
+                                                        aria-label={`Seleccionar reporte ${r.numero_reporte}`} className="h-4 w-4 accent-[var(--brand-solid)]" />
+                                                </td>
+                                            )}
                                             <td className="px-4 py-2.5 font-mono font-semibold text-fg">{String(r.numero_reporte).padStart(6, '0')}</td>
                                             <td className="px-4 py-2.5 text-xs text-fg-muted tabular whitespace-nowrap">{formatFecha(r.created_at)}</td>
                                             <td className="px-4 py-2.5 text-right tabular text-fg">{r.cantidad_pesadas}</td>
