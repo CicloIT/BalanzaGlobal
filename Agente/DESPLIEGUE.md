@@ -208,9 +208,15 @@ y en la app la balanza muestra peso en vivo. Si no, mirar `agente.log` (ver tabl
 | Ver/editar la config con ventana | `nssm edit BalanzaAgente` |
 | Quitar el servicio | `.\instalar-agente.ps1 -Desinstalar` |
 
-**Actualizar el agente:** `.\reiniciar-agente.ps1 -SoloDetener` → reemplazar `src/`, `package.json`,
-`package-lock.json` y los `.ps1` (no tocar `sitios/<sitio>.json`) →
-`.\instalar-agente.ps1 -Sitio <sitio> -Dependencias`.
+**Actualizar el agente:** `.\actualizar-agente.ps1`. Baja la última versión de GitHub y reemplaza solo
+el código del agente (`src/`, `package*.json`, `.ps1`, `.md`); no toca `sitios/<sitio>.json`, `tools/`
+ni `logs/`. Corre `npm ci` solo si cambió `package-lock.json`, reinicia el servicio y verifica que quede
+andando. No necesita la app ni el servicio `balanza`: en la PC del sitio alcanza con la carpeta `Agente`.
+
+- La versión anterior queda en `respaldo-anterior/`; para volver: `.\actualizar-agente.ps1 -Volver`.
+- PC sin acceso a GitHub: bajar el zip del repo en otra PC y correr `.\actualizar-agente.ps1 -Zip <archivo.zip>`.
+- Sitio instalado antes de que existiera este script: copiar una sola vez `actualizar-agente.ps1` y
+  `funciones-agente.ps1` a la carpeta del agente (pisando el que haya) y correrlo; trae solo el resto.
 
 ### Dejarlo como servicio (Linux)
 ```bash

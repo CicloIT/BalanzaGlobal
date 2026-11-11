@@ -36,7 +36,7 @@ Requiere `sitios\<sitio>.json` (ver `Agente\DESPLIEGUE.md`).
 | Instalar o reconfigurar | `instalar-agente.ps1 -Sitio <sitio>` |
 | Reiniciar, o destrabar si quedó en "Deteniendo" | `reiniciar-agente.ps1` |
 | Detener y dejarlo detenido | `reiniciar-agente.ps1 -SoloDetener` |
-| Actualizar | `reiniciar-agente.ps1 -SoloDetener`, reemplazar archivos, `instalar-agente.ps1 -Sitio <sitio>` (`-Dependencias` si cambió `package-lock.json`) |
+| Actualizar | `actualizar-agente.ps1`: baja la última versión de GitHub, conserva `sitios\*.json`, reinicia. `-Volver` vuelve a la anterior; `-Zip <archivo>` si la PC no llega a GitHub |
 
 `funciones-agente.ps1` no se ejecuta, pero tiene que estar en la misma carpeta.
 

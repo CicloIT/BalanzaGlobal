@@ -5,3 +5,4 @@ sitios/*.json
 !sitios/ejemplo.json
 tools/
 logs/
+respaldo-anterior/
