@@ -27,6 +27,7 @@ import reportesRoutes from './routes/reporte.js';
 import backupRoutes from './routes/backups.js';
 import configRoutes from './routes/configuraciones.js';
 import empresasRoutes from './routes/empresas.js';
+import solicitudesBorradoRoutes from './routes/solicitudesBorrado.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -148,6 +149,7 @@ app.use('/api/reportes', reportesRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/empresas', empresasRoutes);
+app.use('/api/solicitudes-borrado', solicitudesBorradoRoutes);
 
 const CAPTURAS_DIR = path.join(__dirname, "../capturas");
 if (!fs.existsSync(CAPTURAS_DIR)) {

@@ -8,10 +8,18 @@ const VALIDAR_PESO_BALANZA = process.env.VALIDAR_PESO_BALANZA !== 'false';
 const PESO_MAX_EDAD_MS = parseInt(process.env.PESO_MAX_EDAD_MS, 10) || 60000;
 const PESO_TOLERANCIA_KG = parseFloat(process.env.PESO_TOLERANCIA_KG) || 0;
 
+// Operaciones con un pedido de borrado pendiente: quien no puede borrar (balancero) no las ve
+// ni las modifica hasta que el superadmin resuelva. Devuelve un fragmento para AND.
+const filtroOcultas = (user) =>
+  hasPermission(user?.rol, PERMISSIONS.PESAJE_DELETE) ? 'TRUE' : 'op.borrado_solicitud_id IS NULL';
+
 // Subconsulta: operaciones dentro del alcance del usuario → `columna ${sql}`
 const operacionesEnScope = (user, startIdx) => {
   const scope = scopeSql('op.localidad_id', user, startIdx);
-  return { sql: `IN (SELECT op.id FROM operacion_pesaje op WHERE ${scope.sql})`, params: scope.params };
+  return {
+    sql: `IN (SELECT op.id FROM operacion_pesaje op WHERE ${scope.sql} AND ${filtroOcultas(user)})`,
+    params: scope.params,
+  };
 };
 
 export const getPesadas = async (req, res) => {
@@ -32,7 +40,7 @@ export const getPesadas = async (req, res) => {
       LEFT JOIN producto  prod ON p.producto_id  = prod.id
       LEFT JOIN productor ptr  ON p.productor_id = ptr.id
       LEFT JOIN transporte tr  ON p.transporte_id = tr.id
-      WHERE ${scope.sql}
+      WHERE ${scope.sql} AND ${filtroOcultas(req.user)}
       ORDER BY p.fecha_hora DESC
       LIMIT 200
     `, scope.params);
@@ -338,6 +346,114 @@ export const deleteOperacionesMasivo = async (req, res) => {
   }
 };
 
+/**
+ * El balancero pide borrar operaciones cerradas. No se borra nada: quedan marcadas con la
+ * solicitud (ocultas para él) hasta que el superadmin la apruebe o rechace.
+ * Body: { ids: number[], motivo: string }. Una solicitud por localidad.
+ */
+export const solicitarBorrado = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+    const ids = Array.isArray(req.body?.ids)
+      ? [...new Set(req.body.ids.map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n > 0))]
+      : [];
+    if (!ids.length) throw new ScopeError('Seleccione al menos una operación', 400);
+    if (!motivo) throw new ScopeError('Indique el motivo del borrado', 400);
+    if (motivo.length > 1000) throw new ScopeError('El motivo es demasiado largo (máximo 1000 caracteres)', 400);
+
+    await client.query('BEGIN');
+    const scope = scopeSql('op.localidad_id', req.user, 2);
+    const ops = await client.query(
+      `SELECT op.id, op.vehiculo_patente, op.abierta, op.localidad_id, op.borrado_solicitud_id
+       FROM operacion_pesaje op
+       WHERE op.id = ANY($1) AND ${scope.sql}
+       ORDER BY op.id
+       FOR UPDATE`,
+      [ids, ...scope.params]
+    );
+    if (ops.rows.length !== ids.length) {
+      throw new ScopeError('Alguna de las operaciones no existe o no pertenece a su localidad', 404);
+    }
+    const abiertas = ops.rows.filter(o => o.abierta);
+    if (abiertas.length) {
+      throw new ScopeError(
+        `No se puede pedir el borrado de operaciones en proceso (${abiertas.map(o => o.vehiculo_patente).join(', ')}). Complete la pesada primero.`,
+        409
+      );
+    }
+    if (ops.rows.some(o => o.borrado_solicitud_id)) {
+      throw new ScopeError('Alguna de las operaciones ya tiene un pedido de borrado pendiente', 409);
+    }
+
+    const porLocalidad = new Map();
+    for (const o of ops.rows) {
+      if (!porLocalidad.has(o.localidad_id)) porLocalidad.set(o.localidad_id, []);
+      porLocalidad.get(o.localidad_id).push(o.id);
+    }
+
+    const solicitudes = [];
+    for (const [localidadId, opIds] of porLocalidad) {
+      const sol = await client.query(
+        `INSERT INTO solicitud_borrado (localidad_id, solicitado_por, motivo)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [localidadId, req.user.id, motivo]
+      );
+      const solicitudId = sol.rows[0].id;
+
+      // Snapshot de cada operación: queda como registro aunque después se borre
+      await client.query(
+        `INSERT INTO solicitud_borrado_operacion (solicitud_id, operacion_id, datos)
+         SELECT $1, op.id, jsonb_build_object(
+           'vehiculo_patente', op.vehiculo_patente,
+           'sentido',          op.sentido,
+           'created_at',       op.created_at,
+           'bruto',            MAX(CASE WHEN p.tipo::text = 'BRUTO' THEN p.peso END),
+           'tara',             MAX(CASE WHEN p.tipo::text = 'TARA'  THEN p.peso END),
+           'neto',             MAX(p.neto),
+           'fecha_entrada',    MIN(p.fecha_hora),
+           'fecha_salida',     MAX(p.fecha_hora),
+           'chofer',           MAX(c.apellido_nombre),
+           'producto',         MAX(prod.nombre),
+           'productor',        MAX(ptr.nombre),
+           'transporte',       MAX(tr.nombre),
+           'balancero',        MAX(p.balancero),
+           'nro_remito',       MAX(p.nro_remito),
+           'nro_contenedor',   MAX(p.nro_contenedor)
+         )
+         FROM operacion_pesaje op
+         LEFT JOIN pesada     p    ON op.id = p.operacion_id
+         LEFT JOIN chofer     c    ON p.chofer_id    = c.id
+         LEFT JOIN producto   prod ON p.producto_id  = prod.id
+         LEFT JOIN productor  ptr  ON p.productor_id = ptr.id
+         LEFT JOIN transporte tr   ON p.transporte_id = tr.id
+         WHERE op.id = ANY($2)
+         GROUP BY op.id`,
+        [solicitudId, opIds]
+      );
+
+      await client.query(
+        'UPDATE operacion_pesaje SET borrado_solicitud_id = $1 WHERE id = ANY($2)',
+        [solicitudId, opIds]
+      );
+      solicitudes.push(solicitudId);
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({
+      success: true,
+      message: 'Pedido de borrado enviado al administrador',
+      solicitudes,
+      operaciones: ids.length,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    sendScopeError(res, error);
+  } finally {
+    client.release();
+  }
+};
+
 export const getPesadasAgrupadas = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit ?? 20, 10), 100);
@@ -350,7 +466,7 @@ export const getPesadasAgrupadas = async (req, res) => {
 
     // Alcance empresa/localidad (por la localidad de la operación)
     const scope = scopeSql('op.localidad_id', userForRead(req), 1);
-    const conditions = [scope.sql];
+    const conditions = [scope.sql, filtroOcultas(req.user)];
     const filterParams = [...scope.params];
 
     if (sentidoFilter && ['INGRESO', 'SALIDA'].includes(sentidoFilter)) {
@@ -400,6 +516,7 @@ export const getPesadasAgrupadas = async (req, res) => {
              MIN(p.fecha_hora) as fecha_entrada,
              MAX(p.fecha_hora) as fecha_salida,
              op.abierta,
+             op.borrado_solicitud_id IS NOT NULL as borrado_pendiente,
              MAX(c.apellido_nombre) as chofer,
              MAX(prod.nombre)       as producto,
              MAX(ptr.nombre)        as productor,
@@ -423,7 +540,7 @@ export const getPesadasAgrupadas = async (req, res) => {
       LEFT JOIN productor ptr  ON p.productor_id = ptr.id
       LEFT JOIN transporte tr  ON p.transporte_id = tr.id
       ${whereClause}
-      GROUP BY op.id, op.vehiculo_patente, op.abierta, op.sentido, op.localidad_id
+      GROUP BY op.id, op.vehiculo_patente, op.abierta, op.sentido, op.localidad_id, op.borrado_solicitud_id
       ORDER BY op.id DESC
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `, mainParams);
@@ -458,7 +575,7 @@ export const updateContenedorByOperacion = async (req, res) => {
 
     const scope = scopeSql('op.localidad_id', req.user, 2);
     const opResult = await client.query(
-      `SELECT 1 FROM operacion_pesaje op WHERE op.id = $1 AND ${scope.sql}`,
+      `SELECT 1 FROM operacion_pesaje op WHERE op.id = $1 AND ${scope.sql} AND ${filtroOcultas(req.user)}`,
       [operacionId, ...scope.params]
     );
     if (opResult.rows.length === 0) {
@@ -544,6 +661,7 @@ export const getPesadaActivaByPatente = async (req, res) => {
       WHERE op.vehiculo_patente = $1
         AND op.abierta = true
         AND ${scope.sql}
+        AND ${filtroOcultas(req.user)}
       ORDER BY p.fecha_hora DESC
       LIMIT 1
     `, [patente, ...scope.params]);

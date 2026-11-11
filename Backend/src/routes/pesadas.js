@@ -9,7 +9,8 @@ import {
   updatePdfByOperacion,
   updateContenedorByOperacion,
   getPesadaActivaByPatente,
-  deleteOperacionesMasivo
+  deleteOperacionesMasivo,
+  solicitarBorrado
 } from '../controllers/pesadasController.js';
 import { requireAuth, requirePermission, optionalAuth } from '../middleware/authMiddleware.js';
 import { PERMISSIONS } from '../config/rolesConfig.js';
@@ -58,5 +59,7 @@ router.put('/operacion/:operacionId/contenedor', requireAuth, requirePermission(
 router.put('/operacion/:operacionId', requireAuth, requirePermission(PERMISSIONS.PESAJE_UPDATE), upload.single('archivo'), updatePdfByOperacion);
 router.delete('/operacion/:operacionId', requireAuth, requirePermission(PERMISSIONS.PESAJE_DELETE), deletePesada);
 router.post('/operaciones/delete-masivo', requireAuth, requirePermission(PERMISSIONS.PESAJE_DELETE), deleteOperacionesMasivo);
+// Balancero: pide el borrado (las operaciones quedan ocultas hasta que el superadmin resuelva)
+router.post('/operaciones/solicitar-borrado', requireAuth, requirePermission(PERMISSIONS.PESAJE_SOLICITAR_BORRADO), solicitarBorrado);
 
 export default router;

@@ -20,7 +20,8 @@ function Marca({ colapsado }) {
 }
 
 // Lista de grupos e ítems. `visibles` = ids permitidos para el usuario.
-function Navegacion({ visibles, activo, onSelect, colapsado }) {
+// `contadores` = { [id]: número } para avisos (ej. pedidos de borrado pendientes).
+function Navegacion({ visibles, activo, onSelect, colapsado, contadores = {} }) {
   return (
     <nav aria-label="Secciones" className="flex-1 overflow-y-auto px-2 py-3 space-y-5">
       {NAV_GROUPS.map(grupo => {
@@ -34,13 +35,15 @@ function Navegacion({ visibles, activo, onSelect, colapsado }) {
             <ul className="space-y-0.5">
               {items.map(({ id, label, icon: Icon }) => {
                 const esActivo = id === activo;
+                const contador = contadores[id] || 0;
+                const textoContador = contador > 99 ? '99+' : String(contador);
                 return (
                   <li key={id}>
                     <button
                       type="button"
                       onClick={() => onSelect(id)}
                       aria-current={esActivo ? 'page' : undefined}
-                      title={colapsado ? label : undefined}
+                      title={colapsado ? (contador ? `${label} (${contador})` : label) : undefined}
                       className={cx(
                         'group relative w-full flex items-center gap-3 rounded-lg text-sm font-medium transition-colors',
                         colapsado ? 'justify-center h-10' : 'h-9 px-3',
@@ -52,6 +55,14 @@ function Navegacion({ visibles, activo, onSelect, colapsado }) {
                       {esActivo && <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-brand-solid" />}
                       <Icon size={18} aria-hidden="true" className="shrink-0" />
                       {colapsado ? <span className="sr-only">{label}</span> : <span className="truncate">{label}</span>}
+                      {contador > 0 && (colapsado ? (
+                        <span aria-hidden="true" className="absolute top-1 right-2 h-2 w-2 rounded-full bg-danger-solid" />
+                      ) : (
+                        <span className="ml-auto rounded-full bg-danger-solid px-1.5 py-0.5 text-[11px] font-semibold leading-none text-white tabular">
+                          {textoContador}
+                        </span>
+                      ))}
+                      {contador > 0 && <span className="sr-only">, {contador} pendiente{contador !== 1 ? 's' : ''}</span>}
                     </button>
                   </li>
                 );
@@ -64,7 +75,7 @@ function Navegacion({ visibles, activo, onSelect, colapsado }) {
   );
 }
 
-export default function Sidebar({ visibles, activo, onSelect, colapsado, onToggleColapsado, mobileOpen, onCloseMobile }) {
+export default function Sidebar({ visibles, activo, onSelect, colapsado, onToggleColapsado, mobileOpen, onCloseMobile, contadores }) {
   return (
     <>
       {/* Escritorio: fijo, contraíble */}
@@ -75,7 +86,7 @@ export default function Sidebar({ visibles, activo, onSelect, colapsado, onToggl
         )}
       >
         <Marca colapsado={colapsado} />
-        <Navegacion visibles={visibles} activo={activo} onSelect={onSelect} colapsado={colapsado} />
+        <Navegacion visibles={visibles} activo={activo} onSelect={onSelect} colapsado={colapsado} contadores={contadores} />
         <div className="border-t border-line p-2">
           <button
             type="button"
@@ -108,6 +119,7 @@ export default function Sidebar({ visibles, activo, onSelect, colapsado, onToggl
               activo={activo}
               onSelect={(id) => { onSelect(id); onCloseMobile(); }}
               colapsado={false}
+              contadores={contadores}
             />
           </aside>
         </div>

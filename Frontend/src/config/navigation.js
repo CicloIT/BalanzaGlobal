@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Scale, ClipboardList, FileBarChart, Truck, IdCard, Route,
-  Tractor, Package, MapPin, Map, Building2, Settings, Users,
+  Tractor, Package, MapPin, Map, Building2, Settings, Users, Inbox,
 } from 'lucide-react';
 
 // Menú lateral agrupado. Los ids son los MODULES de rolesConfig; GestionApp
@@ -31,6 +31,7 @@ export const NAV_GROUPS = [
     key: 'administracion',
     label: 'Administración',
     items: [
+      { id: 'solicitudes-borrado', label: 'Solicitudes de borrado', icon: Inbox, description: 'Pedidos de los balanceros para borrar operaciones' },
       { id: 'usuarios', label: 'Usuarios', icon: Users, description: 'Altas, roles, contraseñas y acceso de los usuarios' },
       { id: 'localidades', label: 'Localidades', icon: MapPin, description: 'Sitios de pesaje de la empresa' },
       { id: 'provincias', label: 'Provincias', icon: Map, description: 'Provincias disponibles para las localidades' },

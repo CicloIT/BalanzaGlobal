@@ -159,6 +159,67 @@ const main = async () => {
   const repIds = [rep1.data.data?.id, rep2.data.data?.id].filter(Boolean);
   if (repIds.length) await api(superadmin, 'POST', '/api/reportes/delete-masivo', { ids: repIds });
 
+  // ── Pedido de borrado: el balancero pide, las operaciones se le ocultan, el superadmin decide ──
+  {
+    const cat = async (path, body) => (await api(bal1, 'POST', path, body)).data.data?.id;
+    const refs = {
+      chofer_id: await cat('/api/choferes', { apellido_nombre: `Chofer borrado ${patente}` }),
+      productor_id: await cat('/api/productores', { nombre: `Productor ${patente}` }),
+      transporte_id: await cat('/api/transportes', { nombre: `Transporte ${patente}` }),
+      producto_id: await cat('/api/productos', { codigo: `BR${patente}`, nombre: `Prod borrado ${patente}` }),
+    };
+    const pesar = (peso, sentido) => api(bal1, 'POST', '/api/pesadas', {
+      vehiculo_patente: patente, sentido, peso, es_manual: true, dispositivo_id: balanzas1.data.data[0].id, ...refs,
+    });
+    const p1 = await pesar(1000, 'INGRESO');
+    check(p1.status === 201, 'balancero registra bruto (manual) para probar el borrado');
+    const opId = p1.data.data?.operacion_id;
+    const solicitar = (user, body) => api(user, 'POST', '/api/pesadas/operaciones/solicitar-borrado', body);
+    check((await solicitar(bal1, { ids: [opId], motivo: 'prueba' })).status === 409, 'no se pide borrar una operación en proceso');
+    const p2 = await pesar(400, 'INGRESO');
+    check(p2.status === 201 && p2.data.data?.operacion_id === opId, 'tara cierra la operación');
+
+    const ve = async (user) => (await api(user, 'GET', '/api/pesadas/agrupadas?limit=100')).data.data?.find(o => o.id === opId);
+    check((await api(bal1, 'POST', '/api/pesadas/operaciones/delete-masivo', { ids: [opId] })).status === 403, 'balancero sigue sin poder borrar directo');
+    check((await solicitar(bal1, { ids: [opId], motivo: '   ' })).status === 400, 'pedido de borrado sin motivo → 400');
+    check((await solicitar(bal2, { ids: [opId], motivo: 'ajena' })).status === 404, 'balancero no pide borrar operaciones de otra localidad');
+    check((await solicitar(logistica, { ids: [opId], motivo: 'x' })).status === 403, 'logística no pide borrados');
+
+    const s1 = await solicitar(bal1, { ids: [opId], motivo: 'Pesada duplicada' });
+    check(s1.status === 201 && s1.data.solicitudes?.length === 1, 'balancero pide el borrado con motivo');
+    const sol1 = s1.data.solicitudes?.[0];
+    check(!(await ve(bal1)), 'la operación se le oculta al balancero');
+    check((await api(bal1, 'PUT', `/api/pesadas/operacion/${opId}/contenedor`, { nro_contenedor: 'X' })).status === 404, 'balancero no modifica una operación oculta');
+    check((await solicitar(bal1, { ids: [opId], motivo: 'otra vez' })).status === 409, 'no se repite el pedido sobre una operación ya pedida');
+    const opSuper = await ve(superadmin);
+    check(opSuper?.borrado_pendiente === true, 'superadmin la sigue viendo, marcada como borrado pendiente');
+    check((await solicitar(superadmin, { ids: [opId], motivo: 'x' })).status === 409, 'no se duplica un pedido pendiente');
+    check((await api(bal1, 'GET', '/api/solicitudes-borrado')).status === 403, 'balancero no ve la bandeja de pedidos');
+    check((await api(bal1, 'POST', `/api/solicitudes-borrado/${sol1}/aprobar`)).status === 403, 'balancero no aprueba pedidos');
+    check((await api(superadmin, 'GET', '/api/solicitudes-borrado/pendientes/count')).data.count >= 1, 'superadmin ve el contador de pendientes');
+    const bandeja = await api(superadmin, 'GET', '/api/solicitudes-borrado');
+    const enBandeja = bandeja.data.data?.find(s => s.id === sol1);
+    check(enBandeja?.motivo === 'Pesada duplicada' && Number(enBandeja?.operaciones?.[0]?.bruto) === 1000, 'la bandeja trae motivo y datos de la operación');
+
+    const rech = await api(superadmin, 'POST', `/api/solicitudes-borrado/${sol1}/rechazar`, { comentario: 'No es duplicada' });
+    check(rech.status === 200, 'superadmin rechaza el pedido');
+    check(Boolean(await ve(bal1)), 'al rechazar, la operación vuelve a verse para el balancero');
+    check((await api(superadmin, 'POST', `/api/solicitudes-borrado/${sol1}/aprobar`)).status === 409, 'un pedido ya resuelto no se puede aprobar');
+
+    const s2 = await solicitar(bal1, { ids: [opId], motivo: 'Ahora sí, duplicada' });
+    const sol2 = s2.data.solicitudes?.[0];
+    check(s2.status === 201, 'se puede volver a pedir después de un rechazo');
+    check((await api(superadmin, 'POST', `/api/solicitudes-borrado/${sol2}/aprobar`)).status === 200, 'superadmin aprueba el pedido');
+    check(!(await ve(superadmin)), 'al aprobar, la operación se borra');
+    const aprobadas = await api(superadmin, 'GET', '/api/solicitudes-borrado?estado=aprobada');
+    const reg = aprobadas.data.data?.find(s => s.id === sol2);
+    check(reg?.resuelto_por === superadmin.id && reg?.operaciones?.[0]?.vehiculo_patente === patente, 'queda registro de lo borrado (quién pidió, quién aprobó, datos)');
+
+    for (const [path, id] of [['/api/choferes', refs.chofer_id], ['/api/productores', refs.productor_id], ['/api/transportes', refs.transporte_id], ['/api/productos', refs.producto_id]]) {
+      if (id) await api(superadmin, 'DELETE', `${path}/${id}`);
+    }
+  }
+
   // ── Catálogos: duplicados con mensaje claro y baja que no bloquea volver a cargar ──
   const codigo = `ZZ${patente}`;
   const prod1 = await api(bal1, 'POST', '/api/productos', { codigo, nombre: `Producto ${patente}` });

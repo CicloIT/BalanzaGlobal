@@ -59,6 +59,7 @@ export const PERMISSIONS = {
   PESAJE_CREATE: 'pesaje:create',
   PESAJE_UPDATE: 'pesaje:update',
   PESAJE_DELETE: 'pesaje:delete',
+  PESAJE_SOLICITAR_BORRADO: 'pesaje:solicitar_borrado', // Pedir al superadmin que borre operaciones (quedan ocultas)
   PESAJE_MANUAL: 'pesaje:manual',
   PESAJE_EDITAR_PESO: 'pesaje:editar_peso', // Corregir el peso de una pesada ya registrada
 
@@ -109,6 +110,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.PESAJE_CREATE,
     PERMISSIONS.PESAJE_UPDATE,
     PERMISSIONS.PESAJE_MANUAL,
+    PERMISSIONS.PESAJE_SOLICITAR_BORRADO,
     PERMISSIONS.CHOFERES_VIEW,
     PERMISSIONS.CHOFERES_CREATE,
     PERMISSIONS.PRODUCTORES_VIEW,
@@ -142,6 +144,7 @@ export const MODULES = {
   CONFIGURACION: 'configuracion',
   EMPRESAS: 'empresas',
   USUARIOS: 'usuarios',
+  SOLICITUDES_BORRADO: 'solicitudes-borrado',
 };
 
 // Permisos requeridos por módulo
@@ -160,6 +163,7 @@ export const MODULE_PERMISSIONS = {
   [MODULES.PROVINCIAS]: [PERMISSIONS.PROVINCIAS_VIEW],
   [MODULES.LOCALIDADES]: [PERMISSIONS.LOCALIDADES_VIEW],
   [MODULES.REPORTES]: [PERMISSIONS.REPORTES_VIEW],
+  [MODULES.SOLICITUDES_BORRADO]: [PERMISSIONS.PESAJE_DELETE],
 };
 
 // Helpers

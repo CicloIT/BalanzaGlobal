@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Pencil, Trash2, Eye, FileText, Upload, Package, Power, PowerOff, FileBarChart, ArrowDown, ArrowUp, Clock, CheckCircle2 } from 'lucide-react';
+import { Pencil, Trash2, Eye, FileText, Upload, Package, Power, PowerOff, FileBarChart, ArrowDown, ArrowUp, Clock, CheckCircle2, Send } from 'lucide-react';
 import Guard from './Guard';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
@@ -39,9 +39,19 @@ function RenderCelda({ item, keyName }) {
     return <Badge tone={ingreso ? 'ingreso' : 'salida'} icon={ingreso ? ArrowDown : ArrowUp}>{ingreso ? 'Ingreso' : 'Salida'}</Badge>;
   }
 
-  if (keyName === 'abierta') return value
-    ? <Badge tone="warning" icon={Clock}>En proceso</Badge>
-    : <Badge tone="success" icon={CheckCircle2}>Completada</Badge>;
+  if (keyName === 'abierta') {
+    const estado = value
+      ? <Badge tone="warning" icon={Clock}>En proceso</Badge>
+      : <Badge tone="success" icon={CheckCircle2}>Completada</Badge>;
+    // Solo lo ve quien puede borrar: para el balancero estas operaciones ya no se listan
+    if (!item.borrado_pendiente) return estado;
+    return (
+      <span className="inline-flex flex-wrap gap-1">
+        {estado}
+        <Badge tone="danger" icon={Trash2}>Borrado pendiente</Badge>
+      </span>
+    );
+  }
 
   if (keyName === 'vehiculo_patente' || keyName === 'patente' || keyName === 'patente_acoplado') {
     return <span className="font-mono font-semibold text-fg tracking-wide">{value}</span>;
@@ -255,7 +265,7 @@ const CardItem = React.memo(({
 const TablaItems = React.memo(({
   items, tipo, columnasKeys, columnasLabels,
   onEditar, onEliminar, onToggleEstado, onSubirPDF, onVerDetalles, onContenedor,
-  onGenerarReporte, onEliminarMultiples, soloLectura = false,
+  onGenerarReporte, onEliminarMultiples, onSolicitarBorrado, soloLectura = false,
   hasMore, loadMore, loadingMore
 }) => {
   const [seleccionadas, setSeleccionadas] = useState(new Set());
@@ -306,6 +316,14 @@ const TablaItems = React.memo(({
     } catch (err) {
       console.error('Error eliminando:', err);
     }
+  };
+
+  // Balancero: no borra, pide el borrado al superadmin (la confirmación/motivo la pide GestionApp)
+  const handleSolicitarBorrado = async () => {
+    if (!seleccionadas.size) return;
+    const sel = items.filter(i => seleccionadas.has(i.id));
+    const enviada = await onSolicitarBorrado?.(sel);
+    if (enviada) setSeleccionadas(new Set());
   };
 
   const todasSeleccionadas = items.length > 0 && seleccionadas.size === items.length;
@@ -372,7 +390,23 @@ const TablaItems = React.memo(({
             >
               {generando ? 'Generando…' : 'Generar reporte'}
             </Button>
-            <Guard permissions="pesaje:delete">
+            <Guard
+              permissions="pesaje:delete"
+              fallback={(
+                <Guard permissions="pesaje:solicitar_borrado">
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    icon={Send}
+                    onClick={handleSolicitarBorrado}
+                    disabled={!algunaSeleccionada}
+                    title="Pedir al administrador que borre las operaciones seleccionadas"
+                  >
+                    Solicitar borrado
+                  </Button>
+                </Guard>
+              )}
+            >
               <Button
                 size="sm"
                 variant="danger-soft"

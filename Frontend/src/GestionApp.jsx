@@ -27,6 +27,9 @@ import DetallePesadaModal from './components/DetallePesadaModal';
 import ContenedorModal from './components/ContenedorModal';
 import Configuracion from './components/Configuracion';
 import UsuariosAdmin from './components/UsuariosAdmin';
+import SolicitudesBorrado from './components/SolicitudesBorrado';
+import SolicitarBorradoModal from './components/SolicitarBorradoModal';
+import { useSolicitudesPendientes } from './hooks/useSolicitudesPendientes';
 import Guard from './components/Guard';
 import PageHeader from './components/ui/PageHeader';
 import Button from './components/ui/Button';
@@ -110,6 +113,22 @@ export default function GestionApp() {
   const [pesadaDetalle, setPesadaDetalle] = useState(null);
   const [pesadasReporte, setPesadasReporte] = useState(null);
   const [contenedorModal, setContenedorModal] = useState(null);
+  const [solicitudBorrado, setSolicitudBorrado] = useState(null);
+
+  // Pedidos de borrado de los balanceros: contador en el menú y aviso al entrar
+  const puedeBorrarPesadas = hasPermission(PERMISSIONS.PESAJE_DELETE);
+  const borradosPendientes = useSolicitudesPendientes(puedeBorrarPesadas);
+  const [avisoPendientesMostrado, setAvisoPendientesMostrado] = useState(false);
+  useEffect(() => {
+    if (avisoPendientesMostrado || borradosPendientes <= 0) return;
+    setAvisoPendientesMostrado(true);
+    toast.info(`Hay ${borradosPendientes} pedido${borradosPendientes !== 1 ? 's' : ''} de borrado de operaciones para revisar (Administración → Solicitudes de borrado).`, 8000);
+  }, [borradosPendientes, avisoPendientesMostrado, toast]);
+
+  // Balancero: abre el modal del motivo. Resuelve true cuando el pedido se envió.
+  const handleSolicitarBorrado = (operaciones) => new Promise(resolve => {
+    setSolicitudBorrado({ operaciones, resolve });
+  });
 
   useEffect(() => { setSearchTerm(''); }, [activeTab]);
 
@@ -255,7 +274,7 @@ export default function GestionApp() {
   // Secciones visibles según permisos: los módulos especiales por acceso, los maestros solo
   // si el usuario puede editarlos (el balancero crea catálogos desde la pesada, sin pantalla propia)
   const visibles = useMemo(() => {
-    const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS];
+    const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS, MODULES.SOLICITUDES_BORRADO];
     const maestros = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES,
       MODULES.PROVINCIAS, MODULES.LOCALIDADES, MODULES.EMPRESAS, MODULES.VEHICULOS];
     return new Set([
@@ -265,7 +284,7 @@ export default function GestionApp() {
   }, [hasModuleAccess, hasPermission, MODULES]);
 
   // Tabs que no usan el layout genérico de tabla
-  const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS];
+  const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS, MODULES.SOLICITUDES_BORRADO];
   const esLista = !tabsEspeciales.includes(activeTab) && currentConfig;
   const esPesadas = activeTab === 'pesadas';
   const nav = NAV_ITEMS[activeTab];
@@ -278,7 +297,12 @@ export default function GestionApp() {
   const filtrosFechaActivos = Boolean(fechaFiltro || mesFiltro || anioFiltro || sentidoFiltro);
 
   return (
-    <AppShell visibles={visibles} activo={activeTab} onSelect={setActiveTab}>
+    <AppShell
+      visibles={visibles}
+      activo={activeTab}
+      onSelect={setActiveTab}
+      contadores={{ [MODULES.SOLICITUDES_BORRADO]: borradosPendientes }}
+    >
       {/* Tabs especiales */}
       {activeTab === MODULES.PESADA && (
         <ProtectedRoute permissions={PERMISSIONS.PESAJE_CREATE}>
@@ -309,6 +333,12 @@ export default function GestionApp() {
       {activeTab === MODULES.USUARIOS && (
         <ProtectedRoute permissions={PERMISSIONS.USUARIOS_VIEW}>
           <UsuariosAdmin />
+        </ProtectedRoute>
+      )}
+
+      {activeTab === MODULES.SOLICITUDES_BORRADO && (
+        <ProtectedRoute permissions={PERMISSIONS.PESAJE_DELETE}>
+          <SolicitudesBorrado />
         </ProtectedRoute>
       )}
 
@@ -442,6 +472,7 @@ export default function GestionApp() {
                 onToggleEstado={currentGestion.toggleEstado}
                 onSubirPDF={handleSubirPDF}
                 onEliminarMultiples={handleEliminarMultiples}
+                onSolicitarBorrado={handleSolicitarBorrado}
                 onGenerarReporte={setPesadasReporte}
                 onVerDetalles={setPesadaDetalle}
                 onContenedor={setContenedorModal}
@@ -513,6 +544,20 @@ export default function GestionApp() {
           item={contenedorModal}
           onClose={() => setContenedorModal(null)}
           onSaved={() => setRefreshTrigger(Date.now())}
+        />
+      )}
+
+      {/* Balancero: pedido de borrado con motivo */}
+      {solicitudBorrado && (
+        <SolicitarBorradoModal
+          operaciones={solicitudBorrado.operaciones}
+          onClose={() => { solicitudBorrado.resolve(false); setSolicitudBorrado(null); }}
+          onEnviada={(data) => {
+            solicitudBorrado.resolve(true);
+            setSolicitudBorrado(null);
+            setRefreshTrigger(Date.now());
+            toast.success(`Pedido enviado (${data.operaciones} ${data.operaciones !== 1 ? 'operaciones' : 'operación'}). Quedan ocultas hasta que el administrador decida.`);
+          }}
         />
       )}
     </AppShell>

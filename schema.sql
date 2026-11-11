@@ -7,7 +7,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict WBzdTBZVYZ2RLUWaamn9iuZbCJOLxqDRfSVI8XsGZ4dQGbIarPyHnj0XmDqpvbs
+\restrict oVwJcH3zr9knJkBOMBYEO00OGgsfc8ALVAvTdTJwSIdW51yEEjtKBHw6ZrbcIYr
 
 -- Dumped from database version 18.2
 -- Dumped by pg_dump version 18.2
@@ -151,15 +151,25 @@ $$;
 CREATE FUNCTION public.usuario_localidad_empresa_chk() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
+
 BEGIN
+
     IF NEW.localidad_id IS NOT NULL AND NOT EXISTS (
+
         SELECT 1 FROM localidad l
+
         WHERE l.id = NEW.localidad_id AND l.empresa_id = NEW.empresa_id
+
     ) THEN
+
         RAISE EXCEPTION 'La localidad % no pertenece a la empresa %', NEW.localidad_id, NEW.empresa_id;
+
     END IF;
+
     RETURN NEW;
+
 END;
+
 $$;
 
 
@@ -347,6 +357,7 @@ CREATE TABLE public.operacion_pesaje (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     sentido character varying(10) DEFAULT 'INGRESO'::character varying NOT NULL,
     localidad_id integer NOT NULL,
+    borrado_solicitud_id integer,
     CONSTRAINT chk_sentido CHECK (((sentido)::text = ANY (ARRAY[('INGRESO'::character varying)::text, ('SALIDA'::character varying)::text])))
 );
 
@@ -582,6 +593,56 @@ CREATE SEQUENCE public.reporte_numero_reporte_seq
 --
 
 ALTER SEQUENCE public.reporte_numero_reporte_seq OWNED BY public.reporte.numero_reporte;
+
+
+--
+-- Name: solicitud_borrado; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.solicitud_borrado (
+    id integer NOT NULL,
+    localidad_id integer NOT NULL,
+    solicitado_por integer NOT NULL,
+    motivo text NOT NULL,
+    estado character varying(10) DEFAULT 'pendiente'::character varying NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    resuelto_por integer,
+    resuelto_at timestamp without time zone,
+    comentario_resolucion text,
+    CONSTRAINT solicitud_borrado_estado_check CHECK (((estado)::text = ANY ((ARRAY['pendiente'::character varying, 'aprobada'::character varying, 'rechazada'::character varying])::text[]))),
+    CONSTRAINT solicitud_borrado_motivo_check CHECK ((btrim(motivo) <> ''::text))
+);
+
+
+--
+-- Name: solicitud_borrado_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.solicitud_borrado_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: solicitud_borrado_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.solicitud_borrado_id_seq OWNED BY public.solicitud_borrado.id;
+
+
+--
+-- Name: solicitud_borrado_operacion; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.solicitud_borrado_operacion (
+    solicitud_id integer NOT NULL,
+    operacion_id integer NOT NULL,
+    datos jsonb NOT NULL
+);
 
 
 --
@@ -915,6 +976,13 @@ ALTER TABLE ONLY public.reporte ALTER COLUMN numero_reporte SET DEFAULT nextval(
 
 
 --
+-- Name: solicitud_borrado id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado ALTER COLUMN id SET DEFAULT nextval('public.solicitud_borrado_id_seq'::regclass);
+
+
+--
 -- Name: ticket id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1088,6 +1156,22 @@ ALTER TABLE ONLY public.reporte
 
 ALTER TABLE ONLY public.reporte
     ADD CONSTRAINT reporte_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: solicitud_borrado_operacion solicitud_borrado_operacion_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado_operacion
+    ADD CONSTRAINT solicitud_borrado_operacion_pkey PRIMARY KEY (solicitud_id, operacion_id);
+
+
+--
+-- Name: solicitud_borrado solicitud_borrado_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado
+    ADD CONSTRAINT solicitud_borrado_pkey PRIMARY KEY (id);
 
 
 --
@@ -1323,6 +1407,13 @@ CREATE INDEX idx_localidad_provincia ON public.localidad USING btree (provincia_
 
 
 --
+-- Name: idx_operacion_borrado_solicitud; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_operacion_borrado_solicitud ON public.operacion_pesaje USING btree (borrado_solicitud_id) WHERE (borrado_solicitud_id IS NOT NULL);
+
+
+--
 -- Name: idx_operacion_fecha; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1390,6 +1481,13 @@ CREATE INDEX idx_productor_localidad ON public.productor USING btree (localidad_
 --
 
 CREATE INDEX idx_reporte_created_at ON public.reporte USING btree (created_at DESC);
+
+
+--
+-- Name: idx_solicitud_borrado_estado; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_solicitud_borrado_estado ON public.solicitud_borrado USING btree (estado, localidad_id);
 
 
 --
@@ -1582,6 +1680,14 @@ ALTER TABLE ONLY public.localidad
 
 
 --
+-- Name: operacion_pesaje operacion_pesaje_borrado_solicitud_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.operacion_pesaje
+    ADD CONSTRAINT operacion_pesaje_borrado_solicitud_id_fkey FOREIGN KEY (borrado_solicitud_id) REFERENCES public.solicitud_borrado(id) ON DELETE SET NULL;
+
+
+--
 -- Name: operacion_pesaje operacion_pesaje_localidad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1662,6 +1768,38 @@ ALTER TABLE ONLY public.reporte
 
 
 --
+-- Name: solicitud_borrado solicitud_borrado_localidad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado
+    ADD CONSTRAINT solicitud_borrado_localidad_id_fkey FOREIGN KEY (localidad_id) REFERENCES public.localidad(id);
+
+
+--
+-- Name: solicitud_borrado_operacion solicitud_borrado_operacion_solicitud_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado_operacion
+    ADD CONSTRAINT solicitud_borrado_operacion_solicitud_id_fkey FOREIGN KEY (solicitud_id) REFERENCES public.solicitud_borrado(id) ON DELETE CASCADE;
+
+
+--
+-- Name: solicitud_borrado solicitud_borrado_resuelto_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado
+    ADD CONSTRAINT solicitud_borrado_resuelto_por_fkey FOREIGN KEY (resuelto_por) REFERENCES public.usuario(id);
+
+
+--
+-- Name: solicitud_borrado solicitud_borrado_solicitado_por_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.solicitud_borrado
+    ADD CONSTRAINT solicitud_borrado_solicitado_por_fkey FOREIGN KEY (solicitado_por) REFERENCES public.usuario(id);
+
+
+--
 -- Name: ticket ticket_localidad_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1729,5 +1867,5 @@ ALTER TABLE ONLY public.vehiculo
 -- PostgreSQL database dump complete
 --
 
-\unrestrict WBzdTBZVYZ2RLUWaamn9iuZbCJOLxqDRfSVI8XsGZ4dQGbIarPyHnj0XmDqpvbs
+\unrestrict oVwJcH3zr9knJkBOMBYEO00OGgsfc8ALVAvTdTJwSIdW51yEEjtKBHw6ZrbcIYr
 

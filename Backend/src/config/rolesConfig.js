@@ -61,6 +61,7 @@ export const PERMISSIONS = {
   PESAJE_CREATE: 'pesaje:create',       // Crear nueva pesada
   PESAJE_UPDATE: 'pesaje:update',       // Modificar pesada existente
   PESAJE_DELETE: 'pesaje:delete',       // Eliminar pesada
+  PESAJE_SOLICITAR_BORRADO: 'pesaje:solicitar_borrado', // Pedir al superadmin que borre operaciones (quedan ocultas)
   PESAJE_MANUAL: 'pesaje:manual',       // Cargar peso manualmente (input libre)
   PESAJE_EDITAR_PESO: 'pesaje:editar_peso', // Corregir el peso de una pesada ya registrada
 
@@ -111,6 +112,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.PESAJE_CREATE,
     PERMISSIONS.PESAJE_UPDATE,
     PERMISSIONS.PESAJE_MANUAL,
+    PERMISSIONS.PESAJE_SOLICITAR_BORRADO,
     PERMISSIONS.CHOFERES_VIEW,
     PERMISSIONS.CHOFERES_CREATE,
     PERMISSIONS.PRODUCTORES_VIEW,

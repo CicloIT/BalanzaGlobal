@@ -10,7 +10,7 @@ const leerColapsado = () => {
 };
 
 // Estructura general: menú lateral + barra superior + contenido
-export default function AppShell({ visibles, activo, onSelect, children }) {
+export default function AppShell({ visibles, activo, onSelect, contadores, children }) {
   const [colapsado, setColapsado] = useState(leerColapsado);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -29,6 +29,7 @@ export default function AppShell({ visibles, activo, onSelect, children }) {
         onToggleColapsado={toggleColapsado}
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
+        contadores={contadores}
       />
       <div className={cx('flex min-h-screen flex-col transition-[padding] duration-200', colapsado ? 'lg:pl-16' : 'lg:pl-60')}>
         <Topbar activo={activo} onOpenMenu={() => setMobileOpen(true)} />
