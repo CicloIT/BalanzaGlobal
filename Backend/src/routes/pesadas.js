@@ -10,7 +10,9 @@ import {
   updateContenedorByOperacion,
   getPesadaActivaByPatente,
   deleteOperacionesMasivo,
-  solicitarBorrado
+  solicitarBorrado,
+  contarNegativas,
+  invertirOperacion
 } from '../controllers/pesadasController.js';
 import { requireAuth, requirePermission, optionalAuth } from '../middleware/authMiddleware.js';
 import { PERMISSIONS } from '../config/rolesConfig.js';
@@ -49,6 +51,8 @@ const router = express.Router();
 // Rutas de lectura (solo requieren permiso de ver)
 router.get('/', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadas);
 router.get('/agrupadas', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadasAgrupadas);
+// Aviso al superadmin: operaciones con neto negativo (sentido cargado al revés). Antes de '/:id'
+router.get('/negativas/count', requireAuth, requirePermission(PERMISSIONS.PESAJE_INVERTIR), contarNegativas);
 router.get('/activa/:patente', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadaActivaByPatente);
 router.get('/:id', optionalAuth, requirePermission(PERMISSIONS.PESAJE_VIEW), getPesadaById);
 
@@ -57,6 +61,7 @@ router.post('/', requireAuth, requirePermission(PERMISSIONS.PESAJE_CREATE), uplo
 router.put('/:id', requireAuth, requirePermission(PERMISSIONS.PESAJE_UPDATE), upload.single('archivo'), updatePesada);
 router.put('/operacion/:operacionId/contenedor', requireAuth, requirePermission(PERMISSIONS.PESAJE_UPDATE), updateContenedorByOperacion);
 router.put('/operacion/:operacionId', requireAuth, requirePermission(PERMISSIONS.PESAJE_UPDATE), upload.single('archivo'), updatePdfByOperacion);
+router.post('/operacion/:operacionId/invertir', requireAuth, requirePermission(PERMISSIONS.PESAJE_INVERTIR), invertirOperacion);
 router.delete('/operacion/:operacionId', requireAuth, requirePermission(PERMISSIONS.PESAJE_DELETE), deletePesada);
 router.post('/operaciones/delete-masivo', requireAuth, requirePermission(PERMISSIONS.PESAJE_DELETE), deleteOperacionesMasivo);
 // Balancero: pide el borrado (las operaciones quedan ocultas hasta que el superadmin resuelva)

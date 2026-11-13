@@ -22,12 +22,27 @@ Cómo se arma la operación:
 
 ## Lista de pesadas
 
-*Pesajes → Pesadas*: operaciones agrupadas, con filtros por sentido, fecha, mes y año, y carga
-infinita. Desde cada fila:
+*Pesajes → Pesadas*: operaciones agrupadas, con filtros por localidad (usuarios globales),
+sentido, fecha, mes y año, y carga infinita. Desde cada fila:
 - Ver detalle (pesadas, fotos, PDF).
 - Subir o reemplazar el PDF.
 - Cargar datos de contenedor (nro., VGM, tara, bultos, proforma, permiso de embarque).
 - Eliminar una operación o varias seleccionadas.
+
+### Operación con el sentido al revés (neto negativo)
+
+Si el balancero eligió INGRESO cuando el camión salía cargado (o al revés), la primera pesada
+queda con el tipo equivocado y el neto da **negativo**. Al superadmin le llega un aviso al
+entrar y un contador en *Historial de pesadas* (se actualiza cada minuto). En el historial,
+el botón **Neto negativo** filtra esas operaciones y cada fila tiene **Invertir**
+(`POST /api/pesadas/operacion/:id/invertir`, permiso `pesaje:invertir`, solo superadmin), que:
+- cambia el sentido (INGRESO ↔ SALIDA),
+- intercambia BRUTO ↔ TARA entre las dos pesadas (cada una conserva peso, fecha y fotos),
+- recalcula el neto.
+
+Solo aplica a operaciones cerradas con neto negativo. Los reportes ya generados con esa
+operación guardan los valores viejos: regenerarlos si hace falta. Requiere
+`migration_invertir_operacion.sql` (vuelve diferible la restricción `unica_pesada_por_tipo`).
 
 ## Reportes
 

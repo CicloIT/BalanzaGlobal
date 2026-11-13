@@ -24,8 +24,8 @@ Hay tres roles (desde 2026-10-29, `migration_roles_simplificados.sql`):
 
 | Rol | Alcance | Puede |
 |---|---|---|
-| `superadmin` | Plataforma | **Único administrador.** Todo: empresas, localidades, usuarios, catálogos, pesajes, reportes, dispositivos y tokens, módulo de cámaras, respaldos, corregir el peso de una pesada registrada |
-| `logistica` | Empresa (global) | **Solo el Dashboard**, con las métricas de todas las localidades de su empresa (total o filtrado por una localidad). No ve pesadas, catálogos ni configuración |
+| `superadmin` | Plataforma | **Único administrador.** Todo: empresas, localidades, usuarios, catálogos, pesajes, reportes, dispositivos y tokens, módulo de cámaras, respaldos, corregir el peso de una pesada registrada, invertir operaciones con neto negativo (sentido cargado al revés) |
+| `logistica` | Empresa (global) | **Dashboard e Historial de pesadas, solo lectura**, de todas las localidades de su empresa (total o filtrado por una localidad). En el historial ve detalles, fotos y carta de porte, incluidas las operaciones con borrado pendiente; no genera reportes, no registra ni modifica pesadas, no ve catálogos ni configuración |
 | `balancero` | Una localidad | Pesar con la balanza de su localidad, **incluido peso manual** (queda marcado como manual), ver el historial, adjuntar carta de porte, datos de contenedor, generar reportes, cámaras. Puede **dar de alta** choferes, transportes, productores, productos y vehículos desde la pesada, pero no editarlos ni borrarlos |
 
 Notas:

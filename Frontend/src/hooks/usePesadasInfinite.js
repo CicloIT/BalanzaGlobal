@@ -11,7 +11,7 @@ import { API_BASE_URL, getAuthHeaders } from '../lib/api';
 
 const PAGE_SIZE    = 50; // Aumentamos a 50 para que llene mejor la pantalla inicialmente
 
-export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFilter = null, fechaFilter = null, mesFilter = null, anioFilter = null) {
+export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFilter = null, fechaFilter = null, mesFilter = null, anioFilter = null, localidadFilter = null, soloNegativas = false) {
   const [items,   setItems]   = useState([]);
   const [page,    setPage]    = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -38,6 +38,9 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
       if (anioFilter) url += `&anio=${encodeURIComponent(anioFilter)}`;
       if (mesFilter) url += `&mes=${encodeURIComponent(mesFilter)}`;
       if (!anioFilter && fechaFilter) url += `&fecha=${encodeURIComponent(fechaFilter)}`;
+      // Usuarios globales: acotar a una localidad (el backend lo ignora para usuarios locales)
+      if (localidadFilter) url += `&localidad_id=${encodeURIComponent(localidadFilter)}`;
+      if (soloNegativas) url += '&negativas=1';
       const res = await fetch(url, { headers: getAuthHeaders(null) });
 
       if (!res.ok) {
@@ -71,7 +74,7 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
       setLoadingMore(false);
       fetchingRef.current = false;
     }
-  }, [sentidoFilter, fechaFilter, mesFilter, anioFilter]);
+  }, [sentidoFilter, fechaFilter, mesFilter, anioFilter, localidadFilter, soloNegativas]);
 
   // Control de tiempo y duplicados
   const lastFetchRef   = useRef(0);
@@ -104,17 +107,23 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
   const prevFechaRef = useRef(fechaFilter);
   const prevMesRef = useRef(mesFilter);
   const prevAnioRef = useRef(anioFilter);
+  const prevLocalidadRef = useRef(localidadFilter);
+  const prevNegativasRef = useRef(soloNegativas);
   useEffect(() => {
     if (
       prevSentidoRef.current !== sentidoFilter ||
       prevFechaRef.current !== fechaFilter ||
       prevMesRef.current !== mesFilter ||
-      prevAnioRef.current !== anioFilter
+      prevAnioRef.current !== anioFilter ||
+      prevLocalidadRef.current !== localidadFilter ||
+      prevNegativasRef.current !== soloNegativas
     ) {
+      prevNegativasRef.current = soloNegativas;
       prevSentidoRef.current = sentidoFilter;
       prevFechaRef.current = fechaFilter;
       prevMesRef.current = mesFilter;
       prevAnioRef.current = anioFilter;
+      prevLocalidadRef.current = localidadFilter;
       setItems([]);
       setPage(1);
       setHasMore(true);
@@ -123,7 +132,7 @@ export function usePesadasInfinite(enabled = true, refreshTrigger = 0, sentidoFi
       loadedPagesRef.current.add(1);
       if (enabled) fetchPage(1, false);
     }
-  }, [enabled, sentidoFilter, fechaFilter, mesFilter, anioFilter, fetchPage]);
+  }, [enabled, sentidoFilter, fechaFilter, mesFilter, anioFilter, localidadFilter, soloNegativas, fetchPage]);
 
   // Load next page
   const loadMore = useCallback(() => {

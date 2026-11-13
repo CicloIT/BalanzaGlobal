@@ -1235,7 +1235,7 @@ ALTER TABLE ONLY public.transporte
 --
 
 ALTER TABLE ONLY public.pesada
-    ADD CONSTRAINT unica_pesada_por_tipo UNIQUE (operacion_id, tipo);
+    ADD CONSTRAINT unica_pesada_por_tipo UNIQUE (operacion_id, tipo) DEFERRABLE;
 
 
 --

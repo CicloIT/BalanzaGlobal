@@ -8,10 +8,17 @@ const VALIDAR_PESO_BALANZA = process.env.VALIDAR_PESO_BALANZA !== 'false';
 const PESO_MAX_EDAD_MS = parseInt(process.env.PESO_MAX_EDAD_MS, 10) || 60000;
 const PESO_TOLERANCIA_KG = parseFloat(process.env.PESO_TOLERANCIA_KG) || 0;
 
-// Operaciones con un pedido de borrado pendiente: quien no puede borrar (balancero) no las ve
-// ni las modifica hasta que el superadmin resuelva. Devuelve un fragmento para AND.
+// Operaciones con un pedido de borrado pendiente: quien las pide (balancero) no las ve ni las
+// modifica hasta que el superadmin resuelva. Superadmin y logística (solo lectura) las siguen viendo.
+// Devuelve un fragmento para AND.
 const filtroOcultas = (user) =>
-  hasPermission(user?.rol, PERMISSIONS.PESAJE_DELETE) ? 'TRUE' : 'op.borrado_solicitud_id IS NULL';
+  hasPermission(user?.rol, PERMISSIONS.PESAJE_SOLICITAR_BORRADO) && !hasPermission(user?.rol, PERMISSIONS.PESAJE_DELETE)
+    ? 'op.borrado_solicitud_id IS NULL'
+    : 'TRUE';
+
+// Operación cerrada con neto negativo: casi siempre el balancero eligió el sentido al revés
+// (INGRESO → 1ª pesada BRUTO; SALIDA → 1ª pesada TARA), así que el camión vacío quedó como bruto.
+const OP_NETO_NEGATIVO = 'op.abierta = false AND op.id IN (SELECT operacion_id FROM pesada WHERE neto < 0)';
 
 // Subconsulta: operaciones dentro del alcance del usuario → `columna ${sql}`
 const operacionesEnScope = (user, startIdx) => {
@@ -461,6 +468,7 @@ export const getPesadasAgrupadas = async (req, res) => {
     const offset = (page - 1) * limit;
     const sentidoFilter = req.query.sentido;
     const fechaFilter = req.query.fecha;
+    const soloNegativas = req.query.negativas === '1';
     const mesParam = parseInt(req.query.mes, 10);
     const anioParam = parseInt(req.query.anio, 10);
 
@@ -473,6 +481,9 @@ export const getPesadasAgrupadas = async (req, res) => {
       filterParams.push(sentidoFilter);
       conditions.push(`op.sentido = $${filterParams.length}`);
     }
+
+    // Operaciones con neto negativo (sentido cargado al revés)
+    if (soloNegativas) conditions.push(OP_NETO_NEGATIVO);
 
     // Filtro específico mes+año tiene prioridad sobre fecha rápida
     if (!isNaN(anioParam) && !isNaN(mesParam)) {
@@ -673,5 +684,89 @@ export const getPesadaActivaByPatente = async (req, res) => {
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {
     sendScopeError(res, error);
+  }
+};
+
+/**
+ * GET /api/pesadas/negativas/count — operaciones cerradas con neto negativo (aviso al superadmin).
+ */
+export const contarNegativas = async (req, res) => {
+  try {
+    const scope = scopeSql('op.localidad_id', req.user, 1);
+    const result = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM operacion_pesaje op
+       WHERE ${OP_NETO_NEGATIVO} AND ${scope.sql} AND ${filtroOcultas(req.user)}`,
+      scope.params
+    );
+    res.json({ success: true, count: result.rows[0].count });
+  } catch (error) {
+    sendScopeError(res, error);
+  }
+};
+
+/**
+ * POST /api/pesadas/operacion/:operacionId/invertir
+ * Corrige una operación cargada con el sentido equivocado: cambia INGRESO <-> SALIDA,
+ * intercambia BRUTO <-> TARA entre sus dos pesadas (cada pesada conserva su peso, fecha y fotos)
+ * y recalcula el neto. Solo operaciones cerradas con neto negativo.
+ */
+export const invertirOperacion = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const operacionId = parseInt(req.params.operacionId, 10);
+    if (!operacionId) throw new ScopeError('Operación inválida', 400);
+
+    await client.query('BEGIN');
+    const scope = scopeSql('op.localidad_id', req.user, 2);
+    const opResult = await client.query(
+      `SELECT op.id, op.sentido, op.abierta FROM operacion_pesaje op
+       WHERE op.id = $1 AND ${scope.sql} FOR UPDATE`,
+      [operacionId, ...scope.params]
+    );
+    if (opResult.rows.length === 0) throw new ScopeError('Operación no encontrada', 404);
+    const op = opResult.rows[0];
+
+    const pesadas = await client.query(
+      'SELECT tipo::text AS tipo, peso, neto FROM pesada WHERE operacion_id = $1',
+      [operacionId]
+    );
+    const bruto = pesadas.rows.find(p => p.tipo === 'BRUTO');
+    const tara = pesadas.rows.find(p => p.tipo === 'TARA');
+    if (op.abierta || !bruto || !tara) {
+      throw new ScopeError('Solo se invierten operaciones cerradas (con bruto y tara)', 409);
+    }
+    if (!(Number(bruto.neto) < 0)) {
+      throw new ScopeError('La operación no tiene neto negativo: no hace falta invertirla', 409);
+    }
+
+    const nuevoSentido = op.sentido === 'INGRESO' ? 'SALIDA' : 'INGRESO';
+    // El intercambio BRUTO <-> TARA viola UNIQUE (operacion_id, tipo) a mitad de la sentencia:
+    // se difiere la validación hasta el COMMIT (migration_invertir_operacion.sql)
+    await client.query('SET CONSTRAINTS unica_pesada_por_tipo DEFERRED');
+    await client.query(
+      `UPDATE pesada SET tipo = CASE WHEN tipo = 'BRUTO' THEN 'TARA'::tipo_pesada_enum ELSE 'BRUTO'::tipo_pesada_enum END
+       WHERE operacion_id = $1`,
+      [operacionId]
+    );
+    const neto = await client.query(
+      `UPDATE pesada SET neto = (SELECT peso FROM pesada WHERE operacion_id = $1 AND tipo = 'BRUTO')
+                              - (SELECT peso FROM pesada WHERE operacion_id = $1 AND tipo = 'TARA')
+       WHERE operacion_id = $1 RETURNING neto`,
+      [operacionId]
+    );
+    await client.query('UPDATE operacion_pesaje SET sentido = $1 WHERE id = $2', [nuevoSentido, operacionId]);
+    await client.query('COMMIT');
+
+    console.log(`[pesadas] Operación ${operacionId} invertida por ${req.user?.username ?? req.user?.id}: ${op.sentido} → ${nuevoSentido}`);
+    res.json({
+      success: true,
+      message: 'Operación invertida',
+      data: { operacion_id: operacionId, sentido: nuevoSentido, neto: Number(neto.rows[0].neto) },
+    });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    sendScopeError(res, error);
+  } finally {
+    client.release();
   }
 };

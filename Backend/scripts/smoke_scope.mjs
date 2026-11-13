@@ -81,12 +81,24 @@ const main = async () => {
   const listaSuperL2 = await api(superadmin, 'GET', `/api/vehiculos?search=${patente}&localidad_id=2`);
   check(listaSuperL2.data.data?.length === 1, 'superadmin puede acotar con ?localidad_id=');
 
-  // ── Logística: solo dashboard ──
+  // ── Logística: dashboard + historial de pesadas (solo lectura) ──
   check((await api(logistica, 'GET', '/api/metricas/dashboard')).status === 200, 'logística ve el dashboard (todas las localidades)');
   check((await api(logistica, 'GET', '/api/metricas/dashboard?localidad_id=2')).status === 200, 'logística filtra el dashboard por localidad');
-  for (const path of ['/api/pesadas/agrupadas', '/api/vehiculos', '/api/reportes', '/api/config/balanzas', '/api/usuarios', '/api/backup/list']) {
+  for (const path of ['/api/vehiculos', '/api/reportes', '/api/usuarios', '/api/backup/list']) {
     check((await api(logistica, 'GET', path)).status === 403, `logística no accede a ${path}`);
   }
+  // Con pesaje:view lista las balanzas (estado/peso, como En vivo), pero sin datos de conexión
+  const balLog = await api(logistica, 'GET', '/api/config/balanzas');
+  check(balLog.status === 200 && balLog.data.data.every(b => !('ip' in b) && !('puerto' in b) && !('token' in b)), 'logística ve estado de balanzas sin ip/puerto/token');
+  check((await api(logistica, 'GET', '/api/config')).status === 403, 'logística no ve la configuración de dispositivos');
+  const histLog = await api(logistica, 'GET', '/api/pesadas/agrupadas?limit=100');
+  check(histLog.status === 200, 'logística ve el historial de pesadas');
+  const histLogL2 = await api(logistica, 'GET', '/api/pesadas/agrupadas?limit=100&localidad_id=2');
+  check(histLogL2.status === 200 && histLogL2.data.data.every(o => o.localidad_id === 2), 'logística filtra el historial por localidad');
+  const histBalOtra = await api(bal1, 'GET', `/api/pesadas/agrupadas?limit=100&localidad_id=${bal2.localidad_id}`);
+  check(histBalOtra.status === 200 && histBalOtra.data.data.every(o => o.localidad_id === bal1.localidad_id), 'balancero no puede ver otra localidad con ?localidad_id=');
+  check((await api(logistica, 'POST', '/api/reportes', { pesadas: [] })).status === 403, 'logística no genera reportes');
+  check((await api(logistica, 'POST', '/api/pesadas', {})).status === 403, 'logística no registra pesadas');
 
   // ── Usuarios: solo superadmin ──
   check((await api(bal1, 'GET', '/api/usuarios')).status === 403, 'balancero no gestiona usuarios');
@@ -179,7 +191,7 @@ const main = async () => {
     const p2 = await pesar(400, 'INGRESO');
     check(p2.status === 201 && p2.data.data?.operacion_id === opId, 'tara cierra la operación');
 
-    const ve = async (user) => (await api(user, 'GET', '/api/pesadas/agrupadas?limit=100')).data.data?.find(o => o.id === opId);
+    const ve = async (user, id = opId) => (await api(user, 'GET', '/api/pesadas/agrupadas?limit=100')).data.data?.find(o => o.id === id);
     check((await api(bal1, 'POST', '/api/pesadas/operaciones/delete-masivo', { ids: [opId] })).status === 403, 'balancero sigue sin poder borrar directo');
     check((await solicitar(bal1, { ids: [opId], motivo: '   ' })).status === 400, 'pedido de borrado sin motivo → 400');
     check((await solicitar(bal2, { ids: [opId], motivo: 'ajena' })).status === 404, 'balancero no pide borrar operaciones de otra localidad');
@@ -193,6 +205,7 @@ const main = async () => {
     check((await solicitar(bal1, { ids: [opId], motivo: 'otra vez' })).status === 409, 'no se repite el pedido sobre una operación ya pedida');
     const opSuper = await ve(superadmin);
     check(opSuper?.borrado_pendiente === true, 'superadmin la sigue viendo, marcada como borrado pendiente');
+    check((await ve(logistica))?.borrado_pendiente === true, 'logística también la ve, marcada como borrado pendiente');
     check((await solicitar(superadmin, { ids: [opId], motivo: 'x' })).status === 409, 'no se duplica un pedido pendiente');
     check((await api(bal1, 'GET', '/api/solicitudes-borrado')).status === 403, 'balancero no ve la bandeja de pedidos');
     check((await api(bal1, 'POST', `/api/solicitudes-borrado/${sol1}/aprobar`)).status === 403, 'balancero no aprueba pedidos');
@@ -214,6 +227,27 @@ const main = async () => {
     const aprobadas = await api(superadmin, 'GET', '/api/solicitudes-borrado?estado=aprobada');
     const reg = aprobadas.data.data?.find(s => s.id === sol2);
     check(reg?.resuelto_por === superadmin.id && reg?.operaciones?.[0]?.vehiculo_patente === patente, 'queda registro de lo borrado (quién pidió, quién aprobó, datos)');
+
+    // ── Invertir: el balancero eligió SALIDA pero el camión entró cargado → neto negativo ──
+    const q1 = await pesar(1000, 'SALIDA');
+    const q2 = await pesar(400, 'SALIDA');
+    const invId = q1.data.data?.operacion_id;
+    check(q2.status === 201 && q2.data.data?.operacion_id === invId, 'operación con sentido al revés registrada');
+    const opNeg = await ve(superadmin, invId);
+    check(Number(opNeg?.neto) === -600 && opNeg?.sentido === 'SALIDA', 'sentido al revés → neto negativo (-600)');
+    check((await api(superadmin, 'GET', '/api/pesadas/negativas/count')).data.count >= 1, 'superadmin ve el contador de netos negativos');
+    const negList = await api(superadmin, 'GET', '/api/pesadas/agrupadas?limit=100&negativas=1');
+    check(negList.data.data?.some(o => o.id === invId) && negList.data.data.every(o => Number(o.neto) < 0), 'filtro negativas=1 trae solo netos negativos');
+    const invertir = (user) => api(user, 'POST', `/api/pesadas/operacion/${invId}/invertir`);
+    check((await api(bal1, 'GET', '/api/pesadas/negativas/count')).status === 403, 'balancero no ve el contador de negativas');
+    check((await invertir(bal1)).status === 403, 'balancero no invierte operaciones');
+    check((await invertir(logistica)).status === 403, 'logística no invierte operaciones');
+    const inv = await invertir(superadmin);
+    check(inv.status === 200 && inv.data.data?.sentido === 'INGRESO' && inv.data.data?.neto === 600, 'superadmin invierte: INGRESO, neto 600');
+    const opInv = await ve(superadmin, invId);
+    check(Number(opInv?.bruto) === 1000 && Number(opInv?.tara) === 400 && Number(opInv?.neto) === 600 && opInv?.sentido === 'INGRESO', 'queda bruto 1000, tara 400, neto 600');
+    check((await invertir(superadmin)).status === 409, 'una operación con neto positivo no se invierte');
+    await api(superadmin, 'POST', '/api/pesadas/operaciones/delete-masivo', { ids: [invId] });
 
     for (const [path, id] of [['/api/choferes', refs.chofer_id], ['/api/productores', refs.productor_id], ['/api/transportes', refs.transporte_id], ['/api/productos', refs.producto_id]]) {
       if (id) await api(superadmin, 'DELETE', `${path}/${id}`);

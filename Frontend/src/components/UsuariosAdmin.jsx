@@ -22,7 +22,7 @@ const MINIMO = 6;   // igual que PASSWORD_MIN del backend
 
 const ROLES = [
   { value: 'balancero', icon: Scale, tone: 'brand', ayuda: 'Pesa con la balanza de una localidad.' },
-  { value: 'logistica', icon: BarChart3, tone: 'info', ayuda: 'Solo ve el Dashboard de todas las localidades de su empresa.' },
+  { value: 'logistica', icon: BarChart3, tone: 'info', ayuda: 'Ve el Dashboard y el Historial de pesadas (solo lectura) de todas las localidades de su empresa.' },
   { value: 'superadmin', icon: ShieldCheck, tone: 'warning', ayuda: 'Administrador de toda la plataforma.' },
 ];
 const rolInfo = (rol) => ROLES.find(r => r.value === rol) ?? { tone: 'neutral', icon: Users };

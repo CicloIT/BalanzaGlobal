@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
-import { Search, X, Plus, Inbox, SearchX, ChevronsDown } from 'lucide-react';
+import { Search, X, Plus, Inbox, SearchX, ChevronsDown, AlertTriangle } from 'lucide-react';
 import AppShell from './components/layout/AppShell';
 import TablaItems from './components/TablaItems';
 import ModalForm from './components/ModalForm';
@@ -29,7 +29,7 @@ import Configuracion from './components/Configuracion';
 import UsuariosAdmin from './components/UsuariosAdmin';
 import SolicitudesBorrado from './components/SolicitudesBorrado';
 import SolicitarBorradoModal from './components/SolicitarBorradoModal';
-import { useSolicitudesPendientes } from './hooks/useSolicitudesPendientes';
+import { useSolicitudesPendientes, useOperacionesNegativas, avisarCambioNegativas } from './hooks/useSolicitudesPendientes';
 import Guard from './components/Guard';
 import PageHeader from './components/ui/PageHeader';
 import Button from './components/ui/Button';
@@ -104,8 +104,12 @@ export default function GestionApp() {
   const [fechaFiltro, setFechaFiltro] = useState(null);
   const [mesFiltro, setMesFiltro] = useState(null);
   const [anioFiltro, setAnioFiltro] = useState(null);
+  // Usuarios globales: '' = todas las localidades de su alcance
+  const [localidadFiltro, setLocalidadFiltro] = useState('');
+  // Superadmin: ver solo operaciones con neto negativo (sentido cargado al revés) para invertirlas
+  const [soloNegativas, setSoloNegativas] = useState(false);
 
-  const pesadas = usePesadasInfinite(activeTab === MODULES.PESADAS, refreshTrigger, sentidoFiltro, fechaFiltro, mesFiltro, anioFiltro);
+  const pesadas = usePesadasInfinite(activeTab === MODULES.PESADAS, refreshTrigger, sentidoFiltro, fechaFiltro, mesFiltro, anioFiltro, isGlobal ? localidadFiltro : '', soloNegativas);
 
   const anioActual = new Date().getFullYear();
   const aniosDisponibles = Array.from({ length: anioActual - 2019 }, (_, i) => anioActual - i);
@@ -124,6 +128,43 @@ export default function GestionApp() {
     setAvisoPendientesMostrado(true);
     toast.info(`Hay ${borradosPendientes} pedido${borradosPendientes !== 1 ? 's' : ''} de borrado de operaciones para revisar (Administración → Solicitudes de borrado).`, 8000);
   }, [borradosPendientes, avisoPendientesMostrado, toast]);
+
+  // Operaciones con neto negativo (sentido al revés): contador en "Historial de pesadas" y aviso al entrar
+  const puedeInvertir = hasPermission(PERMISSIONS.PESAJE_INVERTIR);
+  const operacionesNegativas = useOperacionesNegativas(puedeInvertir);
+  const [avisoNegativasMostrado, setAvisoNegativasMostrado] = useState(false);
+  useEffect(() => {
+    if (avisoNegativasMostrado || operacionesNegativas <= 0) return;
+    setAvisoNegativasMostrado(true);
+    toast.info(`Hay ${operacionesNegativas} operaci${operacionesNegativas !== 1 ? 'ones' : 'ón'} con neto negativo: probablemente se cargó el sentido al revés. Revisalas en Historial de pesadas → "Neto negativo" e invertilas.`, 10000);
+  }, [operacionesNegativas, avisoNegativasMostrado, toast]);
+
+  const kgTexto = (v) => `${Number(v).toLocaleString('es-AR', { maximumFractionDigits: 0 })} kg`;
+  const handleInvertir = async (item) => {
+    const nuevoSentido = item.sentido === 'INGRESO' ? 'SALIDA' : 'INGRESO';
+    const ok = await confirm({
+      title: `Invertir operación #${item.operacion_id ?? item.id}`,
+      message: `Patente ${item.vehiculo_patente}: pasa de ${item.sentido} a ${nuevoSentido}. `
+        + `Bruto ${kgTexto(item.tara)} y tara ${kgTexto(item.bruto)} (se intercambian), neto ${kgTexto(Number(item.tara) - Number(item.bruto))}. `
+        + 'Los reportes ya generados con esta operación no se modifican.',
+      confirmLabel: 'Invertir',
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/pesadas/operacion/${item.id}/invertir`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo invertir la operación');
+      setRefreshTrigger(Date.now());
+      avisarCambioNegativas();
+      toast.success(`Operación #${item.id} invertida: ${data.data.sentido}, neto ${kgTexto(data.data.neto)}`);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message);
+    }
+  };
 
   // Balancero: abre el modal del motivo. Resuelve true cuando el pedido se envió.
   const handleSolicitarBorrado = (operaciones) => new Promise(resolve => {
@@ -241,8 +282,10 @@ export default function GestionApp() {
   // Catálogos por localidad: un usuario global ve la columna y elige la localidad al crear
   const TABS_POR_LOCALIDAD = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES, MODULES.VEHICULOS];
   const muestraLocalidad = isGlobal && TABS_POR_LOCALIDAD.includes(activeTab);
-  const columnasKeys = muestraLocalidad ? [...currentConfig.columnasKeys, 'localidad_nombre'] : currentConfig?.columnasKeys;
-  const columnasLabels = muestraLocalidad ? [...currentConfig.columnasLabels, 'Localidad'] : currentConfig?.columnasLabels;
+  // Historial de pesadas: un usuario global ve de qué localidad es cada operación
+  const columnaLocalidad = muestraLocalidad || (isGlobal && activeTab === MODULES.PESADAS);
+  const columnasKeys = columnaLocalidad ? [...currentConfig.columnasKeys, 'localidad_nombre'] : currentConfig?.columnasKeys;
+  const columnasLabels = columnaLocalidad ? [...currentConfig.columnasLabels, 'Localidad'] : currentConfig?.columnasLabels;
   const opcionesLocalidad = localidades.items.map(l => ({ value: l.id, label: l.nombre }));
   const camposFormulario = (() => {
     if (!currentConfig?.campos) return currentConfig?.campos;
@@ -294,14 +337,14 @@ export default function GestionApp() {
   const totalRegistros = (esPesadas || activeTab === MODULES.VEHICULOS) && currentGestion?.total
     ? currentGestion.total
     : currentGestion?.items.length ?? 0;
-  const filtrosFechaActivos = Boolean(fechaFiltro || mesFiltro || anioFiltro || sentidoFiltro);
+  const filtrosFechaActivos = Boolean(fechaFiltro || mesFiltro || anioFiltro || sentidoFiltro || (isGlobal && localidadFiltro) || soloNegativas);
 
   return (
     <AppShell
       visibles={visibles}
       activo={activeTab}
       onSelect={setActiveTab}
-      contadores={{ [MODULES.SOLICITUDES_BORRADO]: borradosPendientes }}
+      contadores={{ [MODULES.SOLICITUDES_BORRADO]: borradosPendientes, [MODULES.PESADAS]: operacionesNegativas }}
     >
       {/* Tabs especiales */}
       {activeTab === MODULES.PESADA && (
@@ -406,6 +449,20 @@ export default function GestionApp() {
 
             {esPesadas && (
               <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 border-b border-line">
+                {isGlobal && localidades.items.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-fg-subtle">Localidad</span>
+                    <select
+                      value={localidadFiltro}
+                      onChange={e => setLocalidadFiltro(e.target.value)}
+                      aria-label="Localidad"
+                      className={cx(controlClass, 'h-8 w-auto text-xs', localidadFiltro && 'border-brand-solid')}
+                    >
+                      <option value="">Todas las localidades</option>
+                      {localidades.items.map(l => <option key={l.id} value={l.id}>{l.nombre}</option>)}
+                    </select>
+                  </div>
+                )}
                 <Segmented
                   label="Sentido"
                   value={sentidoFiltro}
@@ -453,6 +510,18 @@ export default function GestionApp() {
                     </Button>
                   )}
                 </div>
+                {puedeInvertir && (soloNegativas || operacionesNegativas > 0) && (
+                  <Button
+                    size="sm"
+                    variant={soloNegativas ? 'danger-soft' : 'secondary'}
+                    icon={AlertTriangle}
+                    onClick={() => setSoloNegativas(v => !v)}
+                    aria-pressed={soloNegativas}
+                    title="Operaciones con neto negativo: probablemente el sentido se cargó al revés"
+                  >
+                    Neto negativo ({operacionesNegativas})
+                  </Button>
+                )}
                 {mesFiltro && !anioFiltro && (
                   <p className="w-full text-xs text-fg-subtle">Elegí también el año para filtrar por mes.</p>
                 )}
@@ -476,6 +545,7 @@ export default function GestionApp() {
                 onGenerarReporte={setPesadasReporte}
                 onVerDetalles={setPesadaDetalle}
                 onContenedor={setContenedorModal}
+                onInvertir={handleInvertir}
                 soloLectura={esPesadas}
                 hasMore={currentGestion.hasMore}
                 loadMore={currentGestion.loadMore}
@@ -493,7 +563,7 @@ export default function GestionApp() {
                 icon={Inbox}
                 title={esPesadas && filtrosFechaActivos ? 'No hay pesadas con estos filtros' : `Todavía no hay ${currentConfig.plural}`}
                 description={esPesadas
-                  ? (filtrosFechaActivos ? 'Cambiá el sentido o el período para ver otras operaciones.' : 'Las operaciones aparecen acá al registrar una pesada.')
+                  ? (filtrosFechaActivos ? 'Cambiá la localidad, el sentido o el período para ver otras operaciones.' : 'Las operaciones aparecen acá al registrar una pesada.')
                   : `Los ${currentConfig.plural} que cargues se listan acá.`}
               />
             )}

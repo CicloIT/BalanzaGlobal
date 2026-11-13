@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Pencil, Trash2, Eye, FileText, Upload, Package, Power, PowerOff, FileBarChart, ArrowDown, ArrowUp, Clock, CheckCircle2, Send } from 'lucide-react';
+import { Pencil, Trash2, Eye, FileText, Upload, Package, Power, PowerOff, FileBarChart, ArrowDown, ArrowUp, Clock, CheckCircle2, Send, ArrowLeftRight } from 'lucide-react';
 import Guard from './Guard';
+import { usePermissions } from '../hooks/usePermissions';
 import Badge from './ui/Badge';
 import Button from './ui/Button';
 import Spinner from './ui/Spinner';
@@ -75,7 +76,7 @@ function RenderCelda({ item, keyName }) {
 }
 
 /* ─── Acciones de una pesada (fila y tarjeta) ───────────────────────────── */
-function AccionesPesada({ item, onSubirPDF, onVerDetalles, onContenedor }) {
+function AccionesPesada({ item, onSubirPDF, onVerDetalles, onContenedor, onInvertir }) {
   const tam = 'sm';
   return (
     <>
@@ -108,6 +109,19 @@ function AccionesPesada({ item, onSubirPDF, onVerDetalles, onContenedor }) {
         <Guard permissions="pesaje:update">
           <Button size={tam} variant="secondary" icon={Package} onClick={e => { e.stopPropagation(); onContenedor?.(item); }} title="Completar datos de contenedor">
             Contenedor
+          </Button>
+        </Guard>
+      )}
+      {!item.abierta && Number(item.neto) < 0 && (
+        <Guard permissions="pesaje:invertir">
+          <Button
+            size={tam}
+            variant="danger-soft"
+            icon={ArrowLeftRight}
+            onClick={e => { e.stopPropagation(); onInvertir?.(item); }}
+            title="Neto negativo: el sentido se cargó al revés. Intercambia bruto y tara y cambia el sentido."
+          >
+            Invertir
           </Button>
         </Guard>
       )}
@@ -157,13 +171,13 @@ function AccionesCatalogo({ item, resourcePrefix, onToggleEstado, onEditar, onEl
 /* ─── Fila de tabla (escritorio) ────────────────────────────────────────── */
 const FilaTabla = React.memo(({
   item, tipo, selected, columnasKeys,
-  onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
-  soloLectura, mostrarColumnaAcciones,
+  onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor, onInvertir,
+  soloLectura, mostrarColumnaAcciones, seleccionable,
 }) => {
   const resourcePrefix = tipo === 'pesadas' ? 'pesaje' : tipo;
   return (
     <tr className={cx('group border-b border-line last:border-b-0 transition-colors', selected ? 'bg-brand-soft' : 'hover:bg-surface-2')}>
-      {tipo === 'pesadas' && (
+      {seleccionable && (
         <td className="w-10 pl-4 pr-1 py-2.5">
           <input
             type="checkbox"
@@ -191,7 +205,7 @@ const FilaTabla = React.memo(({
               <AccionesCatalogo item={item} resourcePrefix={resourcePrefix} onToggleEstado={onToggleEstado} onEditar={onEditar} onEliminar={onEliminar} />
             )}
             {tipo === 'pesadas' && (
-              <AccionesPesada item={item} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} />
+              <AccionesPesada item={item} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} onInvertir={onInvertir} />
             )}
           </div>
         </td>
@@ -203,8 +217,8 @@ const FilaTabla = React.memo(({
 /* ─── Tarjeta (móvil) ───────────────────────────────────────────────────── */
 const CardItem = React.memo(({
   item, tipo, selected, columnasKeys, columnasLabels,
-  onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
-  soloLectura, mostrarColumnaAcciones,
+  onToggleSeleccion, onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor, onInvertir,
+  soloLectura, mostrarColumnaAcciones, seleccionable,
 }) => {
   const resourcePrefix = tipo === 'pesadas' ? 'pesaje' : tipo;
   const resto = columnasKeys.slice(2);
@@ -212,7 +226,7 @@ const CardItem = React.memo(({
     <div className={cx('rounded-lg border p-4 transition-colors', selected ? 'border-brand-solid bg-brand-soft/60' : 'border-line bg-surface')}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
-          {tipo === 'pesadas' && (
+          {seleccionable && (
             <input
               type="checkbox"
               checked={selected}
@@ -253,7 +267,7 @@ const CardItem = React.memo(({
             <AccionesCatalogo item={item} resourcePrefix={resourcePrefix} onToggleEstado={onToggleEstado} onEditar={onEditar} onEliminar={onEliminar} conTexto />
           )}
           {tipo === 'pesadas' && (
-            <AccionesPesada item={item} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} />
+            <AccionesPesada item={item} onSubirPDF={onSubirPDF} onVerDetalles={onVerDetalles} onContenedor={onContenedor} onInvertir={onInvertir} />
           )}
         </div>
       )}
@@ -264,10 +278,11 @@ const CardItem = React.memo(({
 /* ─── Componente principal ──────────────────────────────────────────────── */
 const TablaItems = React.memo(({
   items, tipo, columnasKeys, columnasLabels,
-  onEditar, onEliminar, onToggleEstado, onSubirPDF, onVerDetalles, onContenedor,
+  onEditar, onEliminar, onToggleEstado, onSubirPDF, onVerDetalles, onContenedor, onInvertir,
   onGenerarReporte, onEliminarMultiples, onSolicitarBorrado, soloLectura = false,
   hasMore, loadMore, loadingMore
 }) => {
+  const { hasPermissions } = usePermissions();
   const [seleccionadas, setSeleccionadas] = useState(new Set());
   const [generando, setGenerando] = useState(false);
   const reporteEnProceso = useRef(false);
@@ -329,12 +344,15 @@ const TablaItems = React.memo(({
   const todasSeleccionadas = items.length > 0 && seleccionadas.size === items.length;
   const algunaSeleccionada = seleccionadas.size > 0;
   const mostrarColumnaAcciones = !soloLectura || tipo === 'pesadas';
+  // Selección de pesadas: solo si hay algo que hacer con ellas (reporte, borrar o pedir borrado).
+  // Logística (solo lectura) no ve checkboxes ni barra.
+  const seleccionable = tipo === 'pesadas' && hasPermissions(['reportes:create', 'pesaje:delete', 'pesaje:solicitar_borrado']);
 
   const sharedRowProps = {
     tipo, columnasKeys, columnasLabels,
     onToggleSeleccion: handleToggleSeleccion,
-    onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor,
-    soloLectura, mostrarColumnaAcciones,
+    onToggleEstado, onEditar, onEliminar, onSubirPDF, onVerDetalles, onContenedor, onInvertir,
+    soloLectura, mostrarColumnaAcciones, seleccionable,
   };
 
   // --- Carga progresiva al llegar al final ---
@@ -360,7 +378,7 @@ const TablaItems = React.memo(({
   return (
     <div>
       {/* Barra de selección / reporte — solo pesadas */}
-      {tipo === 'pesadas' && (
+      {seleccionable && (
         <div className={cx(
           'flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b border-line',
           algunaSeleccionada ? 'bg-brand-soft/60' : 'bg-surface-2'
@@ -379,17 +397,19 @@ const TablaItems = React.memo(({
           </label>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={algunaSeleccionada ? 'primary' : 'secondary'}
-              icon={FileBarChart}
-              onClick={handleGenerarReporte}
-              disabled={!algunaSeleccionada || generando}
-              loading={generando}
-              title={algunaSeleccionada ? 'Generar reporte con las operaciones seleccionadas' : 'Seleccioná operaciones para generar un reporte'}
-            >
-              {generando ? 'Generando…' : 'Generar reporte'}
-            </Button>
+            <Guard permissions="reportes:create">
+              <Button
+                size="sm"
+                variant={algunaSeleccionada ? 'primary' : 'secondary'}
+                icon={FileBarChart}
+                onClick={handleGenerarReporte}
+                disabled={!algunaSeleccionada || generando}
+                loading={generando}
+                title={algunaSeleccionada ? 'Generar reporte con las operaciones seleccionadas' : 'Seleccioná operaciones para generar un reporte'}
+              >
+                {generando ? 'Generando…' : 'Generar reporte'}
+              </Button>
+            </Guard>
             <Guard
               permissions="pesaje:delete"
               fallback={(
@@ -433,7 +453,7 @@ const TablaItems = React.memo(({
         <table className="w-full">
           <thead className="sticky top-0 z-[1] bg-surface-2">
             <tr className="border-b border-line">
-              {tipo === 'pesadas' && <th className="w-10 pl-4 pr-1"><span className="sr-only">Selección</span></th>}
+              {seleccionable && <th className="w-10 pl-4 pr-1"><span className="sr-only">Selección</span></th>}
               {columnasLabels.map((label, i) => (
                 <th
                   key={label}

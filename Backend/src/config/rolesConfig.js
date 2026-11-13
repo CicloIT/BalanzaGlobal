@@ -64,6 +64,7 @@ export const PERMISSIONS = {
   PESAJE_SOLICITAR_BORRADO: 'pesaje:solicitar_borrado', // Pedir al superadmin que borre operaciones (quedan ocultas)
   PESAJE_MANUAL: 'pesaje:manual',       // Cargar peso manualmente (input libre)
   PESAJE_EDITAR_PESO: 'pesaje:editar_peso', // Corregir el peso de una pesada ya registrada
+  PESAJE_INVERTIR: 'pesaje:invertir',   // Invertir el sentido de una operación con neto negativo (solo superadmin)
 
   // Reportes
   REPORTES_VIEW: 'reportes:view',
@@ -98,10 +99,11 @@ export const ROLE_PERMISSIONS = {
   // Único administrador: todo (empresas, usuarios, catálogos, dispositivos, respaldos)
   [ROLES.SUPERADMIN]: Object.values(PERMISSIONS),
 
-  // Global, solo métricas: ve el dashboard de todas las localidades de su empresa.
-  // LOCALIDADES_VIEW es para el filtro por localidad del dashboard.
+  // Global, solo lectura: dashboard e historial de pesadas de todas las localidades de su empresa.
+  // LOCALIDADES_VIEW es para el filtro por localidad (dashboard e historial).
   [ROLES.LOGISTICA]: [
     PERMISSIONS.DASHBOARD_VIEW,
+    PERMISSIONS.PESAJE_VIEW,
     PERMISSIONS.LOCALIDADES_VIEW,
   ],
 
