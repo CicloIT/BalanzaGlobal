@@ -42,6 +42,9 @@ import { LoadingState } from './components/ui/Spinner';
 import { controlClass } from './components/ui/controlClass';
 import { cx } from './lib/cx';
 import { API_BASE_URL, getAuthHeaders } from './lib/api';
+import { useSitioEstado } from './hooks/useSitioEstado';
+import SitioBanner from './components/SitioBanner';
+import ServidoresSitio from './components/ServidoresSitio';
 
 // El Dashboard trae recharts: se descarga solo si el usuario lo abre
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -96,6 +99,9 @@ export default function GestionApp() {
   // Usuarios globales necesitan las localidades para elegir dónde crear cada catálogo
   const localidades = useGestionAPI(localidadesConfig, canEditModule(MODULES.LOCALIDADES) || isGlobal);
   const empresas = useGestionAPI(empresasConfig, isSuperadmin);
+  // v2: servidor de sitio (pesa sin internet) o central con servidores de sitio
+  const { estado: sitioEstado, recargar: recargarSitioEstado } = useSitioEstado();
+  const esServidorSitio = sitioEstado?.modo === 'sitio';
   const [searchTerm, setSearchTerm] = useState('');
   const vehiculos = useVehiculosInfinite(vehiculosConfig, hasModuleAccess(MODULES.VEHICULOS) && activeTab === MODULES.VEHICULOS, activeTab === MODULES.VEHICULOS ? searchTerm : '');
 
@@ -320,11 +326,13 @@ export default function GestionApp() {
     const especiales = [MODULES.DASHBOARD, MODULES.PESADA, MODULES.PESADAS, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS, MODULES.SOLICITUDES_BORRADO];
     const maestros = [MODULES.CHOFERES, MODULES.PRODUCTORES, MODULES.PRODUCTOS, MODULES.TRANSPORTES,
       MODULES.PROVINCIAS, MODULES.LOCALIDADES, MODULES.EMPRESAS, MODULES.VEHICULOS];
+    // En el servidor de una localidad, usuarios/localidades/provincias/empresas se administran en el central
+    const soloCentral = esServidorSitio ? [MODULES.USUARIOS, MODULES.LOCALIDADES, MODULES.PROVINCIAS, MODULES.EMPRESAS] : [];
     return new Set([
       ...especiales.filter(id => hasModuleAccess(id)),
       ...maestros.filter(id => hasPermission(`${id}:update`)),
-    ]);
-  }, [hasModuleAccess, hasPermission, MODULES]);
+    ].filter(id => !soloCentral.includes(id)));
+  }, [hasModuleAccess, hasPermission, MODULES, esServidorSitio]);
 
   // Tabs que no usan el layout genérico de tabla
   const tabsEspeciales = [MODULES.PESADA, MODULES.DASHBOARD, MODULES.REPORTES, MODULES.CONFIGURACION, MODULES.USUARIOS, MODULES.SOLICITUDES_BORRADO];
@@ -346,6 +354,8 @@ export default function GestionApp() {
       onSelect={setActiveTab}
       contadores={{ [MODULES.SOLICITUDES_BORRADO]: borradosPendientes, [MODULES.PESADAS]: operacionesNegativas }}
     >
+      <SitioBanner estado={sitioEstado} />
+
       {/* Tabs especiales */}
       {activeTab === MODULES.PESADA && (
         <ProtectedRoute permissions={PERMISSIONS.PESAJE_CREATE}>
@@ -389,6 +399,10 @@ export default function GestionApp() {
         <ProtectedRoute permissions={[PERMISSIONS.BACKUP_MANAGE, PERMISSIONS.DISPOSITIVOS_MANAGE]}>
           <Configuracion />
         </ProtectedRoute>
+      )}
+
+      {activeTab === MODULES.LOCALIDADES && isSuperadmin && sitioEstado?.modo === 'central' && (
+        <ServidoresSitio localidades={localidades.items} estado={sitioEstado} onCambio={recargarSitioEstado} />
       )}
 
       {/* Listados con tabla genérica */}

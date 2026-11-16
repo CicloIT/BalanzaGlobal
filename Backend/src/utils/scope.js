@@ -7,6 +7,7 @@
  */
 import pool from '../config/database.js';
 import { traducirErrorDb } from './dbErrors.js';
+import { esSitio, localidadSitio } from '../config/modo.js';
 
 export class ScopeError extends Error {
   constructor(message, status = 403) {
@@ -15,9 +16,11 @@ export class ScopeError extends Error {
   }
 }
 
+// En un servidor de sitio (v2) solo están los datos de su localidad: los usuarios globales
+// (superadmin, logística) quedan acotados a ella.
 export const getScope = (user) => ({
   empresaId: user?.empresa_id ?? null,
-  localidadId: user?.localidad_id ?? null,
+  localidadId: user?.localidad_id ?? (esSitio() ? localidadSitio() : null),
   isSuperadmin: user?.rol?.toLowerCase() === 'superadmin',
 });
 
