@@ -9,6 +9,7 @@ const UNICOS = {
   uq_chofer_documento_loc:   'Ya existe un chofer con el documento "{valor}" en esta localidad',
   uq_chofer_nombre_loc:      'Ya existe un chofer llamado "{valor}" en esta localidad',
   uq_chofer_cuit:            'Ya existe un chofer con el CUIT "{valor}"',
+  uq_chofer_cuit_loc:        'Ya existe un chofer con el CUIT "{valor}" en esta localidad',
   uq_vehiculo_patente_loc:   'Ya existe un vehículo con la patente "{valor}" en esta localidad',
   uq_producto_codigo_loc:    'Ya existe un producto con el código "{valor}" en esta localidad',
   uq_producto_nombre_loc:    'Ya existe un producto llamado "{valor}" en esta localidad',
@@ -22,6 +23,8 @@ const UNICOS = {
   usuario_username_key:      'Ya existe un usuario "{valor}" (puede estar desactivado)',
   configuracion_dispositivo_tipo_localidad_key: 'Esa localidad ya tiene un dispositivo de ese tipo',
   unica_operacion_abierta_por_camion: 'El vehículo "{valor}" ya tiene una operación de pesaje abierta',
+  unica_operacion_abierta_por_camion_loc: 'El vehículo "{valor}" ya tiene una operación de pesaje abierta',
+  uq_reporte_numero_loc:     'Ese número de reporte ya existe en esta localidad; reintente',
   unica_pesada_por_tipo:     'Esa operación ya tiene una pesada de ese tipo',
 };
 

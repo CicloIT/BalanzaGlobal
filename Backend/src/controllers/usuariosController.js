@@ -1,4 +1,5 @@
 import pool from '../config/database.js';
+import { esSitio } from '../config/modo.js';
 import { getScope, localidadEnScope, ScopeError, sendScopeError } from '../utils/scope.js';
 import { hashPassword, verifyPassword } from '../utils/password.js';
 import { crearToken, setCookieSesion, clearCookieSesion } from '../utils/session.js';
@@ -228,7 +229,8 @@ export const authLogin = async (req, res) => {
       return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos' });
     }
     // Contraseña vieja en texto plano: se guarda hasheada en este login
-    if (needsRehash) {
+    // (en un sitio no: usuario es tabla del central; se rehashea cuando entre por el central)
+    if (needsRehash && !esSitio()) {
       await pool.query('UPDATE usuario SET password_hash = $1 WHERE id = $2', [await hashPassword(password), user.id]);
     }
     setCookieSesion(req, res, crearToken(user.id));

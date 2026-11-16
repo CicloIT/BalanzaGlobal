@@ -94,6 +94,9 @@ const snapshotsDirecto = async (nvr, canales, { timeoutMs, minBytes }) => {
 
 // [{ canal, buffer }] | [{ canal, error }] — vía agente del sitio o directo desde el central
 const obtenerSnapshots = async (nvr, canales, opciones) => {
+    if (modoBalanzaDeLocalidad(nvr.localidad_id) === 'sitio') {
+        throw new Error("Las cámaras de esta localidad se manejan desde su servidor local");
+    }
     if (modoCaptura(nvr.localidad_id) === 'agente') {
         const ws = getAgenteDeLocalidad(nvr.localidad_id);
         if (!ws) throw new Error("Agente del sitio desconectado: no se pueden pedir las fotos al NVR");

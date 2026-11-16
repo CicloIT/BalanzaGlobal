@@ -2,6 +2,7 @@ import pool from '../config/database.js';
 import { hasPermission, PERMISSIONS } from '../config/rolesConfig.js';
 import { scopeSql, userForRead, ScopeError, sendScopeError } from '../utils/scope.js';
 import { pesoLeidoRecientemente } from '../services/balanzaService.js';
+import { esCentral } from '../config/modo.js';
 
 // Una pesada no manual debe tener un peso que esa misma balanza haya marcado hace poco
 const VALIDAR_PESO_BALANZA = process.env.VALIDAR_PESO_BALANZA !== 'false';
@@ -114,6 +115,14 @@ export const createPesada = async (req, res) => {
       throw new ScopeError('La balanza indicada no pertenece a su localidad');
     }
     const localidadId = dispResult.rows[0].localidad_id;
+
+    // Central: una localidad con servidor propio pesa allá (el peso lo valida su balanza)
+    if (esCentral()) {
+      const sitio = await client.query('SELECT sitio_activo FROM localidad WHERE id = $1', [localidadId]);
+      if (sitio.rows[0]?.sitio_activo) {
+        throw new ScopeError('Esta localidad pesa en su servidor local; cargue la pesada desde allá', 409);
+      }
+    }
 
     // Los catálogos referenciados deben ser de la misma localidad
     const referencias = [

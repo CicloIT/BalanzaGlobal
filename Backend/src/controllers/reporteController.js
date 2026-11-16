@@ -25,22 +25,39 @@ export const createReporte = async (req, res) => {
             req,
             req.body.localidad_id ?? (localidadesPesadas.length === 1 ? localidadesPesadas[0] : undefined)
         );
-        const result = await pool.query(
-            `INSERT INTO reporte (
-        cantidad_pesadas, total_bruto, total_tara, total_neto,
-        pesadas_data, observaciones, localidad_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *`,
-            [
-                pesadas.length,
-                totalBruto,
-                totalTara,
-                totalNeto,
-                JSON.stringify(pesadas),
-                observaciones || null,
-                localidadId
-            ]
-        );
+        // Numeración por localidad (cada sitio numera sus reportes; el central recibe la réplica).
+        // El advisory lock serializa dos reportes simultáneos de la misma localidad.
+        const client = await pool.connect();
+        let result;
+        try {
+            await client.query('BEGIN');
+            await client.query('SELECT pg_advisory_xact_lock(hashtext($1), $2)', ['reporte_numero', localidadId]);
+            result = await client.query(
+                `INSERT INTO reporte (
+          numero_reporte, cantidad_pesadas, total_bruto, total_tara, total_neto,
+          pesadas_data, observaciones, localidad_id
+        ) VALUES (
+          (SELECT COALESCE(MAX(numero_reporte), 0) + 1 FROM reporte WHERE localidad_id = $7),
+          $1, $2, $3, $4, $5, $6, $7
+        )
+        RETURNING *`,
+                [
+                    pesadas.length,
+                    totalBruto,
+                    totalTara,
+                    totalNeto,
+                    JSON.stringify(pesadas),
+                    observaciones || null,
+                    localidadId
+                ]
+            );
+            await client.query('COMMIT');
+        } catch (err) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw err;
+        } finally {
+            client.release();
+        }
 
         res.status(201).json({
             success: true,

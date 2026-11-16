@@ -1,5 +1,6 @@
 import net from 'net';
 import pool from '../config/database.js';
+import { esSitio, localidadSitio } from '../config/modo.js';
 import { parseFrame, cleanFrame, splitFrames, createStabilityTracker } from '../utils/balanzaProtocol.js';
 
 // ─── Estado interno ───────────────────────────────────────────────────────────
@@ -8,6 +9,8 @@ import { parseFrame, cleanFrame, splitFrames, createStabilityTracker } from '../
 //   lastWeight, lastWeightTs, stable, historial, connected, error, reconnectTimer, destroying }
 // modo 'directo': el backend abre el TCP a la balanza.
 // modo 'agente':  un agente local del sitio lee la balanza y la publica por /agent (agenteGateway.js).
+// modo 'sitio':   (solo en central) la localidad tiene servidor propio; su peso en vivo llega por
+//                 /sitio (sitioGateway.js). En MODO=sitio las balanzas van siempre en 'directo'.
 const balanzas = new Map();
 let broadcastFn = null;   // inyectado desde server.js
 
@@ -123,6 +126,7 @@ export const expulsarAgente = (dispositivoId, code, reason) => {
 export const modoBalanzaDeLocalidad = (localidadId) => {
     const estados = [...balanzas.values()].filter(e => e.localidadId === Number(localidadId));
     if (!estados.length) return null;
+    if (estados.some(e => e.modo === 'sitio')) return 'sitio';
     return estados.some(e => e.modo === 'agente') ? 'agente' : 'directo';
 };
 
@@ -193,16 +197,24 @@ const conectar = (estado) => {
 // ─── Config desde la BD ───────────────────────────────────────────────────────
 // LOCALIDAD_ID en .env limita a una localidad (instalación de un solo sitio)
 const obtenerConfigBalanzas = async (dispositivoId = null) => {
-    const localidadEnv = process.env.LOCALIDAD_ID ? parseInt(process.env.LOCALIDAD_ID, 10) : null;
     const result = await pool.query(`
-        SELECT id, ip, puerto, localidad_id, modo_conexion
-        FROM configuracion_dispositivos
-        WHERE tipo_dispositivo = 'balanza' AND activo = true
-          AND ($1::int IS NULL OR localidad_id = $1)
-          AND ($2::int IS NULL OR id = $2)
-        ORDER BY id
-    `, [localidadEnv, dispositivoId]);
+        SELECT d.id, d.ip, d.puerto, d.localidad_id, d.modo_conexion, l.sitio_activo
+        FROM configuracion_dispositivos d
+        JOIN localidad l ON l.id = d.localidad_id
+        WHERE d.tipo_dispositivo = 'balanza' AND d.activo = true
+          AND ($1::int IS NULL OR d.localidad_id = $1)
+          AND ($2::int IS NULL OR d.id = $2)
+        ORDER BY d.id
+    `, [localidadSitio(), dispositivoId]);
     return result.rows;
+};
+
+// Servidor de sitio: la balanza está en su LAN → siempre directo.
+// Central: localidad con servidor propio → 'sitio' (no se abre TCP ni se espera agente).
+const modoDeFila = (row) => {
+    if (esSitio()) return 'directo';
+    if (row.sitio_activo) return 'sitio';
+    return row.modo_conexion === 'agente' ? 'agente' : 'directo';
 };
 
 const registrar = (row, agentWsPrevio = null) => {
@@ -211,7 +223,7 @@ const registrar = (row, agentWsPrevio = null) => {
         localidadId: row.localidad_id,
         ip: row.ip,
         puerto: row.puerto ? parseInt(row.puerto, 10) : null,
-        modo: row.modo_conexion === 'agente' ? 'agente' : 'directo',
+        modo: modoDeFila(row),
         socket: null,
         buffer: Buffer.alloc(0),
         agentWs: null,
@@ -230,6 +242,12 @@ const registrar = (row, agentWsPrevio = null) => {
     if (estado.modo === 'directo') {
         if (agentWsPrevio) agentWsPrevio.close(4410, 'La balanza pasó a modo directo');
         conectar(estado);
+        return;
+    }
+    if (estado.modo === 'sitio') {
+        if (agentWsPrevio) agentWsPrevio.close(4410, 'La localidad tiene servidor propio');
+        console.log(`🏠 ${etiqueta(estado)} localidad con servidor propio; peso en vivo por /sitio`);
+        setStatus(estado.id, false, 'Servidor de la localidad desconectado');
         return;
     }
     // Modo agente: no se abre TCP; se espera (o se conserva) la conexión del agente
@@ -272,6 +290,20 @@ export const reconectarBalanza = async (dispositivoId) => {
         broadcast(previo, { type: 'STATUS', status: 'DISCONNECTED', error: 'Balanza inactiva' });
     }
 };
+
+/** Recarga todas las balanzas de una localidad (p. ej. al activar su servidor propio). */
+export const reconectarBalanzasDeLocalidad = async (localidadId) => {
+    const ids = new Set([...balanzas.values()].filter(e => e.localidadId === Number(localidadId)).map(e => e.id));
+    const r = await pool.query(
+        `SELECT id FROM configuracion_dispositivos WHERE tipo_dispositivo = 'balanza' AND localidad_id = $1`,
+        [localidadId]
+    );
+    r.rows.forEach(row => ids.add(row.id));
+    for (const id of ids) await reconectarBalanza(id);
+};
+
+/** Localidad de una balanza registrada (o null). */
+export const localidadDeBalanza = (dispositivoId) => balanzas.get(Number(dispositivoId))?.localidadId ?? null;
 
 // ─── Getters de estado ────────────────────────────────────────────────────────
 const resumen = (estado) => ({

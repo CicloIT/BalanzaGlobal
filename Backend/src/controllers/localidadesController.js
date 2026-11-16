@@ -1,5 +1,8 @@
 import pool from '../config/database.js';
 import { getScope, scopeSql, ScopeError, sendScopeError } from '../utils/scope.js';
+import { esCentral } from '../config/modo.js';
+import { generarTokenSitio, hashTokenSitio, expulsarSitio } from '../services/sitioGateway.js';
+import { reconectarBalanzasDeLocalidad } from '../services/balanzaService.js';
 
 // Solo usuarios sin localidad (admin de empresa / superadmin) gestionan localidades
 const assertGestionLocalidades = (user) => {
@@ -24,7 +27,8 @@ export const getLocalidades = async (req, res) => {
       WHERE ${scope.sql}
       ORDER BY l.nombre ASC
     `, scope.params);
-        res.json({ success: true, data: result.rows });
+        // El hash del token del servidor de sitio no sale de la base
+        res.json({ success: true, data: result.rows.map(({ sitio_token_hash, ...l }) => ({ ...l, sitio_con_token: Boolean(sitio_token_hash) })) });
     } catch (error) {
         sendScopeError(res, error);
     }
@@ -97,6 +101,51 @@ export const deleteLocalidad = async (req, res) => {
         const result = await pool.query(`DELETE FROM localidad WHERE id = $1 AND ${scope.sql} RETURNING *`, [id, ...scope.params]);
         if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Localidad no encontrada' });
         res.json({ success: true, message: 'Localidad eliminada' });
+    } catch (error) {
+        sendScopeError(res, error);
+    }
+};
+
+// ─── Servidor propio de la localidad (modo sitio, v2) ─────────────────────────
+const assertSuperadminCentral = (user) => {
+    if (!esCentral()) throw new ScopeError('Esto se administra desde el servidor central', 403);
+    if (!getScope(user).isSuperadmin) throw new ScopeError('Solo el superadmin gestiona servidores de sitio', 403);
+};
+
+// POST /api/localidades/:id/sitio-token → { token } (se muestra una sola vez; va en SITIO_TOKEN del sitio)
+export const generarTokenSitioLocalidad = async (req, res) => {
+    try {
+        assertSuperadminCentral(req.user);
+        const token = generarTokenSitio();
+        const r = await pool.query(
+            'UPDATE localidad SET sitio_token_hash = $2 WHERE id = $1 RETURNING id, nombre',
+            [req.params.id, hashTokenSitio(token)]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'Localidad no encontrada' });
+        expulsarSitio(r.rows[0].id, 'Token regenerado');
+        res.json({ success: true, data: { localidad_id: r.rows[0].id, token } });
+    } catch (error) {
+        sendScopeError(res, error);
+    }
+};
+
+// DELETE /api/localidades/:id/sitio-token[?desactivar=1]
+// Revoca el token. Con desactivar=1 la localidad vuelve a trabajar contra el central
+// (lo que el sitio no haya subido queda solo en el sitio).
+export const revocarTokenSitioLocalidad = async (req, res) => {
+    try {
+        assertSuperadminCentral(req.user);
+        const desactivar = req.query.desactivar === '1';
+        const r = await pool.query(
+            `UPDATE localidad SET sitio_token_hash = NULL,
+                    sitio_activo = CASE WHEN $2 THEN false ELSE sitio_activo END
+             WHERE id = $1 RETURNING id, sitio_activo`,
+            [req.params.id, desactivar]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'Localidad no encontrada' });
+        expulsarSitio(r.rows[0].id, 'Token revocado');
+        if (desactivar) await reconectarBalanzasDeLocalidad(r.rows[0].id);
+        res.json({ success: true, data: r.rows[0] });
     } catch (error) {
         sendScopeError(res, error);
     }

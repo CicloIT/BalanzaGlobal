@@ -1,13 +1,8 @@
--- Esquema completo de la base balanzaglobal (sin datos).
--- Generado con: pg_dump --schema-only --no-owner --no-privileges
--- Instalación nueva: createdb balanzaglobal && psql -v ON_ERROR_STOP=1 -d balanzaglobal -f schema.sql
--- Regenerar después de cada migración para que quede al día.
-
 --
 -- PostgreSQL database dump
 --
 
-\restrict oVwJcH3zr9knJkBOMBYEO00OGgsfc8ALVAvTdTJwSIdW51yEEjtKBHw6ZrbcIYr
+\restrict dVqYY52r0kigVHKuMGYJnMjsTigxcduoJrjT5FigduB6yiEA5mJcLwF9WgXWtKU
 
 -- Dumped from database version 18.2
 -- Dumped by pg_dump version 18.2
@@ -145,31 +140,96 @@ $$;
 
 
 --
+-- Name: sync_activar_sitio(integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.sync_activar_sitio(p_localidad integer) RETURNS void
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE
+    t text;
+    seq text;
+    base bigint := p_localidad::bigint * 10000000;
+    actual bigint;
+BEGIN
+    IF p_localidad IS NULL OR p_localidad < 1 OR p_localidad > 213 THEN
+        RAISE EXCEPTION 'localidad % fuera del rango soportado (1..213)', p_localidad;
+    END IF;
+    FOREACH t IN ARRAY sync_tablas_sitio() LOOP
+        -- "aa_" para que dispare ANTES que trg_calcular_neto (los AFTER van por nombre):
+        -- así el INSERT queda en el outbox antes que los UPDATE que hace ese trigger.
+        EXECUTE format('DROP TRIGGER IF EXISTS aa_sync_outbox ON %I', t);
+        EXECUTE format('CREATE TRIGGER aa_sync_outbox AFTER INSERT OR UPDATE OR DELETE ON %I
+                        FOR EACH ROW EXECUTE FUNCTION sync_registrar()', t);
+        seq := CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns
+                                 WHERE table_schema = 'public' AND table_name = t AND column_name = 'id')
+                    THEN pg_get_serial_sequence(t, 'id') END;
+        CONTINUE WHEN seq IS NULL;
+        EXECUTE format('SELECT COALESCE(MAX(id), 0) FROM %I WHERE id BETWEEN $1 AND $2', t)
+            INTO actual USING base, base + 9999999;
+        EXECUTE format('ALTER SEQUENCE %s MINVALUE 1 MAXVALUE %s', seq, base + 9999999);
+        PERFORM setval(seq, GREATEST(base, actual), true);
+    END LOOP;
+    -- numero_reporte se calcula por localidad en reporteController (no usa la secuencia)
+    INSERT INTO sync_estado (clave, valor) VALUES ('modo', jsonb_build_object('modo', 'sitio', 'localidad_id', p_localidad))
+    ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, actualizado = now();
+END;
+$_$;
+
+
+--
+-- Name: sync_registrar(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.sync_registrar() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_fila jsonb;
+    v_pk jsonb;
+BEGIN
+    v_fila := CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;
+    IF TG_TABLE_NAME = 'solicitud_borrado_operacion' THEN
+        v_pk := jsonb_build_object('solicitud_id', v_fila->'solicitud_id', 'operacion_id', v_fila->'operacion_id');
+    ELSE
+        v_pk := jsonb_build_object('id', v_fila->'id');
+    END IF;
+    INSERT INTO sync_outbox (tabla, op, pk, fila)
+    VALUES (TG_TABLE_NAME, left(TG_OP, 1), v_pk, CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE v_fila END);
+    RETURN NULL;
+END;
+$$;
+
+
+--
+-- Name: sync_tablas_sitio(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.sync_tablas_sitio() RETURNS text[]
+    LANGUAGE sql IMMUTABLE
+    AS $$
+    SELECT ARRAY['chofer', 'vehiculo', 'producto', 'productor', 'transporte',
+                 'solicitud_borrado', 'operacion_pesaje', 'pesada',
+                 'solicitud_borrado_operacion', 'reporte'];
+$$;
+
+
+--
 -- Name: usuario_localidad_empresa_chk(); Type: FUNCTION; Schema: public; Owner: -
 --
 
 CREATE FUNCTION public.usuario_localidad_empresa_chk() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-
-BEGIN
-
-    IF NEW.localidad_id IS NOT NULL AND NOT EXISTS (
-
-        SELECT 1 FROM localidad l
-
-        WHERE l.id = NEW.localidad_id AND l.empresa_id = NEW.empresa_id
-
-    ) THEN
-
-        RAISE EXCEPTION 'La localidad % no pertenece a la empresa %', NEW.localidad_id, NEW.empresa_id;
-
-    END IF;
-
-    RETURN NEW;
-
-END;
-
+    AS $$
+BEGIN
+    IF NEW.localidad_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM localidad l
+        WHERE l.id = NEW.localidad_id AND l.empresa_id = NEW.empresa_id
+    ) THEN
+        RAISE EXCEPTION 'La localidad % no pertenece a la empresa %', NEW.localidad_id, NEW.empresa_id;
+    END IF;
+    RETURN NEW;
+END;
 $$;
 
 
@@ -205,7 +265,7 @@ CREATE SEQUENCE public.chofer_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -322,7 +382,11 @@ CREATE TABLE public.localidad (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     empresa_id integer NOT NULL,
-    modulo_camaras boolean DEFAULT false NOT NULL
+    modulo_camaras boolean DEFAULT false NOT NULL,
+    sitio_activo boolean DEFAULT false NOT NULL,
+    sitio_token_hash text,
+    sitio_ultima_sync timestamp with time zone,
+    sitio_info jsonb
 );
 
 
@@ -371,7 +435,7 @@ CREATE SEQUENCE public.operacion_pesaje_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -425,7 +489,7 @@ CREATE SEQUENCE public.pesada_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -460,7 +524,7 @@ CREATE SEQUENCE public.producto_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -495,7 +559,7 @@ CREATE SEQUENCE public.productor_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -565,7 +629,7 @@ CREATE SEQUENCE public.reporte_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -623,7 +687,7 @@ CREATE SEQUENCE public.solicitud_borrado_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -643,6 +707,51 @@ CREATE TABLE public.solicitud_borrado_operacion (
     operacion_id integer NOT NULL,
     datos jsonb NOT NULL
 );
+
+
+--
+-- Name: sync_estado; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sync_estado (
+    clave text NOT NULL,
+    valor jsonb,
+    actualizado timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: sync_outbox; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sync_outbox (
+    id bigint NOT NULL,
+    tabla text NOT NULL,
+    op character(1) NOT NULL,
+    pk jsonb NOT NULL,
+    fila jsonb,
+    creado timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT sync_outbox_op_check CHECK ((op = ANY (ARRAY['I'::bpchar, 'U'::bpchar, 'D'::bpchar])))
+);
+
+
+--
+-- Name: sync_outbox_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.sync_outbox_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: sync_outbox_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.sync_outbox_id_seq OWNED BY public.sync_outbox.id;
 
 
 --
@@ -812,7 +921,7 @@ CREATE SEQUENCE public.transporte_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -887,7 +996,7 @@ CREATE SEQUENCE public.vehiculo_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
+    MAXVALUE 9999999
     CACHE 1;
 
 
@@ -980,6 +1089,13 @@ ALTER TABLE ONLY public.reporte ALTER COLUMN numero_reporte SET DEFAULT nextval(
 --
 
 ALTER TABLE ONLY public.solicitud_borrado ALTER COLUMN id SET DEFAULT nextval('public.solicitud_borrado_id_seq'::regclass);
+
+
+--
+-- Name: sync_outbox id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sync_outbox ALTER COLUMN id SET DEFAULT nextval('public.sync_outbox_id_seq'::regclass);
 
 
 --
@@ -1143,14 +1259,6 @@ ALTER TABLE ONLY public.provincia
 
 
 --
--- Name: reporte reporte_numero_reporte_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.reporte
-    ADD CONSTRAINT reporte_numero_reporte_key UNIQUE (numero_reporte);
-
-
---
 -- Name: reporte reporte_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1172,6 +1280,22 @@ ALTER TABLE ONLY public.solicitud_borrado_operacion
 
 ALTER TABLE ONLY public.solicitud_borrado
     ADD CONSTRAINT solicitud_borrado_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sync_estado sync_estado_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sync_estado
+    ADD CONSTRAINT sync_estado_pkey PRIMARY KEY (clave);
+
+
+--
+-- Name: sync_outbox sync_outbox_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sync_outbox
+    ADD CONSTRAINT sync_outbox_pkey PRIMARY KEY (id);
 
 
 --
@@ -1596,17 +1720,31 @@ CREATE INDEX idx_vehiculo_tipo ON public.vehiculo USING btree (tipo_vehiculo);
 
 
 --
--- Name: unica_operacion_abierta_por_camion; Type: INDEX; Schema: public; Owner: -
+-- Name: localidad_sitio_token_uq; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX unica_operacion_abierta_por_camion ON public.operacion_pesaje USING btree (vehiculo_patente) WHERE (abierta = true);
+CREATE UNIQUE INDEX localidad_sitio_token_uq ON public.localidad USING btree (sitio_token_hash) WHERE (sitio_token_hash IS NOT NULL);
 
 
 --
--- Name: uq_chofer_cuit; Type: INDEX; Schema: public; Owner: -
+-- Name: unica_operacion_abierta_por_camion_loc; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_chofer_cuit ON public.chofer USING btree (cuit) WHERE (cuit IS NOT NULL);
+CREATE UNIQUE INDEX unica_operacion_abierta_por_camion_loc ON public.operacion_pesaje USING btree (vehiculo_patente, localidad_id) WHERE (abierta = true);
+
+
+--
+-- Name: uq_chofer_cuit_loc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_chofer_cuit_loc ON public.chofer USING btree (cuit, localidad_id) WHERE (cuit IS NOT NULL);
+
+
+--
+-- Name: uq_reporte_numero_loc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_reporte_numero_loc ON public.reporte USING btree (localidad_id, numero_reporte);
 
 
 --
@@ -1867,5 +2005,5 @@ ALTER TABLE ONLY public.vehiculo
 -- PostgreSQL database dump complete
 --
 
-\unrestrict oVwJcH3zr9knJkBOMBYEO00OGgsfc8ALVAvTdTJwSIdW51yEEjtKBHw6ZrbcIYr
+\unrestrict dVqYY52r0kigVHKuMGYJnMjsTigxcduoJrjT5FigduB6yiEA5mJcLwF9WgXWtKU
 

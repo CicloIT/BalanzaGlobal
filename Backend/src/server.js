@@ -8,6 +8,10 @@ import { WebSocketServer } from 'ws';
 import { fileURLToPath } from "url";
 import { inicializarBalanzas, getEstadoBalanza, getEstadosBalanzas } from './services/balanzaService.js';
 import { crearAgenteGateway } from './services/agenteGateway.js';
+import { crearSitioGateway, estadoSitios } from './services/sitioGateway.js';
+import { iniciarSitioSync, reenviarBalanza, estadoSync } from './services/sitioSync.js';
+import { middlewaresDeModo } from './middleware/sitio.js';
+import { esSitio } from './config/modo.js';
 import { userFromRequest, requireAuth } from './middleware/authMiddleware.js';
 import { scopeSql } from './utils/scope.js';
 
@@ -39,15 +43,21 @@ const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });      // navegadores: /ws?dispositivoId= (usuario por cookie de sesión)
 const agenteWss = crearAgenteGateway();                    // agentes locales: /agent (token por balanza)
+const sitioWss = esSitio() ? null : crearSitioGateway();   // servidores de sitio: /sitio (token por localidad)
 
 server.on('upgrade', (req, socket, head) => {
   const { pathname } = new URL(req.url, 'http://localhost');
-  const destino = pathname === '/agent' ? agenteWss : wss;
+  if (pathname === '/sitio' && !sitioWss) {
+    socket.destroy();
+    return;
+  }
+  const destino = pathname === '/agent' ? agenteWss : pathname === '/sitio' ? sitioWss : wss;
   destino.handleUpgrade(req, socket, head, (ws) => destino.emit('connection', ws, req));
 });
 
 // Broadcast de la balanza: solo a los clientes suscriptos a ese dispositivo (o a todas las de su alcance)
 function broadcast(msg) {
+  if (esSitio()) reenviarBalanza(msg);   // peso en vivo también al central
   wss.clients.forEach(ws => {
     if (ws.readyState === ws.OPEN && (ws.dispositivoId === msg.dispositivo_id || ws.dispositivos?.has(msg.dispositivo_id))) {
       ws.send(JSON.stringify(msg));
@@ -133,6 +143,27 @@ wss.on('connection', async (ws, req) => {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Central/sitio: reenvío de escrituras y bloqueos (antes de las rutas)
+app.use(middlewaresDeModo());
+
+// Estado de la sincronización central ↔ sitios
+app.get('/api/sitio/estado', requireAuth, async (req, res) => {
+  try {
+    if (esSitio()) return res.json({ success: true, data: await estadoSync() });
+    const r = await pool.query(
+      `SELECT id AS localidad_id, nombre, sitio_activo, sitio_ultima_sync, sitio_info,
+              (sitio_token_hash IS NOT NULL) AS tiene_token
+       FROM localidad WHERE sitio_activo OR sitio_token_hash IS NOT NULL ORDER BY id`);
+    const conectados = new Map(estadoSitios().map(s => [s.localidad_id, s.conectado]));
+    res.json({
+      success: true,
+      data: { modo: 'central', sitios: r.rows.map(x => ({ ...x, conectado: conectados.get(x.localidad_id) ?? false })) },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Rutas API
 app.use('/api/choferes', choferesRoutes);
 app.use('/api/productores', productoresRoutes);
@@ -215,7 +246,8 @@ app.use((err, req, res, next) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚀 Backend ejecutándose en http://0.0.0.0:${PORT}`);
-  console.log(`   Health: GET /api/health · WS navegadores: /ws · WS agentes: /agent`);
+  console.log(`   Modo ${esSitio() ? 'sitio' : 'central'} · Health: GET /api/health · WS navegadores: /ws · WS agentes: /agent${esSitio() ? '' : ' · WS sitios: /sitio'}`);
+  if (esSitio()) iniciarSitioSync();
 });
 
 export default app;
