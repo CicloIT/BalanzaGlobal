@@ -13,7 +13,7 @@ powershell -ExecutionPolicy Bypass -File .\<script>.ps1
 
 | Paso | Script | Qué hace |
 |---|---|---|
-| 1 | `1-instalar-app.ps1` | Compila el frontend, crea el servicio `balanza` y lo arranca. Necesita `Backend\.env` y la base lista (doc 06) |
+| 1 | `1-instalar-app.ps1` | Compila el frontend, crea el servicio `balanza` y lo arranca. Necesita `Backend\.env` y la base lista (doc 06). Servidor propio de una localidad: `-LocalidadId N -Central wss://<central>/sitio` (doc 12) |
 | 2 | `2-instalar-https.ps1 ... -Iniciar` | Instala Caddy (servicio `caddy`) con HTTPS. Parámetros en doc 06, sección 6b; después quedan guardados |
 
 **Día a día:**

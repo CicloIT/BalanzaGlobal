@@ -8,12 +8,22 @@
 #   -SinBuild        no recompila el frontend
 #   -AbrirPuerto     ademas abre el puerto en el firewall de Windows (por defecto NO lo toca)
 #   -Desinstalar     detiene y borra el servicio (no toca la base ni los archivos)
+#
+# Servidor de una LOCALIDAD (v2, pesa sin internet y replica al central):
+#   -LocalidadId 2 -Central wss://balanza.cicloit.com:63443/sitio [-TokenSitio <token>]
+#   Escribe MODO=sitio, LOCALIDAD_ID, CENTRAL_URL y SITIO_TOKEN en Backend\.env (si no se pasa
+#   -TokenSitio lo pide por teclado). El token se genera en el central: Localidades ->
+#   Servidores propios -> Generar token. La base del sitio tiene que estar recien creada con
+#   schema.sql (ya incluye migration_v2_sitio.sql): al arrancar baja sola los datos del central.
 
 param(
   [switch]$SinBuild,
   [switch]$AbrirPuerto,
   [switch]$Desinstalar,
-  [string]$Servicio = 'balanza'
+  [string]$Servicio = 'balanza',
+  [int]$LocalidadId = 0,
+  [string]$Central = '',
+  [string]$TokenSitio = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,6 +91,38 @@ if (-not $node) { Falla 'No se encuentra node.exe. Instalar Node.js LTS y abrir 
 Write-Host "Node: $node ($(& $node --version))"
 $envFile = Join-Path $Backend '.env'
 if (-not (Test-Path $envFile)) { Falla "Falta $envFile (ver doc 06, paso 4)." }
+
+# --- Modo sitio: variables en .env ---
+function Set-EnvVar($archivo, $clave, $valor) {
+  $lineas = @(Get-Content $archivo -Encoding UTF8)
+  $nueva = "$clave=$valor"
+  $hay = $false
+  $salida = foreach ($l in $lineas) {
+    if ($l -match "^\s*$clave\s*=") { $hay = $true; $nueva } else { $l }
+  }
+  $lineas = @($salida)
+  if (-not $hay) { $lineas += $nueva }
+  [IO.File]::WriteAllLines($archivo, [string[]]$lineas, (New-Object Text.UTF8Encoding $false))   # sin BOM (dotenv)
+}
+if ($LocalidadId -gt 0) {
+  Paso "Configurando servidor de la localidad $LocalidadId (MODO=sitio)"
+  if ($Central -notmatch '^wss?://.+/sitio$') { Falla '-Central debe ser la URL del central terminada en /sitio (ej: wss://balanza.cicloit.com:63443/sitio)' }
+  if (-not $TokenSitio) {
+    $seguro = Read-Host 'Token del sitio (generado en el central)' -AsSecureString
+    $TokenSitio = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($seguro))
+  }
+  if (-not $TokenSitio) { Falla 'Falta el token del sitio' }
+  Set-EnvVar $envFile 'MODO' 'sitio'
+  Set-EnvVar $envFile 'LOCALIDAD_ID' $LocalidadId
+  Set-EnvVar $envFile 'CENTRAL_URL' $Central
+  Set-EnvVar $envFile 'SITIO_TOKEN' $TokenSitio
+  Write-Host "  .env: MODO=sitio, LOCALIDAD_ID=$LocalidadId, CENTRAL_URL=$Central, SITIO_TOKEN=(oculto)"
+  $agente = Get-Service -Name 'BalanzaAgente' -ErrorAction SilentlyContinue
+  if ($agente) {
+    Write-Host "AVISO: en este equipo esta el servicio del agente (BalanzaAgente). Con servidor propio ya no hace falta:" -ForegroundColor Yellow
+    Write-Host "       powershell -ExecutionPolicy Bypass -File .\Agente\instalar-agente.ps1 -Desinstalar" -ForegroundColor Yellow
+  }
+}
 
 $puerto = Leer-Puerto $Backend
 Write-Host "Puerto: $puerto"
